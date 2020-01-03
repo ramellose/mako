@@ -1,0 +1,876 @@
+<?xml version="1.0"?>
+<Ontology xmlns="http://www.w3.org/2002/07/owl#"
+     xml:base="urn:absolute:mao"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:xml="http://www.w3.org/XML/1998/namespace"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     ontologyIRI="urn:absolute:mao"
+     versionIRI="urn:absolute:mao">
+    <Prefix name="owl" IRI="http://www.w3.org/2002/07/owl#"/>
+    <Prefix name="rdf" IRI="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/>
+    <Prefix name="xml" IRI="http://www.w3.org/XML/1998/namespace"/>
+    <Prefix name="xsd" IRI="http://www.w3.org/2001/XMLSchema#"/>
+    <Prefix name="rdfs" IRI="http://www.w3.org/2000/01/rdf-schema#"/>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Method"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Network"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Property"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#experiment"/>
+    </Declaration>
+    <Declaration>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#has_quality"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#from_method"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_association"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#in_sample"/>
+    </Declaration>
+    <Declaration>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+    </Declaration>
+    <Declaration>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#hasDbXref"/>
+    </Declaration>
+    <Declaration>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#hasOBONamespace"/>
+    </Declaration>
+    <Declaration>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+    </Declaration>
+    <Declaration>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+    </Declaration>
+    <Declaration>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_exact_synonym"/>
+    </Declaration>
+    <Declaration>
+        <AnnotationProperty abbreviatedIRI="rdfs:comment"/>
+    </Declaration>
+    <Declaration>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+    </Declaration>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge"/>
+        <ObjectAllValuesFrom>
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Network"/>
+        </ObjectAllValuesFrom>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome"/>
+        <ObjectAllValuesFrom>
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#experiment"/>
+        </ObjectAllValuesFrom>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#experiment"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+        <ObjectMaxCardinality cardinality="1">
+            <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        </ObjectMaxCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <EquivalentClasses>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        <ObjectExactCardinality cardinality="1">
+            <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+            <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        </ObjectExactCardinality>
+    </EquivalentClasses>
+    <SubClassOf>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </SubClassOf>
+    <SubClassOf>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469"/>
+    </SubClassOf>
+    <SubObjectPropertyOf>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <ObjectProperty abbreviatedIRI="owl:topObjectProperty"/>
+    </SubObjectPropertyOf>
+    <SubObjectPropertyOf>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <ObjectProperty abbreviatedIRI="owl:topObjectProperty"/>
+    </SubObjectPropertyOf>
+    <SubObjectPropertyOf>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+        <ObjectProperty abbreviatedIRI="owl:topObjectProperty"/>
+    </SubObjectPropertyOf>
+    <FunctionalObjectProperty>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+    </FunctionalObjectProperty>
+    <FunctionalObjectProperty>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#in_sample"/>
+    </FunctionalObjectProperty>
+    <FunctionalObjectProperty>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+    </FunctionalObjectProperty>
+    <InverseFunctionalObjectProperty>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_association"/>
+    </InverseFunctionalObjectProperty>
+    <TransitiveObjectProperty>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#from_method"/>
+    </TransitiveObjectProperty>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#has_quality"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Property"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#from_method"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Network"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_association"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#in_sample"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome"/>
+    </ObjectPropertyDomain>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#has_quality"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#has_quality"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#from_method"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Method"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_association"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#in_sample"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Network"/>
+    </ObjectPropertyRange>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of"/>
+        <Class IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#experiment"/>
+    </ObjectPropertyRange>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://purl.obolibrary.org/obo/omp#has_quality</IRI>
+        <Literal>RO:0000080</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:comment"/>
+        <IRI>http://purl.obolibrary.org/obo/omp#has_quality</IRI>
+        <Literal>a relation between a quality and an independent continuant (the bearer), in which the quality specifically depends on the bearer for its existence</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://purl.obolibrary.org/obo/omp#has_quality</IRI>
+        <Literal>quality_of</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://purl.obolibrary.org/obo/omp#member_of</IRI>
+        <Literal>RO:0002350</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://purl.obolibrary.org/obo/omp#member_of</IRI>
+        <Literal>is member of is a mereological relation between a item and a collection.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://purl.obolibrary.org/obo/omp#member_of</IRI>
+        <Literal>member_of</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.geneontology.org/formats/oboInOwl#hasDbXref</IRI>
+        <Literal>database_cross_reference</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.geneontology.org/formats/oboInOwl#hasOBONamespace</IRI>
+        <Literal>has_obo_namespace</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class</IRI>
+        <Literal>NCIT:C45280</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class</IRI>
+        <Literal>A collection of taxonomic subdivisions directly under Phylum. It is a major group of organisms, e.g. Mammalia, Reptilia, Gastropoda, Insecta, etc that contains a large number of different sublineages, but have shared characteristics in common (e.g. warm-blooded, fur, six legs etc).</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Class</IRI>
+        <Literal>Class</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge</IRI>
+        <Literal>NCIT:C75923</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge</IRI>
+        <Literal>A connection between nodes in a graph.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_exact_synonym"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge</IRI>
+        <Literal>Graph Edge</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Edge</IRI>
+        <Literal>Edge</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family</IRI>
+        <Literal>NCIT:C45290</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family</IRI>
+        <Literal>A taxonomic category between Order and Genus. It consists of a group of organisms among which the differences are quite minor, e.g. Equiidae - horses and their relatives.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Family</IRI>
+        <Literal>Family</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus</IRI>
+        <Literal>NCIT:C45292</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus</IRI>
+        <Literal>A taxonomic category ranking below a family (or Subfamily) and above a species and generally consisting of a group of species exhibiting similar characteristics.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Genus</IRI>
+        <Literal>Genus</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom</IRI>
+        <Literal>NCIT:C45276</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom</IRI>
+        <Literal>The highest taxonomic rank, immediately above phylum or division. There are five biological kingdoms (Monera, Protista, Plantae, Fungi, Animalia) into which organisms are grouped, based on common characteristics.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Kingdom</IRI>
+        <Literal>Kingdom</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome</IRI>
+        <Literal>OBI:0000747</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome</IRI>
+        <Literal>A material entity that has the material sample role.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_exact_synonym"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome</IRI>
+        <Literal>material sample</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Metagenome</IRI>
+        <Literal>Sample</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Method</IRI>
+        <Literal>NCIT:C19233</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Method</IRI>
+        <Literal>The utilization or development of computer programs to solve, analyze, understand or manage any simple or complex task.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Method</IRI>
+        <Literal>Computational Technique</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Network</IRI>
+        <Literal>NCIT:C61377</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Network</IRI>
+        <Literal>An interconnected system of things or people.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Network</IRI>
+        <Literal>Network</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node</IRI>
+        <Literal>NCIT:C75907</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node</IRI>
+        <Literal>One of the points that define a graph.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_exact_synonym"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node</IRI>
+        <Literal>Graph Node</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_exact_synonym"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node</IRI>
+        <Literal>Vertex</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Node</IRI>
+        <Literal>Node</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order</IRI>
+        <Literal>NCIT:C45287</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order</IRI>
+        <Literal>A taxonomic category between Class and Family. It is group of organisms that although differing quite a bit among themselves still have a large degree of characteristics in common.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Order</IRI>
+        <Literal>Order</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum</IRI>
+        <Literal>NCIT:C45277</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum</IRI>
+        <Literal>A major division of a biological kingdom, consisting of closely-related classes; represents a basic fundamental pattern of organization and, presumably, a common descent.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Phylum</IRI>
+        <Literal>Phylum</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Property</IRI>
+        <Literal>BFO:0000019</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Property</IRI>
+        <Literal>A quality is a specifically dependent continuant that, in contrast to roles and dispositions, does not require any further process in order to be realized.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_exact_synonym"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Property</IRI>
+        <Literal>Property or Attribute</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Property</IRI>
+        <Literal>Quality</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species</IRI>
+        <Literal>NCIT:C45293</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species</IRI>
+        <Literal>A group of organisms that differ from all other groups of organisms and that are capable of breeding and producing fertile offspring.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#Species</IRI>
+        <Literal>Species</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes</IRI>
+        <Literal>has_rank</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes</IRI>
+        <Literal>A metadata relation between a class and its taxonomic rank (eg species, family)</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#denotes</IRI>
+        <Literal>has_rank</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#experiment</IRI>
+        <Literal>NCIT:C42790</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#experiment</IRI>
+        <Literal>A coordinated set of actions and observations designed to generate data, with the ultimate goal of discovery or hypothesis testing.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#experiment</IRI>
+        <Literal>Experiment</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#from_method</IRI>
+        <Literal>SEPIO:0000255</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#from_method</IRI>
+        <Literal>A relation that holds between a statement and a method that was used in generating the statement or any data that supports it.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#from_method</IRI>
+        <Literal>has_supporting_method</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_association</IRI>
+        <Literal>RO:0000056</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_association</IRI>
+        <Literal>a relation between a continuant and a process, in which the continuant is somehow involved in the process</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#has_association</IRI>
+        <Literal>participates_in</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#in_sample</IRI>
+        <Literal>BFO:0000066</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#in_sample</IRI>
+        <Literal>b occurs_in c =def b is a process and c is a material entity or immaterial entity&amp; there exists a spatiotemporal region r and b occupies_spatiotemporal_region r.&amp; forall(t) if b exists_at t then c exists_at t &amp; there exist spatial regions s and s’ where &amp; b spatially_projects_onto s at t&amp; c is occupies_spatial_region s’ at t&amp; s is a proper_continuant_part_of s’ at t</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#in_sample</IRI>
+        <Literal>occurs_in</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of</IRI>
+        <Literal>BFO:0000050</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of</IRI>
+        <Literal>a core relation that holds between a part and its whole</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#part_of</IRI>
+        <Literal>part_of</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#id"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469</IRI>
+        <Literal>NCIT:C17469</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty IRI="http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#definition"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469</IRI>
+        <Literal>The theories and techniques of naming, describing, and classifying organisms, and the study of the relationships of taxa.</Literal>
+    </AnnotationAssertion>
+    <AnnotationAssertion>
+        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
+        <IRI>http://www.semanticweb.org/u0118219/ontologies/2019/11/untitled-ontology-5#NCIT:C17469</IRI>
+        <Literal>Taxonomy</Literal>
+    </AnnotationAssertion>
+</Ontology>
+
+
+
+<!-- Generated by the OWL API (version 4.5.9.2019-02-01T07:24:44Z) https://github.com/owlcs/owlapi -->
+
