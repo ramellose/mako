@@ -3,6 +3,12 @@ While users can set up their own (secure) Neo4j database, _mako_ can also set up
 This file contains all functions necessary to start this instance,
 as well as utility functions for interacting with the Neo4j database.
 
+The database model for biological data is arguably the core component of _mako_.
+This file contains functions for validating the database model;
+any violations are reported to the user.
+
+The data model is defined as a set of checks for the Neo4j graph.
+Neo4j does not support structural constraints, so instead, we use these to check.
 """
 
 __author__ = 'Lisa Rottjers'
@@ -12,16 +18,11 @@ __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
 from neo4j.v1 import GraphDatabase
-from uuid import uuid4  # generates unique IDs for associations + observations
-import networkx as nx
-from mako.scripts.utils import _get_unique, _create_logger
-import numpy as np
+import owlready2
+from mako.scripts.utils import _create_logger
 import logging
 import sys
 import os
-import json
-import requests
-import re
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -51,6 +52,22 @@ class BaseDriver(object):
         except Exception:
             logger.error("Unable to start BaseDriver. \n", exc_info=True)
             sys.exit()
+        # load the ontology that defines the schema
+        onto = owlready2.get_ontology(os.getcwd() + "\\MAO.owl")
+        onto.load()
+
+        # since the MAO file is small, we can load the objects into lists
+        self.objects = list(onto.classes())
+        self.properties = list(onto.object_properties())
+
+        # replace all label spaces with underscores
+        for val in self.objects:
+            val.label = [x.replace(" ", "_") for x in val.label]
+        for val in self.properties:
+            val.label = [x.replace(" ", "_") for x in val.label]
+
+        # every property is an edge in the Neo4J graph
+        # therefore, we can check the range and domains
 
     def close(self):
         """
@@ -104,6 +121,61 @@ class BaseDriver(object):
         logger.info('Removed disconnected taxa...')
         self.query(("MATCH a:Experiment WHERE a.name = '" + exp_id + "' DETACH DELETE a"))
         logger.info('Finished deleting ' + exp_id + '.')
+
+    def check_domain_range(self):
+        """
+        This function uses the Neo4j driver and the ontology to check whether there
+        are properties in the database that violate the domains
+        and ranges specified in the ontology.
+
+        :param neo4jdriver: A database driver as instantiated by base.py.
+        :return: Success message or log of ontology violations
+        """
+        error = False
+        for prop in self.properties:
+            rel = prop.label[0]
+            domains = [x.label[0] for x in prop.get_domain()]
+            ranges = [x.label[0] for x in prop.get_range()]
+            neighbours = domains + ranges
+            if len(neighbours) > 0:
+                query = "MATCH (n)-[r:" + rel + "] WHERE NOT "
+                for i in range(len(neighbours)):
+                    if i != 0:
+                        query += (" AND NOT ")
+                    query += ("n:" + neighbours[i])
+                query += (" RETURN count(n) as count")
+            count = self.query(query)
+            if count:
+                logger.error("Relationship " + rel + " is connected to the wrong nodes!")
+                error = True
+        if not error:
+            logger.info("No forbidden relationship connections.")
+
+    def check_only(self):
+        """
+        This function uses the Neo4j driver and the ontology to check whether there
+        are properties in the database that violate the 'only' axiom.
+
+        :param neo4jdriver: A database driver as instantiated by base.py.
+        :return: Success message or log of ontology violations
+        """
+        pass
+        # error = False
+        # for prop in properties:
+        # rel = prop.label[0]
+        # if len(neighbours) > 0:
+        #    query = "MATCH (n)-[r:" + rel + "] WHERE NOT "
+        #    for i in range(len(neighbours)):
+        #        if i != 0:
+        #            query += (" AND NOT ")
+        #        query += ("n:" + neighbours[i])
+        #    query += (" RETURN count(n) as count")
+        # count = neo4jdriver.query(query)
+        # if count:
+        #    logger.error("Relationship " + rel + " is connected to the wrong nodes!")
+        #    error = True
+        # if not error:
+        # logger.info("No forbidden relationship connections.")
 
     @staticmethod
     def _delete_all(tx):
