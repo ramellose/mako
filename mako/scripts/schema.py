@@ -70,7 +70,7 @@ def check_domain_range(neo4jdriver):
     are properties in the database that violate the domains
     and ranges specified in the ontology.
 
-    :param neo4jdriver: A database driver as instantiated by neo4base.py.
+    :param neo4jdriver: A database driver as instantiated by base.py.
     :return: Success message or log of ontology violations
     """
     error = False
@@ -99,7 +99,7 @@ def check_only(neo4jdriver):
     This function uses the Neo4j driver and the ontology to check whether there
     are properties in the database that violate the 'only' axiom.
 
-    :param neo4jdriver: A database driver as instantiated by neo4base.py.
+    :param neo4jdriver: A database driver as instantiated by base.py.
     :return: Success message or log of ontology violations
     """
     pass

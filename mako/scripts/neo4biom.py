@@ -1,13 +1,16 @@
 """
-The BIOM format is a standardized biological format that is commonly used to contain biological data.
 This file contains a function for reading in command-line arguments
 so BIOM files or tab-delimited files can be read.
+The BIOM format is a standardized biological format
+that is commonly used to contain biological data.
+Tab-delimited files should be supplied with the BIOM-format specified headers (# prefix).
+
 The software can operate in two manners:
 import all BIOM files in a folder,
 or import separate BIOM files / tab-delimited files
 
 The file also defines a class for a Neo4j driver.
-Given a running database, this driver can upload and delete BIOM files in the database.
+Given a running database, this driver can upload and delete experiments in the database.
 """
 
 __author__ = 'Lisa Rottjers'
@@ -17,15 +20,13 @@ __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
 import os
-import json
 import sys
 import numpy as np
 from biom import load_table
-from biom.cli.util import write_biom_table
 from biom.parse import MetadataMap
 from neo4j.v1 import GraphDatabase
-from neo4j.exceptions import ServiceUnavailable
 import logging.handlers
+from mako.scripts.utils import _create_logger
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -226,23 +227,6 @@ def read_tabs(inputs, i, driver):
     driver.convert_biom(biomfile=biomtab, exp_id=name)
 
 
-def _create_logger(filepath):
-    """
-    After a filepath has become available, loggers can be created
-    when required to report on errors.
-    :param filepath: Filepath where logs will be written.
-    :return:
-    """
-    logpath = filepath + '/massoc.log'
-    # filelog path is one folder above massoc
-    # pyinstaller creates a temporary folder, so log would be deleted
-    fh = logging.handlers.RotatingFileHandler(maxBytes=500,
-                                              filename=logpath, mode='a')
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
-
 class Biom2Neo(object):
     def __init__(self, uri, user, password, filepath):
         """
@@ -329,26 +313,7 @@ class Biom2Neo(object):
         except Exception:
             logger.error("Could not write BIOM file to database. \n", exc_info=True)
 
-    def delete_biom(self, exp_id):
-        """
-        Takes the experiment ID to remove all samples linked to the experiment.
-        :param exp_id: Name of Experiment node to remove
-        :return:
-        """
-        with self._driver.session() as session:
-            samples = session.read_transaction(self._samples_to_delete, exp_id)
-        with self._driver.session() as session:
-            for sample in samples:
-                session.write_transaction(self._delete_sample, sample)
-        logger.info('Detached samples...')
-        with self._driver.session() as session:
-            taxa = session.read_transaction(self._taxa_to_delete)
-        with self._driver.session() as session:
-            for tax in taxa:
-                session.write_transaction(self._delete_taxon, tax)
-        logger.info('Removed disconnected taxa...')
-        self.query(("MATCH a:Experiment WHERE a.name = '" + exp_id + "' DETACH DELETE a"))
-        logger.info('Finished deleting ' + exp_id + '.')
+
 
     @staticmethod
     def _query(tx, query):
@@ -510,55 +475,3 @@ class Biom2Neo(object):
                 "SET r.count = '" + str(value) +
                 "' RETURN type(r)"))
 
-    @staticmethod
-    def _samples_to_delete(tx, exp_id):
-        """
-        Generates a list of sample nodes linked to the experiment node that needs to be deleted.
-        :param tx:
-        :param exp_id:
-        :return:
-        """
-        names = tx.run(("MATCH (a:Sample)--(b:Experiment) "
-                        "WHERE b.name = '" + exp_id +
-                        "' RETURN a.name"))
-        return names
-
-    @staticmethod
-    def _taxa_to_delete(tx):
-        """
-        After deleting samples, some taxa will no longer
-        be present in any experiment. These disconnected taxa need to be removed
-        and this function generates the list that does this.
-        :param tx:
-        :param exp_id:
-        :return:
-        """
-        names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Sample) RETURN a.name")
-        return names
-
-    @staticmethod
-    def _delete_sample(tx, sample):
-        """
-        Deletes a sample node and all the observations linked to the sample.
-        :param tx:
-        :param sample: Sample ID
-        :return:
-        """
-        tx.run(("MATCH (a:Sample)--(b:Experiment) "
-                "WHERE b.name = '" + sample +
-                "' DETACH DELETE a"))
-
-    @staticmethod
-    def _delete_taxon(tx, taxon):
-        """
-        Deletes a taxon and all the associations linked to the taxon.
-        :param tx:
-        :param taxon: Taxon ID
-        :return:
-        """
-        tx.run(("MATCH (a:Taxon)--(b:Association) "
-                "WHERE a.name = '" + taxon +
-                "' DETACH DELETE b"))
-        tx.run(("MATCH (a:Taxon) "
-                "WHERE a.name = '" + taxon +
-                "' DETACH DELETE a"))
