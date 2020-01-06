@@ -47,7 +47,7 @@ logger.addHandler(fh)
 # the only changes that have been made to this owl file
 # are the cardinalities of the specified relations
 # e.g a species is part of 1 family, not 2 families
-onto = owlready2.get_ontology(os.getcwd() + "\\MAO3.owl")
+onto = owlready2.get_ontology(os.getcwd() + "\\MAO.owl")
 onto.load()
 
 # since the MAO file is small, we can load the objects into lists
@@ -102,21 +102,20 @@ def check_only(neo4jdriver):
     :param neo4jdriver: A database driver as instantiated by neo4base.py.
     :return: Success message or log of ontology violations
     """
-    error = False
-    for prop in properties:
-        rel = prop.label[0]
-
-        neighbours = domains + ranges
-        if len(neighbours) > 0:
-            query = "MATCH (n)-[r:" + rel + "] WHERE NOT "
-            for i in range(len(neighbours)):
-                if i != 0:
-                    query += (" AND NOT ")
-                query += ("n:" + neighbours[i])
-            query += (" RETURN count(n) as count")
-        count = neo4jdriver.query(query)
-        if count:
-            logger.error("Relationship " + rel + " is connected to the wrong nodes!")
-            error = True
-    if not error:
-        logger.info("No forbidden relationship connections.")
+    pass
+    #error = False
+    #for prop in properties:
+        #rel = prop.label[0]
+        #if len(neighbours) > 0:
+        #    query = "MATCH (n)-[r:" + rel + "] WHERE NOT "
+        #    for i in range(len(neighbours)):
+        #        if i != 0:
+        #            query += (" AND NOT ")
+        #        query += ("n:" + neighbours[i])
+        #    query += (" RETURN count(n) as count")
+        #count = neo4jdriver.query(query)
+        #if count:
+        #    logger.error("Relationship " + rel + " is connected to the wrong nodes!")
+        #    error = True
+    #if not error:
+        #logger.info("No forbidden relationship connections.")
