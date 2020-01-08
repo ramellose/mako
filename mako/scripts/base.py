@@ -24,7 +24,7 @@ import logging
 import sys
 import os
 from platform import system
-from subprocess import Popen, PIPE
+from subprocess import Popen
 from psutil import Process, pid_exists
 from signal import CTRL_C_EVENT
 from time import sleep
@@ -50,19 +50,30 @@ def start_base(inputs):
     # check if pid exists from previous session
     with open(_resource_path('mako.pid'), 'r') as file:
         # read a list of lines into data
-        pid = file.readlines()[1]
+        pid = file.readlines()[2]
     pid = pid.strip()
     if pid != 'None':
         pid = int(pid)
+        if not pid_exists(pid):
+            logger.warning('The PID file is incorrect. Resetting PID file. \n'
+                           'This is usually the result of a forced shutdown. \n'
+                           'Please use "mako base quit" to shut down safely. \n')
+            with open(_resource_path('mako.pid'), 'r') as file:
+                # read a list of lines into data
+                data = file.readlines()
+            with open(_resource_path('mako.pid'), 'w') as file:
+                data[2] = 'None' + '\n'
+                file.writelines(data)
+            pid = 'None'
     if inputs['start'] and pid == 'None':
         try:
             if system() == 'Windows':
-                filepath = inputs['neo4j'] + '/bin/neo4j console'
+                filepath = inputs['neo4j'] + '/bin/neo4j.bat console'
             else:
                 filepath = inputs['neo4j'] + '/bin/neo4j console'
             filepath = filepath.replace("\\", "/")
             if system() == 'Windows' or system() == 'Darwin':
-                p = Popen(filepath, shell=True)
+                p = Popen(filepath, shell=False)
             else:
                 # note: old version used gnome-terminal, worked with Ubuntu
                 # new version uses xterm to work with macOS
@@ -73,30 +84,34 @@ def start_base(inputs):
                 data = file.readlines()
             with open(_resource_path('mako.pid'), 'w') as file:
                 data[2] = str(p.pid) + '\n'
+                pid = p.pid
                 file.writelines(data)
             sleep(12)
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
-    driver = BaseDriver(user=inputs['username'],
-                        password=inputs['password'],
-                        uri=inputs['address'], filepath=inputs['fp'])
     if inputs['clear'] and pid_exists(pid):
+        driver = BaseDriver(user=inputs['username'],
+                            password=inputs['password'],
+                            uri=inputs['address'], filepath=inputs['fp'])
         try:
             driver.clear_database()
         except Exception:
             logger.warning("Failed to clear database.  ", exc_info=True)
     if inputs['quit'] and pid_exists(pid):
         try:
-            parent = Process(pid)
-            parent.send_signal(CTRL_C_EVENT)
-            parent.kill()
+            with open(_resource_path('mako.pid'), 'r') as file:
+                # read a list of lines into data
+                data = file.readlines()
             with open(_resource_path('mako.pid'), 'w') as file:
                 data[2] = 'None'+ '\n'
                 file.writelines(data)
+            parent = Process(pid)
+            parent.send_signal(CTRL_C_EVENT)
+            # kills the powershell started to run the Neo4j console
+            for child in parent.children():
+                child.kill()
         except Exception:
             logger.warning("Failed to close database. ", exc_info=True)
-    else:
-        logger.error('Could not carry out job. Did you add a flag and is the mako.pid file ok?')
     logger.info('Completed database operations!  ')
 
 
