@@ -19,10 +19,15 @@ __license__ = 'Apache 2.0'
 
 from neo4j.v1 import GraphDatabase
 import owlready2
-from mako.scripts.utils import _create_logger
+from mako.scripts.utils import _create_logger, _resource_path
 import logging
 import sys
 import os
+from platform import system
+from subprocess import Popen, PIPE
+from psutil import Process, pid_exists
+from signal import CTRL_C_EVENT
+from time import sleep
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -33,6 +38,66 @@ sh.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 sh.setFormatter(formatter)
 logger.addHandler(sh)
+
+
+def start_base(inputs):
+    """
+
+    :param inputs: Dictionary of arguments.
+    :return:
+    """
+    _create_logger(inputs['fp'])
+    # check if pid exists from previous session
+    with open(_resource_path('mako.pid'), 'r') as file:
+        # read a list of lines into data
+        pid = file.readlines()[1]
+    pid = pid.strip()
+    if pid != 'None':
+        pid = int(pid)
+    if inputs['start'] and pid == 'None':
+        try:
+            if system() == 'Windows':
+                filepath = inputs['neo4j'] + '/bin/neo4j console'
+            else:
+                filepath = inputs['neo4j'] + '/bin/neo4j console'
+            filepath = filepath.replace("\\", "/")
+            if system() == 'Windows' or system() == 'Darwin':
+                p = Popen(filepath, shell=True)
+            else:
+                # note: old version used gnome-terminal, worked with Ubuntu
+                # new version uses xterm to work with macOS
+                # check if this conflicts!
+                p = Popen(["gnome-terminal", "-e", filepath])  # x-term compatible alternative terminal
+            with open(_resource_path('mako.pid'), 'r') as file:
+                # read a list of lines into data
+                data = file.readlines()
+            with open(_resource_path('mako.pid'), 'w') as file:
+                data[2] = str(p.pid) + '\n'
+                file.writelines(data)
+            sleep(12)
+        except Exception:
+            logger.warning("Failed to start database.  ", exc_info=True)
+    driver = BaseDriver(user=inputs['username'],
+                        password=inputs['password'],
+                        uri=inputs['address'], filepath=inputs['fp'])
+    if inputs['clear'] and pid_exists(pid):
+        try:
+            driver.clear_database()
+        except Exception:
+            logger.warning("Failed to clear database.  ", exc_info=True)
+    if inputs['quit'] and pid_exists(pid):
+        try:
+            parent = Process(pid)
+            parent.send_signal(CTRL_C_EVENT)
+            parent.kill()
+            with open(_resource_path('mako.pid'), 'w') as file:
+                data[2] = 'None'+ '\n'
+                file.writelines(data)
+        except Exception:
+            logger.warning("Failed to close database. ", exc_info=True)
+    else:
+        logger.error('Could not carry out job. Did you add a flag and is the mako.pid file ok?')
+    logger.info('Completed database operations!  ')
 
 
 class BaseDriver(object):
@@ -100,27 +165,6 @@ class BaseDriver(object):
         except Exception:
             logger.error("Unable to execute query: " + query + '\n', exc_info=True)
         return output
-
-    def delete_experiment(self, exp_id):
-        """
-        Takes the experiment ID to remove all samples linked to the experiment.
-        :param exp_id: Name of Experiment node to remove
-        :return:
-        """
-        with self._driver.session() as session:
-            samples = session.read_transaction(self._samples_to_delete, exp_id)
-        with self._driver.session() as session:
-            for sample in samples:
-                session.write_transaction(self._delete_sample, sample)
-        logger.info('Detached samples...')
-        with self._driver.session() as session:
-            taxa = session.read_transaction(self._taxa_to_delete)
-        with self._driver.session() as session:
-            for tax in taxa:
-                session.write_transaction(self._delete_taxon, tax)
-        logger.info('Removed disconnected taxa...')
-        self.query(("MATCH a:Experiment WHERE a.name = '" + exp_id + "' DETACH DELETE a"))
-        logger.info('Finished deleting ' + exp_id + '.')
 
     def check_domain_range(self):
         """

@@ -44,15 +44,14 @@ logger.addHandler(sh)
 # other handlers append to the file
 
 
-def upload_biom(inputs, publish=False):
+def start_biom(inputs):
     """
     Takes all input and returns a dictionary of biom files.
     If tab-delimited files are supplied, these are combined
     into a biom file. These should be specified in the correct order.
     This is mostly a utility wrapper, as all biom-related functions
     are from biom-format.org.
-    :param inputs: Dictionary of inputs.
-    :param publish: If True, publishes messages to be received by GUI.
+    :param inputs: Dictionary of arguments.
     :return:
     """
     # handler to file
@@ -84,12 +83,11 @@ def upload_biom(inputs, publish=False):
     # we can forbid people from using those, or replace those with an underscore
 
 
-def clear_biom(inputs, publish=False):
+def clear_biom(inputs):
     """
     Removes all  values in the Neo4j database linked to the supplied experiment name.
 
     :param inputs: Dictionary of inputs.
-    :param publish: If True, publishes messages to be received by GUI.
     :return:
     """
     _create_logger(inputs['fp'])
@@ -140,7 +138,7 @@ def read_bioms(files, filepath, driver):
     """
     Reads BIOM files from a list and calls the driver for each file.
     4 ways of giving the filepaths are possible:
-        1. A completel filepath to the directory containing BIOMS
+        1. A complete filepath to the directory containing BIOMS
         2. A complete filepath to the BIOM file(s)
         3. Filename of BIOM file(s) stored the current working directory
         4. Filename of BIOM file(s) stored in the filepath directory
@@ -233,6 +231,7 @@ class Biom2Neo(object):
         Initializes a Neo4j driver for interacting with the Neo4j database.
         This driver contains functions for uploading BIOM files to the database,
         and also for writing BIOM files from the database to disk.
+
         :param uri: Adress of Neo4j database
         :param user: Username for Neo4j database
         :param password: Password for Neo4j database
@@ -313,7 +312,26 @@ class Biom2Neo(object):
         except Exception:
             logger.error("Could not write BIOM file to database. \n", exc_info=True)
 
-
+    def delete_biom(self, exp_id):
+        """
+        Takes the experiment ID to remove all samples linked to the experiment.
+        :param exp_id: Name of Experiment node to remove
+        :return:
+        """
+        with self._driver.session() as session:
+            samples = session.read_transaction(self._samples_to_delete, exp_id)
+        with self._driver.session() as session:
+            for sample in samples:
+                session.write_transaction(self._delete_sample, sample)
+        logger.info('Detached samples...')
+        with self._driver.session() as session:
+            taxa = session.read_transaction(self._taxa_to_delete)
+        with self._driver.session() as session:
+            for tax in taxa:
+                session.write_transaction(self._delete_taxon, tax)
+        logger.info('Removed disconnected taxa...')
+        self.query(("MATCH a:Experiment WHERE a.name = '" + exp_id + "' DETACH DELETE a"))
+        logger.info('Finished deleting ' + exp_id + '.')
 
     @staticmethod
     def _query(tx, query):

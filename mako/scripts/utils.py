@@ -8,6 +8,8 @@ __email__ = 'lisa.rottjers@kuleuven.be'
 __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
+import sys
+import os
 import logging
 import logging.handlers
 logger = logging.getLogger(__name__)
@@ -46,3 +48,18 @@ def _create_logger(filepath):
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
+
+
+def _resource_path(relative_path):
+    """
+    Get absolute path to resource, works for dev and for PyInstaller.
+    Source: https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile
+    :param relative_path: Path to MEI location.
+    :return:
+    """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)

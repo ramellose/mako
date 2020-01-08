@@ -39,12 +39,132 @@ sh.setFormatter(formatter)
 logger.addHandler(sh)
 
 
+def start_network(inputs):
+    """
+    Takes all arguments and processes these to read / write to the Neo4j database.
+    If tab-delimited files are supplied, these are combined
+    into a biom file. These should be specified in the correct order.
+    This is mostly a utility wrapper, as all biom-related functions
+    are from biom-format.org.
+
+    :param inputs: Dictionary of arguments.
+    :return:
+    """
+    # handler to file
+    # construct logger after filepath is provided
+    _create_logger(inputs['fp'])
+    try:
+        driver = IoDriver(uri=inputs['address'],
+                          user=inputs['username'],
+                          password=inputs['password'],
+                          filepath=inputs['fp'])
+    except KeyError:
+        logger.error("Login information not specified in arguments.", exc_info=True)
+    # Only process count files if present
+    if inputs['networks'] is not None:
+        try:
+            for x in inputs['networks']:
+                # first check if it is a file or path
+                read_networks(files=x, filepath=inputs['filepath'], driver=driver)
+        except Exception:
+            logger.error("Failed to import network files.", exc_info=True)
+    # it is possible that there are forbidden characters in the OTU identifiers
+    # we can forbid people from using those, or replace those with an underscore
+
+
+def clear_network(inputs):
+    """
+    Removes all  values in the Neo4j database linked to the supplied experiment name.
+
+    :param inputs: Dictionary of inputs.
+    :return:
+    """
+    _create_logger(inputs['fp'])
+    try:
+        driver = IoDriver(uri=inputs['address'],
+                          user=inputs['username'],
+                          password=inputs['password'],
+                          filepath=inputs['fp'])
+    except KeyError:
+        logger.error("Login information not specified in arguments.", exc_info=True)
+    for name in inputs['delete']:
+        driver.delete_network(name)
+
+
+def read_networks(files, filepath, driver):
+    """
+    Reads network files from a list and calls the driver for each file.
+    4 ways of giving the filepaths are possible:
+        1. A complete filepath to the directory containing BIOMS
+        2. A complete filepath to the BIOM file(s)
+        3. Filename of network file(s) stored the current working directory
+        4. Filename of network file(s) stored in the filepath directory
+    The filename can also be a relative filepath.
+
+    :param files: List of network filenames or file directories
+    :param filepath: Filepath where files are stored / written
+    :param driver: Biom2Neo driver instance
+    :return:
+    """
+    if os.path.isdir(files):
+        for y in os.listdir(files):
+            network = _read_network_extension(files + '/' + y)
+            name = y.split(".")[0]
+            driver.convert_networkx(network=network, network_id=name)
+    else:
+        if os.path.isfile(files):
+            network = _read_network_extension(files)
+        elif os.path.isfile(os.getcwd() + '/' + files):
+            network = _read_network_extension(os.getcwd() + '/' + files)
+        elif os.path.isfile(filepath + '/' + files):
+            network = _read_network_extension(filepath + '/' + files)
+        else:
+            logger.error('Unable to import ' + files + '!\n', exc_info=True)
+        name = files.split('/')[-1]
+        name = name.split('\\')[-1]
+        name = name.split(".")[0]
+        driver.convert_networkx(network=network, network_id=name)
+
+
+def _read_network_extension(filename):
+    """
+    Given a filename with a specific extension,
+    this function calls the correct function to read the file.
+
+    :param filename: Complete filename.
+    :return: NetworkX object
+    """
+    filename = filename.split(sep=".")
+    extension = filename[len(filename) - 1]
+    network = None
+    try:
+        if extension == 'graphml':
+            network = nx.read_graphml(filename)
+        elif extension == 'txt':
+            network = nx.read_weighted_edgelist(filename)
+        elif extension == 'gml':
+            network = nx.read_gml(filename)
+        else:
+            logger.warning('Format not accepted. '
+                           'Please specify the filename including extension (e.g. test.graphml).', exc_info=True)
+            exit()
+        try:
+            if 'name' in network.nodes[list(network.nodes)[0]]:
+                if network.nodes[list(network.nodes)[0]]['name'] != list(network.nodes)[0]:
+                    network = nx.relabel_nodes(network, nx.get_node_attributes(network, 'name'))
+        except IndexError:
+            logger.warning('One of the imported networks contains no nodes.', exc_info=True)
+    except Exception:
+        logger.error('Could not import network file!', exc_info=True)
+    return network
+
+
 class IoDriver(object):
 
     def __init__(self, uri, user, password, filepath):
         """
         Initializes a driver for accessing the Neo4j database.
-        This driver constructs the Neo4j database and uploads extra data.
+        This driver uploads, deletes and accesses network files.
         :param uri: Adress of Neo4j database
         :param user: Username for Neo4j database
         :param password: Password for Neo4j database
@@ -78,7 +198,7 @@ class IoDriver(object):
             logger.error("Unable to execute query: " + query + '\n', exc_info=True)
         return output
 
-    def convert_networkx(self, network_id, network, exp_id=None, log=None, mode=None):
+    def convert_networkx(self, network_id, network):
         """
         Uploads NetworkX object to Neo4j database.
         :param network_id: Name for network node.
@@ -90,8 +210,8 @@ class IoDriver(object):
         """
         try:
             with self._driver.session() as session:
-                session.write_transaction(self._create_network, network_id, exp_id, log)
-                session.write_transaction(self._create_associations, network_id, network, mode)
+                session.write_transaction(self._create_network, network_id)
+                session.write_transaction(self._create_associations, network_id, network)
         except Exception:
             logger.error("Could not write networkx object to database. \n", exc_info=True)
 
@@ -271,7 +391,6 @@ class IoDriver(object):
                                           target=nodes[node]['target'], name=name, weight=nodes[node]['weight'])
 
 
-
     @staticmethod
     def _query(tx, query):
         """
@@ -326,7 +445,7 @@ class IoDriver(object):
                                 "' RETURN a"))
 
     @staticmethod
-    def _create_associations(tx, name, network, mode=None):
+    def _create_associations(tx, name, network):
         """
         Generates all the associations contained in a network and
         connects them to the related network node.
@@ -334,7 +453,6 @@ class IoDriver(object):
         :param tx: Neo4j transaction
         :param name: Network name
         :param network: NetworkX object
-        :param mode: if 'weight', edge weights are uploaded
         :return:
         """
         # creates metadata for eventual CoNet feature associations
@@ -386,7 +504,7 @@ class IoDriver(object):
                             "' CREATE (a)-[r:HAS_PROPERTY]->(b) RETURN type(r)"))
             if not feature:
                 network_weight = None
-                if mode == 'weight':
+                if 'weight' in attr:
                     network_weight = str(attr['weight'])
                 hit = tx.run(("MATCH p=(a)<--(:Association)-->(b) "
                               "WHERE a.name = '" + taxon1 +
@@ -428,7 +546,7 @@ class IoDriver(object):
                 else:
                     uid = str(uuid4())
                     # non alphanumeric chars break networkx
-                    if mode == 'weight':
+                    if 'weight' in attr:
                         tx.run("CREATE (a:Association {name: $id}) "
                                "SET a.weight = $weight "
                                "RETURN a", id=uid, weight=str([network_weight]))
