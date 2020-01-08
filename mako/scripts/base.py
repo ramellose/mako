@@ -19,7 +19,7 @@ __license__ = 'Apache 2.0'
 
 from neo4j.v1 import GraphDatabase
 import owlready2
-from mako.scripts.utils import _create_logger, _resource_path
+from mako.scripts.utils import _create_logger, _resource_path, _read_config
 import logging
 import sys
 import os
@@ -48,21 +48,19 @@ def start_base(inputs):
     """
     _create_logger(inputs['fp'])
     # check if pid exists from previous session
-    with open(_resource_path('mako.pid'), 'r') as file:
-        # read a list of lines into data
-        pid = file.readlines()[2]
-    pid = pid.strip()
+    config = _read_config(inputs)
+    pid = config['pid']
     if pid != 'None':
         pid = int(pid)
         if not pid_exists(pid):
             logger.warning('The PID file is incorrect. Resetting PID file. \n'
                            'This is usually the result of a forced shutdown. \n'
                            'Please use "mako base quit" to shut down safely. \n')
-            with open(_resource_path('mako.pid'), 'r') as file:
+            with open(_resource_path('config'), 'r') as file:
                 # read a list of lines into data
                 data = file.readlines()
-            with open(_resource_path('mako.pid'), 'w') as file:
-                data[2] = 'None' + '\n'
+            with open(_resource_path('config'), 'w') as file:
+                data[2] = 'pid: None' + '\n'
                 file.writelines(data)
             pid = 'None'
     if inputs['start'] and pid == 'None':
@@ -79,31 +77,31 @@ def start_base(inputs):
                 # new version uses xterm to work with macOS
                 # check if this conflicts!
                 p = Popen(["gnome-terminal", "-e", filepath])  # x-term compatible alternative terminal
-            with open(_resource_path('mako.pid'), 'r') as file:
+            with open(_resource_path('config'), 'r') as file:
                 # read a list of lines into data
                 data = file.readlines()
-            with open(_resource_path('mako.pid'), 'w') as file:
-                data[2] = str(p.pid) + '\n'
+            with open(_resource_path('config'), 'w') as file:
+                data[2] = 'pid: ' + str(p.pid) + '\n'
                 pid = p.pid
                 file.writelines(data)
             sleep(12)
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
     if inputs['clear'] and pid_exists(pid):
-        driver = BaseDriver(user=inputs['username'],
-                            password=inputs['password'],
-                            uri=inputs['address'], filepath=inputs['fp'])
+        driver = BaseDriver(user=config['username'],
+                            password=config['password'],
+                            uri=config['address'], filepath=inputs['fp'])
         try:
             driver.clear_database()
         except Exception:
             logger.warning("Failed to clear database.  ", exc_info=True)
     if inputs['quit'] and pid_exists(pid):
         try:
-            with open(_resource_path('mako.pid'), 'r') as file:
+            with open(_resource_path('config'), 'r') as file:
                 # read a list of lines into data
                 data = file.readlines()
-            with open(_resource_path('mako.pid'), 'w') as file:
-                data[2] = 'None'+ '\n'
+            with open(_resource_path('config'), 'w') as file:
+                data[2] = 'pid: None'+ '\n'
                 file.writelines(data)
             parent = Process(pid)
             parent.send_signal(CTRL_C_EVENT)

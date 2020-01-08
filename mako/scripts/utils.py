@@ -63,3 +63,47 @@ def _resource_path(relative_path):
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
+
+def _read_config(args):
+    """
+    Reads the mako config file to preload Neo4j access settings.
+    If the arguments are specified, this overwrites the config file.
+    After reading the config file and parsing the arguments,
+    no value should be zero.
+
+    :param args: User-supplied arguments
+    :param store_config: If True, Neo4j credentials are stored.
+    :return: Neo4j credentials
+    """
+    config = dict()
+    with open(_resource_path('config'), 'r') as file:
+        # read a list of lines into data
+        configfile = file.readlines()
+    for line in configfile[2:]:
+        key = line.split(':')[0]
+        val = line.split(' ')[-1].strip()
+        config[key] = val
+    for key in set(config.keys()).intersection(args.keys()):
+        if args[key]:
+            config[key] = args[key]
+        if config[key] == 'None':
+            logger.error('Could not read login information from config or from arguments. \n')
+    with open(_resource_path('config'), 'w') as file:
+        newlines = configfile[:3]
+        if args['store_config']:
+            for line in configfile[3:]:
+                key = line.split(':')[0]
+                newline = key + ': ' + config[key] + '\n'
+                newlines.append(newline)
+        else:
+            for line in configfile[3:]:
+                key = line.split(':')[0]
+                newline = key + ': None' + '\n'
+                newlines.append(newline)
+        file.writelines(newlines)
+    return config
+
+
+
+

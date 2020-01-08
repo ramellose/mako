@@ -66,46 +66,6 @@ def set_mako(args):
         run_metastats(massoc_args)
     logger.info('Completed tasks! ')
 
-def resource_path(relative_path):
-    """
-    Get absolute path to resource, works for dev and for PyInstaller.
-    Source: https://stackoverflow.com/questions/7674790/bundling-data-files-with-pyinstaller-onefile
-    :param relative_path: Path to MEI location.
-    :return:
-    """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
+# add store_config param
 
-def start_database(inputs, publish):
-    """
-    Starts Neo4j database.
-    :param inputs: Dictionary of inputs.
-    :param publish: If True, publishes messages to be received by GUI.
-    :return:
-    """
-    try:
-        if publish:
-            pub.sendMessage('update', msg='Starting database...')
-        if system() == 'Windows':
-            filepath = inputs['neo4j'] + '/bin/neo4j.bat console'
-        else:
-            filepath = inputs['neo4j'] + '/bin/neo4j console'
-        filepath = filepath.replace("\\", "/")
-        if system() == 'Windows' or system() == 'Darwin':
-            p = Popen(filepath, shell=True)
-        else:
-            # note: old version used gnome-terminal, worked with Ubuntu
-            # new version uses xterm to work with macOS
-            # check if this conflicts!
-            p = Popen(["gnome-terminal", "-e", filepath])  # x-term compatible alternative terminal
-        inputs['pid'] = p.pid
-        if publish:
-            pub.sendMessage('pid', msg=inputs['pid'])
-        sleep(12)
-    except Exception:
-        logger.warning("Failed to start database.  ", exc_info=True)

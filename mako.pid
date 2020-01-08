@@ -1,3 +1,0 @@
-# This file contains the PID of the Neo4j console.
-# If there is no PID specified, the 3rd line should state None.
-None

@@ -19,7 +19,7 @@ __license__ = 'Apache 2.0'
 from neo4j.v1 import GraphDatabase
 from uuid import uuid4  # generates unique IDs for associations + observations
 import networkx as nx
-from mako.scripts.utils import _get_unique, _create_logger
+from mako.scripts.utils import _get_unique, _create_logger, _read_config
 import numpy as np
 import logging
 import sys
@@ -39,13 +39,10 @@ sh.setFormatter(formatter)
 logger.addHandler(sh)
 
 
-def start_network(inputs):
+def start_io(inputs):
     """
     Takes all arguments and processes these to read / write to the Neo4j database.
-    If tab-delimited files are supplied, these are combined
-    into a biom file. These should be specified in the correct order.
-    This is mostly a utility wrapper, as all biom-related functions
-    are from biom-format.org.
+    Mostly, this is reading / writing networks and deleting networks.
 
     :param inputs: Dictionary of arguments.
     :return:
@@ -53,23 +50,23 @@ def start_network(inputs):
     # handler to file
     # construct logger after filepath is provided
     _create_logger(inputs['fp'])
+    config = _read_config(inputs)
     try:
-        driver = IoDriver(uri=inputs['address'],
-                          user=inputs['username'],
-                          password=inputs['password'],
+        driver = IoDriver(uri=config['address'],
+                          user=config['username'],
+                          password=config['password'],
                           filepath=inputs['fp'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
-    # Only process count files if present
+        exit()
+    # Only process network files if present
     if inputs['networks'] is not None:
         try:
             for x in inputs['networks']:
                 # first check if it is a file or path
-                read_networks(files=x, filepath=inputs['filepath'], driver=driver)
+                read_networks(files=x, filepath=inputs['fp'], driver=driver)
         except Exception:
             logger.error("Failed to import network files.", exc_info=True)
-    # it is possible that there are forbidden characters in the OTU identifiers
-    # we can forbid people from using those, or replace those with an underscore
 
 
 def clear_network(inputs):
@@ -80,10 +77,11 @@ def clear_network(inputs):
     :return:
     """
     _create_logger(inputs['fp'])
+    config = _read_config(inputs)
     try:
-        driver = IoDriver(uri=inputs['address'],
-                          user=inputs['username'],
-                          password=inputs['password'],
+        driver = IoDriver(uri=config['address'],
+                          user=config['username'],
+                          password=config['password'],
                           filepath=inputs['fp'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)

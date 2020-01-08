@@ -26,7 +26,7 @@ from biom import load_table
 from biom.parse import MetadataMap
 from neo4j.v1 import GraphDatabase
 import logging.handlers
-from mako.scripts.utils import _create_logger
+from mako.scripts.utils import _create_logger, _read_config
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -57,20 +57,23 @@ def start_biom(inputs):
     # handler to file
     # construct logger after filepath is provided
     _create_logger(inputs['fp'])
+    config = _read_config(inputs)
     try:
-        driver = Biom2Neo(uri=inputs['address'],
-                          user=inputs['username'],
-                          password=inputs['password'],
+        driver = Biom2Neo(uri=config['address'],
+                          user=config['username'],
+                          password=config['password'],
                           filepath=inputs['fp'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
+        exit()
     check_arguments(inputs)
     # Only process count files if present
     if inputs['biom_file'] is not None:
         try:
             for x in inputs['biom_file']:
                 # first check if it is a file or path
-                read_bioms(files=x, filepath=inputs['filepath'], driver=driver)
+                logger.info('Working on ' + x + '...')
+                read_bioms(files=x, filepath=inputs['fp'], driver=driver)
         except Exception:
             logger.error("Failed to import BIOM files.", exc_info=True)
     if inputs['otu_table'] is not None:
@@ -91,10 +94,11 @@ def clear_biom(inputs):
     :return:
     """
     _create_logger(inputs['fp'])
+    config = _read_config(inputs)
     try:
-        driver = Biom2Neo(uri=inputs['address'],
-                          user=inputs['username'],
-                          password=inputs['password'],
+        driver = Biom2Neo(uri=config['address'],
+                          user=config['username'],
+                          password=config['password'],
                           filepath=inputs['fp'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
@@ -112,7 +116,7 @@ def check_arguments(inputs):
     :return: True if checks passed, False if failed
     """
     if inputs['biom_file'] is not None:
-        logger.info('BIOM file(s) to process: ' + ", ".join(inputs['biom_file']))
+        logger.info('BIOM file(s) to process: ' + ", \n".join(inputs['biom_file']))
     if inputs['otu_table'] is not None:
         logger.info('Tab-delimited OTU table(s) to process: \n' + ", \n".join(inputs['otu_table']))
     if inputs['tax_table'] is not None:
@@ -163,6 +167,7 @@ def read_bioms(files, filepath, driver):
             biomtab = load_table(filepath + '/' + files)
         else:
             logger.error('Unable to import ' + files + '!\n', exc_info=True)
+            exit()
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
         name = name.split(".")[0]
@@ -198,6 +203,7 @@ def read_tabs(inputs, i, driver):
     name = input_fp.split('/')[-1]
     name = name.split('\\')[-1]
     name = name.split(".")[0]
+    # sample metadata is not mandatory, catches None
     try:
         sample_metadata_fp = file_prefix + inputs['sample_meta'][i]
     except TypeError or KeyError:
@@ -207,7 +213,12 @@ def read_tabs(inputs, i, driver):
         sample_data = MetadataMap.from_file(sample_f)
         sample_f.close()
         biomtab.add_metadata(sample_data, axis='sample')
-    observation_metadata_fp = file_prefix + inputs['tax_table'][i]
+    # taxonomy is recommended, many functions don't work without it
+    # still capture None
+    try:
+        observation_metadata_fp = file_prefix + inputs['tax_table'][i]
+    except TypeError or KeyError:
+        pass
     if observation_metadata_fp is not None:
         obs_f = open(observation_metadata_fp, 'r')
         obs_data = MetadataMap.from_file(obs_f)
@@ -221,6 +232,16 @@ def read_tabs(inputs, i, driver):
                 tax.append(obs_data[b][l])
                 obs_data[b].pop(l, None)
             obs_data[b]['taxonomy'] = tax
+        biomtab.add_metadata(obs_data, axis='observation')
+    # observation metadata is not mandatory, catches None
+    try:
+        observation_metadata_fp = file_prefix + inputs['otu_meta'][i]
+    except TypeError or KeyError:
+        pass
+    if observation_metadata_fp is not None:
+        obs_f = open(observation_metadata_fp, 'r')
+        obs_data = MetadataMap.from_file(obs_f)
+        obs_f.close()
         biomtab.add_metadata(obs_data, axis='observation')
     driver.convert_biom(biomfile=biomtab, exp_id=name)
 
