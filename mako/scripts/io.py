@@ -60,16 +60,18 @@ def start_io(inputs):
         logger.error("Login information not specified in arguments.", exc_info=True)
         exit()
     # Only process network files if present
-    if inputs['networks'] is not None:
+    if inputs['networks']:
         try:
             for x in inputs['networks']:
                 # first check if it is a file or path
                 read_networks(files=x, filepath=inputs['fp'], driver=driver)
         except Exception:
             logger.error("Failed to import network files.", exc_info=True)
+    if inputs['delete']:
+        delete_network(inputs)
 
 
-def clear_network(inputs):
+def delete_network(inputs):
     """
     Removes all  values in the Neo4j database linked to the supplied experiment name.
 
@@ -212,6 +214,18 @@ class IoDriver(object):
                 session.write_transaction(self._create_associations, network_id, network)
         except Exception:
             logger.error("Could not write networkx object to database. \n", exc_info=True)
+
+    def delete_network(self, network_id):
+        with self._driver.session() as session:
+            associations = session.read_transaction(self._assocs_to_delete, network_id)
+        with self._driver.session() as session:
+            for assoc in associations:
+                session.write_transaction(self._delete_assoc, assoc)
+        logger.info('Detached associations...')
+        self.query(("MATCH a:Network WHERE a.name = '" + network_id + "' DETACH DELETE a"))
+        with self._driver.session() as session:
+            session.write_transaction(self._delete_method)
+        logger.info('Finished deleting ' + network_id + '.')
 
     def _return_networks(self, networks):
         """
@@ -370,7 +384,7 @@ class IoDriver(object):
         The dictionary should contain another dictionary of target nodes and edge weights.
         :param nodes: Dictionary of existing nodes as values with node names as keys
         :param name: Name of variable, inserted in Neo4j graph database as type
-        :param label: Label of source node (e.g. Taxon, Sample, Property, Experiment etc)
+        :param label: Label of source node (e.g. Taxon, Specimen, Property, Experiment etc)
         :param check: If True, checks if all source nodes appear in the database.
         :return:
         """
@@ -504,7 +518,7 @@ class IoDriver(object):
                 network_weight = None
                 if 'weight' in attr:
                     network_weight = str(attr['weight'])
-                hit = tx.run(("MATCH p=(a)<--(:Association)-->(b) "
+                hit = tx.run(("MATCH p=(a)<--(:Edge)-->(b) "
                               "WHERE a.name = '" + taxon1 +
                               "' AND b.name = '" + taxon2 +
                               "' RETURN p")).data()
@@ -514,7 +528,7 @@ class IoDriver(object):
                     for association in hit:
                         uid = association['p'].nodes[1].get('name')
                         # first check if there is already a link between the association and network
-                        network_hit = tx.run(("MATCH p=(a:Association)--(b:Network) "
+                        network_hit = tx.run(("MATCH p=(a:Edge)--(b:Network) "
                                               "WHERE a.name = '" +
                                               uid +
                                               "' AND b.name = '" + name +
@@ -530,13 +544,13 @@ class IoDriver(object):
                                 database_weight = []
                         weights.extend(database_weight)
                         if len(network_hit) == 0:
-                            tx.run(("MATCH (a:Association), (b:Network) "
+                            tx.run(("MATCH (a:Edge), (b:Network) "
                                     "WHERE a.name = '" +
                                     uid +
                                     "' AND b.name = '" + name +
                                     "' CREATE (a)-[r:IN_NETWORK]->(b) "
                                     "RETURN type(r)"))
-                        tx.run(("MATCH (a:Association) WHERE a.name = '" +
+                        tx.run(("MATCH (a:Edge) WHERE a.name = '" +
                                 uid +
                                 "' SET a.weight = " +
                                 str(weights) +
@@ -545,25 +559,25 @@ class IoDriver(object):
                     uid = str(uuid4())
                     # non alphanumeric chars break networkx
                     if 'weight' in attr:
-                        tx.run("CREATE (a:Association {name: $id}) "
+                        tx.run("CREATE (a:Edge {name: $id}) "
                                "SET a.weight = $weight "
                                "RETURN a", id=uid, weight=str([network_weight]))
                     else:
-                        tx.run("CREATE (a:Association {name: $id}) "
+                        tx.run("CREATE (a:Edge {name: $id}) "
                                "RETURN a", id=uid)
-                    tx.run(("MATCH (a:Association), (b:Taxon) "
+                    tx.run(("MATCH (a:Edge), (b:Taxon) "
                             "WHERE a.name = '" +
                             uid +
                             "' AND b.name = '" + taxon1 +
                             "' CREATE (a)-[r:WITH_TAXON]->(b) "
                             "RETURN type(r)"))
-                    tx.run(("MATCH (a:Association), (b:Taxon) "
+                    tx.run(("MATCH (a:Edge), (b:Taxon) "
                             "WHERE a.name = '" +
                             uid +
                             "' AND b.name = '" + taxon2 +
                             "' CREATE (a)-[r:WITH_TAXON]->(b) "
                             "RETURN type(r)"))
-                    tx.run(("MATCH (a:Association), (b:Network) "
+                    tx.run(("MATCH (a:Edge), (b:Network) "
                             "WHERE a.name = '" +
                             uid +
                             "' AND b.name = '" + name +
@@ -577,7 +591,7 @@ class IoDriver(object):
         :param tx: Neo4j transaction
         :return: Dictionary of taxonomy separated by taxon
         """
-        taxa = tx.run("MATCH (n)--(:Association) WHERE n:Taxon OR n:Agglom_Taxon RETURN n").data()
+        taxa = tx.run("MATCH (n)--(:Edge) WHERE n:Taxon OR n:Agglom_Taxon RETURN n").data()
         taxa = _get_unique(taxa, 'n')
         tax_dict = dict()
         tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
@@ -630,12 +644,12 @@ class IoDriver(object):
         :param network: Name of network node
         :return: List of lists with source and target nodes, source networks and edge weights.
         """
-        associations = tx.run(("MATCH (n:Association)--(b {name: '" + network +
+        associations = tx.run(("MATCH (n:Edge)--(b {name: '" + network +
                                "'}) RETURN n")).data()
         networks = dict()
         weights = dict()
         for assoc in associations:
-            taxa = tx.run(("MATCH (m)--(:Association {name: '" + assoc['n'].get('name') +
+            taxa = tx.run(("MATCH (m)--(:Edge {name: '" + assoc['n'].get('name') +
                            "'})--(n) "
                            "WHERE (m:Taxon OR m:Agglom_Taxon) AND (n:Taxon OR n:Agglom_Taxon) "
                            "AND m.name <> n.name "
@@ -644,7 +658,7 @@ class IoDriver(object):
                 pass  # apparently this can happen. Need to figure out why!!
             else:
                 edge = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
-                network = tx.run(("MATCH (:Association {name: '" + assoc['n'].get('name') +
+                network = tx.run(("MATCH (:Edge {name: '" + assoc['n'].get('name') +
                                   "'})-->(n:Network) RETURN n"))
                 network = _get_unique(network, key='n')
                 network_list = list()
@@ -756,3 +770,42 @@ class IoDriver(object):
         for key in fasta_dict:
             fasta_string += '>' + key + '\n' + fasta_dict[key] + '\n'
         return fasta_string
+
+    @staticmethod
+    def _assocs_to_delete(tx, network_id):
+        """
+        Generates a list of edge nodes linked to the network node that needs to be deleted.
+        :param tx: Neo4j transaction
+        :param network_id: ID of network node
+        :return:
+        """
+        names = tx.run(("MATCH (a:Edge)--(b:Network) "
+                        "WHERE b.name = '" + network_id +
+                        "' RETURN a.name"))
+        return names
+
+    @staticmethod
+    def _delete_assoc(tx, assoc):
+        """
+        Deletes a sample node and all the observations linked to the sample.
+        :param tx: Neo4j transaction
+        :param assoc: Edge ID
+        :return:
+        """
+        tx.run(("MATCH (a:Edge)--(b:Network) "
+                "WHERE a.name = '" + assoc +
+                "' DETACH DELETE a"))
+
+    @staticmethod
+    def _delete_method(tx):
+        """
+        After deleting a network, some methods may not be represented in the database.
+        These disconnected nodes are deleted.
+        :param tx:
+        :return:
+        """
+        names = tx.run("MATCH (a:Method) WHERE NOT (a)--(:Edge) RETURN a.name")
+        for name in names:
+            tx.run(("MATCH (a:Method) "
+                    "WHERE a.name = '" + name['a'] +
+                    "' DETACH DELETE a"))

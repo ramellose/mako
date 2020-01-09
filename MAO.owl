@@ -768,7 +768,7 @@
     <AnnotationAssertion>
         <AnnotationProperty abbreviatedIRI="rdfs:label"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C20189</IRI>
-        <Literal>Property or Attribute</Literal>
+        <Literal>Property</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <Annotation>
@@ -846,7 +846,7 @@
     <AnnotationAssertion>
         <AnnotationProperty abbreviatedIRI="rdfs:label"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Taxon</Literal>
+        <Literal>Taxonomy</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <Annotation>
@@ -1410,7 +1410,7 @@
     <AnnotationAssertion>
         <AnnotationProperty abbreviatedIRI="rdfs:label"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C75907</IRI>
-        <Literal>Graph Node</Literal>
+        <Literal>Taxon</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <Annotation>
@@ -1475,7 +1475,7 @@
     <AnnotationAssertion>
         <AnnotationProperty abbreviatedIRI="rdfs:label"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C75923</IRI>
-        <Literal>Graph Edge</Literal>
+        <Literal>Edge</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <AnnotationProperty IRI="http://purl.obolibrary.org/obo/IAO_0000111"/>

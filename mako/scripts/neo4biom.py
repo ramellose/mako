@@ -82,11 +82,11 @@ def start_biom(inputs):
                 read_tabs(inputs=inputs, i=i, driver=driver)
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
-    # it is possible that there are forbidden characters in the OTU identifiers
-    # we can forbid people from using those, or replace those with an underscore
+    if inputs['delete']:
+        delete_biom(inputs)
 
 
-def clear_biom(inputs):
+def delete_biom(inputs):
     """
     Removes all  values in the Neo4j database linked to the supplied experiment name.
 
@@ -319,7 +319,7 @@ class Biom2Neo(object):
                         for key in meta:
                             # meta[key] = re.sub(r'\W+', '', str(meta[key]))
                             session.write_transaction(self.create_property,
-                                                      source=sample, sourcetype='Sample',
+                                                      source=sample, sourcetype='Specimen',
                                                       target=meta[key], name=key, weight=None)
             obs_data = biomfile.to_dataframe()
             rows, cols = np.where(obs_data.values != 0)
@@ -446,12 +446,12 @@ class Biom2Neo(object):
         """
         Creates sample nodes and link to experiment.
         :param tx: Neo4j transaction
-        :param sample: Sample name
+        :param sample: Specimen name
         :param exp_id: Experiment name
         :return:
         """
-        tx.run("CREATE (a:Sample) SET a.name = $id", id=sample)
-        tx.run(("MATCH (a:Sample), (b:Experiment) "
+        tx.run("CREATE (a:Specimen) SET a.name = $id", id=sample)
+        tx.run(("MATCH (a:Specimen), (b:Experiment) "
                 "WHERE a.name = '" + sample +
                 "' AND b.name = '" + exp_id +
                 "' CREATE (a)-[r:IN_EXPERIMENT]->(b) "
@@ -507,10 +507,61 @@ class Biom2Neo(object):
         :return:
         """
         taxon, sample, value = observation
-        tx.run(("MATCH (a:Taxon), (b:Sample) "
+        tx.run(("MATCH (a:Taxon), (b:Specimen) "
                 "WHERE a.name = '" + taxon +
                 "' AND b.name = '" + sample +
                 "' CREATE (a)-[r:FOUND_IN]->(b) "
                 "SET r.count = '" + str(value) +
                 "' RETURN type(r)"))
 
+    @staticmethod
+    def _samples_to_delete(tx, exp_id):
+        """
+        Generates a list of sample nodes linked to the experiment node that needs to be deleted.
+        :param tx:
+        :param exp_id: ID of experiment node
+        :return:
+        """
+        names = tx.run(("MATCH (a:Sample)--(b:Experiment) "
+                        "WHERE b.name = '" + exp_id +
+                        "' RETURN a.name"))
+        return names
+
+    @staticmethod
+    def _taxa_to_delete(tx):
+        """
+        After deleting samples, some taxa will no longer
+        be present in any experiment. These disconnected taxa need to be removed
+        and this function generates the list that does this.
+        :param tx:
+        :return:
+        """
+        names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Sample) RETURN a.name")
+        return names
+
+    @staticmethod
+    def _delete_sample(tx, sample):
+        """
+        Deletes a sample node and all the observations linked to the sample.
+        :param tx:
+        :param sample: Sample ID
+        :return:
+        """
+        tx.run(("MATCH (a:Sample) "
+                "WHERE a.name = '" + sample +
+                "' DETACH DELETE a"))
+
+    @staticmethod
+    def _delete_taxon(tx, taxon):
+        """
+        Deletes a taxon and all the associations linked to the taxon.
+        :param tx:
+        :param taxon: Taxon ID
+        :return:
+        """
+        tx.run(("MATCH (a:Taxon)--(b:Association) "
+                "WHERE a.name = '" + taxon +
+                "' DETACH DELETE b"))
+        tx.run(("MATCH (a:Taxon) "
+                "WHERE a.name = '" + taxon +
+                "' DETACH DELETE a"))
