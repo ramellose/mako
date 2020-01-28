@@ -134,8 +134,8 @@ def _read_network_extension(filename):
     :param filename: Complete filename.
     :return: NetworkX object
     """
-    filename = filename.split(sep=".")
-    extension = filename[len(filename) - 1]
+    extension = filename.split(sep=".")
+    extension = extension[len(extension) - 1]
     network = None
     try:
         if extension == 'graphml':

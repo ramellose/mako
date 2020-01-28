@@ -76,9 +76,9 @@ def start_biom(inputs):
                 read_bioms(files=x, filepath=inputs['fp'], driver=driver)
         except Exception:
             logger.error("Failed to import BIOM files.", exc_info=True)
-    if inputs['otu_table'] is not None:
+    if inputs['count_table'] is not None:
         try:
-            for i in range(len(inputs['otu_table'])):
+            for i in range(len(inputs['count_table'])):
                 read_tabs(inputs=inputs, i=i, driver=driver)
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
@@ -185,7 +185,7 @@ def read_tabs(inputs, i, driver):
     :param driver:
     :return:
     """
-    input_fp = inputs['otu_table'][i]
+    input_fp = inputs['count_table'][i]
     filepath = inputs['fp']
     sample_metadata_fp = None
     observation_metadata_fp = None
@@ -235,7 +235,7 @@ def read_tabs(inputs, i, driver):
         biomtab.add_metadata(obs_data, axis='observation')
     # observation metadata is not mandatory, catches None
     try:
-        observation_metadata_fp = file_prefix + inputs['otu_meta'][i]
+        observation_metadata_fp = file_prefix + inputs['taxon_meta'][i]
     except TypeError or KeyError:
         pass
     if observation_metadata_fp is not None:

@@ -87,12 +87,14 @@ def start_base(inputs):
             sleep(12)
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
+            exit()
     if inputs['clear'] and pid_exists(pid):
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
                             uri=config['address'], filepath=inputs['fp'])
         try:
             driver.clear_database()
+            logger.info('Cleared database.')
         except Exception:
             logger.warning("Failed to clear database.  ", exc_info=True)
     if inputs['quit'] and pid_exists(pid):
@@ -108,8 +110,17 @@ def start_base(inputs):
             # kills the powershell started to run the Neo4j console
             for child in parent.children():
                 child.kill()
+            logger.info('Safely shut down database.')
         except Exception:
             logger.warning("Failed to close database. ", exc_info=True)
+    if inputs['check'] and pid_exists(pid):
+        driver = BaseDriver(user=config['username'],
+                            password=config['password'],
+                            uri=config['address'], filepath=inputs['fp'])
+        try:
+            driver.check_domain_range()
+        except Exception:
+            logger.warning("Failed to check database.  ", exc_info=True)
     logger.info('Completed database operations!  ')
 
 
