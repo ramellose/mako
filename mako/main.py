@@ -18,6 +18,7 @@ __license__ = 'Apache 2.0'
 import sys
 import os
 import argparse
+import multiprocessing as mp
 from mako.scripts.base import start_base
 from mako.scripts.neo4biom import start_biom
 from mako.scripts.io import start_io
@@ -268,3 +269,13 @@ parse_io.add_argument('-del', '--delete',
                       help='Names of networks (without full path) to delete from the database. ',
                       type=list,
                       default=None)
+
+
+def main():
+    mp.freeze_support()
+    options = mako_parser.parse_args()
+    mako(vars(options))
+
+
+if __name__ == '__main__':
+    main()
