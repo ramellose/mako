@@ -594,28 +594,20 @@ class IoDriver(object):
                     feature = True
                     # find if TaxonProperty already exists
                     # otherwise, create it and link to Taxon
-                    hit = tx.run(("MATCH (a:Property) WHERE a.type = '" +
-                                  taxon1 + "' AND a.name = '" +
-                                  attr['interactionType'] + "' RETURN a")).data()
-                    if len(hit) == 0:
-                        tx.run(("CREATE (a:Property) SET a.type = '" +
-                                taxon1 + "' SET a.name = '" +
-                                attr['interactionType'] + "'"))
+                    tx.run(("MERGE (a:Property) SET a.type = '" +
+                            taxon1 + "' SET a.name = '" +
+                            attr['interactionType'] + "'"))
                     tx.run(("MATCH (a:Taxon), (b:Property) WHERE a.name = '" + taxon2 +
                             "' AND b.type ='" + taxon1 +
                             "' AND b.name = '" + attr['interactionType'] +
-                            "' CREATE (a)-[r:HAS_PROPERTY]->(b) RETURN type(r)"))
+                            "' MERGE (a)-[r:HAS_PROPERTY]->(b) RETURN type(r)"))
                 elif network.nodes[edge[1]]['isafeature'] == 'yes':
                     feature = True
                     # find if TaxonProperty already exists
                     # otherwise, create it and link to Taxon
-                    hit = tx.run(("MATCH (a:Property) WHERE a.type = '" +
-                                  taxon2 + "' AND a.name = '" +
-                                  attr['interactionType'] + "' RETURN a")).data()
-                    if len(hit) == 0:
-                        tx.run(("CREATE (a:Property) SET a.type = '" +
-                                taxon2 + "' SET a.name = '" +
-                                attr['interactionType'] + "'"))
+                    tx.run(("MERGE (a:Property) SET a.type = '" +
+                            taxon2 + "' SET a.name = '" +
+                            attr['interactionType'] + "'"))
                     tx.run(("MATCH (a:Taxon), (b:Property) WHERE a.name = '" + taxon1 +
                             "' AND b.type ='" + taxon2 +
                             "' AND b.name = '" + attr['interactionType'] +
@@ -835,14 +827,10 @@ class IoDriver(object):
         :param sourcetype: Type variable of source node (not required)
         :return:
         """
-        hit = tx.run(("MATCH (a:Property) WHERE a.name = '" +
-                      target + "' AND a.type = '" +
-                      name + "' RETURN a")).data()
-        if len(hit) == 0:
-            tx.run(("CREATE (a:Property) "
-                    "SET a.name = '" + target +
-                    "' SET a.type = '" + name + "' "
-                                                "RETURN a")).data()
+        tx.run(("MERGE (a:Property) "
+                "SET a.name = '" + target +
+                "' SET a.type = '" + name + "' "
+                "RETURN a")).data()
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
         matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:HAS_PROPERTY]-(b:Property) "
