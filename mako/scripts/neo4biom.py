@@ -84,6 +84,7 @@ def start_biom(inputs):
             logger.warning("Failed to combine input files.", exc_info=True)
     if inputs['delete']:
         delete_biom(inputs)
+    logger.info('Completed neo4biom operations!  ')
 
 
 def delete_biom(inputs):
@@ -117,22 +118,22 @@ def check_arguments(inputs):
     """
     if inputs['biom_file'] is not None:
         logger.info('BIOM file(s) to process: ' + ", \n".join(inputs['biom_file']))
-    if inputs['otu_table'] is not None:
-        logger.info('Tab-delimited OTU table(s) to process: \n' + ", \n".join(inputs['otu_table']))
+    if inputs['count_table'] is not None:
+        logger.info('Tab-delimited OTU table(s) to process: \n' + ", \n".join(inputs['count_table']))
     if inputs['tax_table'] is not None:
-        if len(inputs['otu_table']) is not len(inputs['tax_table']):
+        if len(inputs['count_table']) is not len(inputs['tax_table']):
             logger.error("Add a taxonomy table for every OTU table!", exc_info=True)
             exit()
     if inputs['sample_meta'] is not None:
-        if len(inputs['otu_table']) is not len(inputs['sample_data']):
+        if len(inputs['count_table']) is not len(inputs['sample_data']):
             logger.error("Add a sample data table for every OTU table!", exc_info=True)
             exit()
-    if inputs['otu_meta'] is not None:
-        if len(inputs['otu_table']) is not len(inputs['otu_meta']):
+    if inputs['taxon_meta'] is not None:
+        if len(inputs['count_table']) is not len(inputs['taxon_meta']):
             logger.error("Add a metadata table for every OTU table!", exc_info=True)
             exit()
     if inputs['biom_file'] is None and inputs['network'] is None:
-        if inputs['otu_table'] is None and inputs['network'] is None:
+        if inputs['count_table'] is None and inputs['network'] is None:
             logger.error("Please supply either a biom file"
                          ", a tab-delimited OTU table or a network!", exc_info=True)
             exit()

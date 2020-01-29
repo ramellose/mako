@@ -63,12 +63,15 @@ def start_io(inputs):
     if inputs['networks']:
         try:
             for x in inputs['networks']:
+                logger.info('Working on ' + x + '...')
                 # first check if it is a file or path
                 read_networks(files=x, filepath=inputs['fp'], driver=driver)
+                # bug, function takes way too long on test data
         except Exception:
             logger.error("Failed to import network files.", exc_info=True)
     if inputs['delete']:
         delete_network(inputs)
+    logger.info('Completed io operations!  ')
 
 
 def delete_network(inputs):
@@ -217,12 +220,12 @@ class IoDriver(object):
 
     def delete_network(self, network_id):
         with self._driver.session() as session:
-            associations = session.read_transaction(self._assocs_to_delete, network_id)
+            associations = session.read_transaction(self._assocs_to_delete, network_id).data()
         with self._driver.session() as session:
             for assoc in associations:
-                session.write_transaction(self._delete_assoc, assoc)
+                session.write_transaction(self._delete_assoc, assoc['a.name'])
         logger.info('Detached associations...')
-        self.query(("MATCH a:Network WHERE a.name = '" + network_id + "' DETACH DELETE a"))
+        self.query(("MATCH (a:Network) WHERE a.name = '" + network_id + "' DETACH DELETE a"))
         with self._driver.session() as session:
             session.write_transaction(self._delete_method)
         logger.info('Finished deleting ' + network_id + '.')
@@ -402,7 +405,6 @@ class IoDriver(object):
                                           source=node, sourcetype=label,
                                           target=nodes[node]['target'], name=name, weight=nodes[node]['weight'])
 
-
     @staticmethod
     def _query(tx, query):
         """
@@ -561,7 +563,7 @@ class IoDriver(object):
                     if 'weight' in attr:
                         tx.run("CREATE (a:Edge {name: $id}) "
                                "SET a.weight = $weight "
-                               "RETURN a", id=uid, weight=str([network_weight]))
+                               "RETURN a", id=uid, weight=str(network_weight))
                     else:
                         tx.run("CREATE (a:Edge {name: $id}) "
                                "RETURN a", id=uid)
