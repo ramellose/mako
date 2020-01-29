@@ -266,7 +266,8 @@ parse_io.add_argument('-net', '--networks',
 parse_io.add_argument('-del', '--delete',
                       dest='delete',
                       required=False,
-                      help='Names of networks (without full path) to delete from the database. ',
+                      help='If true, specify with the -net paramter names of networks (without full path) '
+                           'to delete from the database. If no networks are mentioned, all are deleted.',
                       type=list,
                       default=None)
 parse_io.add_argument('-fasta', '--fasta_sequences',
@@ -278,7 +279,7 @@ parse_io.add_argument('-fasta', '--fasta_sequences',
 parse_io.add_argument('-cyto', '--cytoscape',
                       dest='cyto',
                       action='store_true',
-                      help='If network names are given in the networks parameter, exports these '
+                      help='If true and network names are given in the -net parameter, exports these '
                            'networks to Cytoscape. Otherwise, exports all networks. ',
                       required=False,
                       default=None)
@@ -288,6 +289,60 @@ parse_io.add_argument('-meta', '--metadata',
                       help='Locations of metadata, given as an edge list, to add to the database. ',
                       type=list,
                       default=None)
+parse_io.add_argument('-w', '--write',
+                      dest='write',
+                      action='store_true',
+                      required=False,
+                      help='If true and network or set names are given, these are written to graphml files.'
+                           'Otherwise, all networks and sets are exported. ',
+                      default=None)
+
+
+parse_netstats = subparsers.add_parser('netstats', description='Carry out analysis on the networks in the database.',
+                                       help='The netstats module contains functions that carry out some '
+                                            'form of analysis'
+                                            ' on the networks that does not involve node metadata. '
+                                            'For example, set operations and clustering can be '
+                                            'carried out from this module. ')
+parse_netstats.add_argument('-fp', '--output_filepath',
+                            dest='fp',
+                            help='File path for importing and / or exporting files. ',
+                            default=None)
+parse_netstats.add_argument('-cf', '--config',
+                            dest='config',
+                            action='store_true',
+                            help='If true, store config files to reload Neo4j settings. ',
+                            required=False,
+                            default=None)
+parse_netstats.add_argument('-n', '--neo4j',
+                            dest='neo4j',
+                            help='Filepath to neo4j folder. ',
+                            required=False,
+                            type=str,
+                            default=None)
+parse_netstats.add_argument('-u', '--username',
+                            dest='username',
+                            required=False,
+                            help='Username for neo4j database access. ',
+                            type=str,
+                            default='neo4j')
+parse_netstats.add_argument('-p', '--password',
+                            dest='password',
+                            required=False,
+                            type=str,
+                            help='Password for neo4j database access. ')
+parse_netstats.add_argument('-a', '--address',
+                            dest='address',
+                            required=False,
+                            help='Address for neo4j database. ',
+                            type=str,
+                            default='bolt://localhost:7687')
+parse_netstats.add_argument('-net', '--networks',
+                            dest='networks',
+                            required=False,
+                            help='One or more network files. These can be graphml, gml or txt edge lists. ',
+                            type=list,
+                            default=None)
 
 
 def main():

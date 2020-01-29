@@ -72,6 +72,11 @@ def start_io(inputs):
             logger.error("Failed to import network files.", exc_info=True)
     if inputs['delete']:
         delete_network(inputs)
+    if inputs['write']:
+        try:
+            driver.export_network(path=inputs['fp'], networks=inputs['networks'])
+        except Exception:
+            logger.error("Failed to write network files to disk.", exc_info=True)
     if inputs['cyto']:
         try:
             driver.export_cyto(inputs['networks'])
@@ -108,7 +113,10 @@ def delete_network(inputs):
                           filepath=inputs['fp'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
-    for name in inputs['delete']:
+    names = inputs['networks']
+    if not names:
+        names = [x['a']['name'] for x in driver.query("MATCH (a:Network) RETURN a")]
+    for name in names:
         driver.delete_network(name)
 
 
@@ -133,9 +141,9 @@ def read_networks(files, filepath, driver):
             name = y.split(".")[0]
             driver.convert_networkx(network=network, network_id=name)
     else:
-        checked_path = _get_path(path = files, default=filepath)
+        checked_path = _get_path(path=files, default=filepath)
         if checked_path:
-            network = _read_network_extension(files)
+            network = _read_network_extension(checked_path)
         else:
             exit()
         name = files.split('/')[-1]
@@ -175,7 +183,7 @@ def add_sequences(filepath, location, driver):
     seqs_in_database = taxa.intersection(sequence_dict.keys())
     sequence_dict = {k: {'target': v, 'weight': None} for k, v in sequence_dict.items() if k in seqs_in_database}
     logger.info("Uploading " + str(len(sequence_dict)) + " sequences.")
-    driver.include_nodes(sequence_dict, name="16S", label="Taxon", check=False)
+    driver.include_nodes(sequence_dict, name="16S", label="Taxon")
 
 
 def add_metadata(filepath, location, driver):
@@ -227,8 +235,8 @@ def _convert_table(data, driver):
     :return:
     """
     data = pd.read_csv(data, sep='\t')
-    source = data.columns[0]
-    target = data.columns[1]
+    source = data.columns[0].strip()
+    target = data.columns[1].strip()
     data_dict = data.set_index(data.columns[0]).to_dict()
     value_dict = dict()
     for key in data[list(data.keys())[0]]:
@@ -236,9 +244,9 @@ def _convert_table(data, driver):
             value_dict[key] = [data_dict[data.columns[1]][key], data_dict[data.columns[2]][key]]
         else:
             value_dict[key] = [data_dict[data.columns[1]][key], None]
-    value_dict = {k: {'target': v, 'weight': None} for k, v in value_dict.items()}
+    value_dict = {k: {'target': v[0], 'weight': v[1]} for k, v in value_dict.items()}
     logger.info("Uploading " + str(len(value_dict)) + " values.")
-    driver.include_nodes(value_dict, name=target, label=source, check=False)
+    driver.include_nodes(value_dict, name=target, label=source)
 
 
 def _read_network_extension(filename):
@@ -470,7 +478,7 @@ class IoDriver(object):
             new_network_id = res.json()['networkSUID']
             print('Network created for ' + network + ': SUID = ' + str(new_network_id))
 
-    def include_nodes(self, nodes, name, label, check=True):
+    def include_nodes(self, nodes, name, label):
         """
         Given a dictionary, this function tries to upload
         the file to the Neo4j database.
@@ -482,19 +490,21 @@ class IoDriver(object):
         :param nodes: Dictionary of existing nodes as values with node names as keys
         :param name: Name of variable, inserted in Neo4j graph database as type
         :param label: Label of source node (e.g. Taxon, Specimen, Property, Experiment etc)
-        :param check: If True, checks if all source nodes appear in the database.
         :return:
         """
         # first step:
         # check whether key values in node dictionary exist in network
-        if check:
-            with self._driver.session() as session:
-                matches = session.read_transaction(self._find_nodes, list(nodes.keys()))
-                if not matches:
-                    logger.warning('No source nodes are present in the network. \n')
-                    sys.exit()
         with self._driver.session() as session:
-            for node in nodes:
+            matches = session.read_transaction(self._find_nodes, list(nodes.keys()))
+            found_nodes = sum([matches[x] for x in matches])
+            if found_nodes == 0:
+                logger.warning('No source nodes are present in the network. \n')
+                exit()
+            else:
+                logger.info(str(found_nodes) + ' out of ' + str(len(matches)) + ' values found in database.')
+        found_nodes = {x: v for x, v in nodes.items() if matches[x]}
+        for node in found_nodes:
+            with self._driver.session() as session:
                 session.write_transaction(self._create_property,
                                           source=node, sourcetype=label,
                                           target=nodes[node]['target'], name=name, weight=nodes[node]['weight'])
@@ -737,7 +747,7 @@ class IoDriver(object):
         """
         Returns a list of associations, as taxon1, taxon2, and, if present, weight.
         :param tx: Neo4j transaction
-        :param network: Name of network node
+        :param network: Name of network or set node
         :return: List of lists with source and target nodes, source networks and edge weights.
         """
         associations = tx.run(("MATCH (n:Edge)--(b {name: '" + network +
@@ -798,18 +808,19 @@ class IoDriver(object):
         :param names: List of names of nodes
         :return:
         """
-        found = False
+        found_nodes = dict.fromkeys(names)
         for name in names:
             netname = tx.run("MATCH (n {name: '" + name +
                              "'}) RETURN n").data()
             netname = _get_unique(netname, key='n')
             # only checking node name; should be unique in database!
-            found = True
             if len(netname) == 0:
-                found = False
+                found_nodes[name] = False
             elif len(netname) > 1:
                 logger.warning("Duplicated node name in database! \n")
-        return found
+            else:
+                found_nodes[name] = True
+        return found_nodes
 
     @staticmethod
     def _create_property(tx, source, target, name, weight, sourcetype=''):
@@ -835,10 +846,10 @@ class IoDriver(object):
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
         matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:HAS_PROPERTY]-(b:Property) "
-                "WHERE a.name = '" + source +
-                "' AND b.name = '" + target +
-                "' AND b.type = '" + name +
-                "' RETURN r")).data()
+                               "WHERE a.name = '" + source +
+                               "' AND b.name = '" + target +
+                               "' AND b.type = '" + name +
+                               "' RETURN r")).data()
         if weight:
             rel = " {weight: [" + weight + "]}"
         else:

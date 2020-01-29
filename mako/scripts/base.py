@@ -85,6 +85,11 @@ def start_base(inputs):
                 pid = p.pid
                 file.writelines(data)
             sleep(12)
+            driver = BaseDriver(user=config['username'],
+                                password=config['password'],
+                                uri=config['address'], filepath=inputs['fp'])
+            driver.add_constraints()
+            driver.close()
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
             exit()
@@ -218,6 +223,22 @@ class BaseDriver(object):
                 error = True
         if not error:
             logger.info("No forbidden relationship connections.")
+
+    def add_constraints(self):
+        """
+        This function adds some constraints for unique node names.
+
+        :return:
+        """
+        unique_names = ['Edge', 'Class', 'Experiment', 'Family', 'Genus',
+                        'Kingdom', 'Network', 'Order', 'Phylum',
+                        'Property', 'Sample', 'Taxon']
+        for name in unique_names:
+            constraintname = 'Unique ' + name
+            constraint = "CREATE CONSTRAINT ON (n:" + name + ")" \
+                         " ASSERT (n.name) IS UNIQUE"
+            with self._driver.session() as session:
+                output = session.read_transaction(self._query, constraint)
 
     def check_only(self):
         """
