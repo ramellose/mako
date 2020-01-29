@@ -105,5 +105,26 @@ def _read_config(args):
     return config
 
 
+def _get_path(path, default):
+    """
+    If given a path that is not a directory,
+    this function checks if the file exists,
+    if it is in the current working directory
+    or if it is in the default path.
 
+    If it cannot find the file, it raises an error.
 
+    :param path: Partial or complete file path
+    :param default: default file path
+    :return:
+    """
+    checked_path = False
+    if os.path.isfile(path):
+        checked_path = path
+    elif os.path.isfile(os.getcwd() + '/' + path):
+        checked_path = os.getcwd() + '/' + path
+    elif os.path.isfile(default + '/' + path):
+        checked_path = default + '/' + path
+    else:
+        logger.error('Unable to import ' + path + '!\n', exc_info=True)
+    return checked_path

@@ -19,8 +19,9 @@ __license__ = 'Apache 2.0'
 from neo4j.v1 import GraphDatabase
 from uuid import uuid4  # generates unique IDs for associations + observations
 import networkx as nx
-from mako.scripts.utils import _get_unique, _create_logger, _read_config
+from mako.scripts.utils import _get_unique, _create_logger, _read_config, _get_path
 import numpy as np
+import pandas as pd
 import logging
 import sys
 import os
@@ -71,6 +72,23 @@ def start_io(inputs):
             logger.error("Failed to import network files.", exc_info=True)
     if inputs['delete']:
         delete_network(inputs)
+    if inputs['cyto']:
+        try:
+            driver.export_cyto(inputs['networks'])
+        except Exception:
+            logger.error("Failed to port to Cytoscape.", exc_info=True)
+    if inputs['fasta']:
+        try:
+            for location in inputs['fasta']:
+                add_sequences(filepath=inputs['fp'], location=location, driver=driver)
+        except Exception:
+            logger.error("Failed to add FASTA files.", exc_info=True)
+    if inputs['meta']:
+        try:
+            for location in inputs['meta']:
+                add_metadata(filepath=inputs['fp'], location=location, driver=driver)
+        except Exception:
+            logger.error("Failed to add metadata file.", exc_info=True)
     logger.info('Completed io operations!  ')
 
 
@@ -115,18 +133,112 @@ def read_networks(files, filepath, driver):
             name = y.split(".")[0]
             driver.convert_networkx(network=network, network_id=name)
     else:
-        if os.path.isfile(files):
+        checked_path = _get_path(path = files, default=filepath)
+        if checked_path:
             network = _read_network_extension(files)
-        elif os.path.isfile(os.getcwd() + '/' + files):
-            network = _read_network_extension(os.getcwd() + '/' + files)
-        elif os.path.isfile(filepath + '/' + files):
-            network = _read_network_extension(filepath + '/' + files)
         else:
-            logger.error('Unable to import ' + files + '!\n', exc_info=True)
+            exit()
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
         name = name.split(".")[0]
         driver.convert_networkx(network=network, network_id=name)
+
+
+def add_sequences(filepath, location, driver):
+    """
+    This function opens a folder of FASTA sequences with identifiers
+    matching to OTU identifiers in the Neo4j database.
+    The FASTA sequences are converted to a dictionary and uploaded to
+    the database with the Neo4j driver function include_nodes.
+    :param filepath: File path string
+    :param location: Folder containing FASTA sequences matching to OTU identifiers.
+    I.e. GreenGenes FASTA files are accepted. Complete file paths are also accepted.
+    :param driver: IO driver
+    :return: Updates database with 16S sequences.
+    """
+    # get list of taxa in database
+    taxa = driver.return_taxa()
+    sequence_dict = dict()
+    single_file = False
+    if os.path.isdir(location):
+        logger.info("Found " + str(len(os.listdir(location))) + " files.")
+        for y in os.listdir(location):
+            for filename in os.listdir(location):
+                sequence_dict.update(_convert_fasta(filename))
+    else:
+        checked_path = _get_path(path=location, default=filepath)
+    if checked_path:
+        sequence_dict.update(_convert_fasta(filename))
+    else:
+        exit()
+    # with the sequence list, run include_nodes
+    seqs_in_database = taxa.intersection(sequence_dict.keys())
+    sequence_dict = {k: {'target': v, 'weight': None} for k, v in sequence_dict.items() if k in seqs_in_database}
+    logger.info("Uploading " + str(len(sequence_dict)) + " sequences.")
+    driver.include_nodes(sequence_dict, name="16S", label="Taxon", check=False)
+
+
+def add_metadata(filepath, location, driver):
+    """
+    This function reads an edge list, where the left column is a taxon or other node
+    in the database, and the right column a new property to add.
+    It uses the column names to define property types.
+    If there is a third column, this is added as an edge weight.
+    :param filepath: File path string
+    :param location: Folder containing FASTA sequences matching to OTU identifiers.
+    I.e. GreenGenes FASTA files are accepted. Complete file paths are also accepted.
+    :param driver: IO driver    :return:
+    """
+    if os.path.isdir(location):
+        logger.info("Found " + str(len(os.listdir(location))) + " files.")
+        for y in os.listdir(location):
+            for filename in os.listdir(location):
+                _convert_table(data=filename, driver=driver)
+    else:
+        checked_path = _get_path(path=location, default=filepath)
+    if checked_path:
+        _convert_table(data=checked_path, driver=driver)
+
+
+def _convert_fasta(filename):
+    """
+    Reads a FASTA file and converts this to a dictionary.
+
+    :param filename:
+    :return:
+    """
+    sequence_dict = {}
+    with open(filename + '//' + filename, 'r') as file:
+        lines = file.readlines()
+        logger.info("16S file " + filename + " contains " + str(int(len(lines) / 2)) + " sequences.")
+    for i in range(0, len(lines), 2):
+        otu = lines[i].rstrip()[1:]  # remove > and \n
+        sequence = lines[i + 1].rstrip()
+        sequence_dict[otu] = sequence
+    return sequence_dict
+
+
+def _convert_table(data, driver):
+    """
+    Reads a tab-delimited table and converts this into a dictionary that can
+    be used by the IO driver include_nodes function.
+
+    :param data: Location of tab-delimited file
+    :return:
+    """
+    data = pd.read_csv(data, sep='\t')
+    source = data.columns[0]
+    target = data.columns[1]
+    data_dict = data.set_index(data.columns[0]).to_dict()
+    value_dict = dict()
+    for key in data[list(data.keys())[0]]:
+        if len(data.columns) == 3:
+            value_dict[key] = [data_dict[data.columns[1]][key], data_dict[data.columns[2]][key]]
+        else:
+            value_dict[key] = [data_dict[data.columns[1]][key], None]
+    value_dict = {k: {'target': v, 'weight': None} for k, v in value_dict.items()}
+    logger.info("Uploading " + str(len(value_dict)) + " values.")
+    driver.include_nodes(value_dict, name=target, label=source, check=False)
 
 
 def _read_network_extension(filename):
@@ -230,7 +342,7 @@ class IoDriver(object):
             session.write_transaction(self._delete_method)
         logger.info('Finished deleting ' + network_id + '.')
 
-    def _return_networks(self, networks):
+    def return_networks(self, networks):
         """
         Returns NetworkX networks from the Neo4j database.
         :param networks: Names of networks to return.
@@ -281,6 +393,14 @@ class IoDriver(object):
             results[network] = g
         return results
 
+    def return_taxa(self):
+        """
+        Returns taxa from the Neo4j database.
+        :return: List of taxa
+        """
+        with self._driver.session() as session:
+            taxa = session.read_transaction(self._get_list, 'Taxon')
+
     def export_network(self, path, networks=None):
         """
         Writes networks to graphML file.
@@ -291,7 +411,7 @@ class IoDriver(object):
         """
         results = None
         try:
-            results = self._return_networks(networks)
+            results = self.return_networks(networks)
             if path:
                 for network in results:
                     name = path + '/' + network + '.graphml'
@@ -306,7 +426,10 @@ class IoDriver(object):
         :param networks: Names of networks to write to disk.
         :return:
         """
-        results = self._return_networks(networks)
+        if not networks:
+            results = self.return_networks(networks)
+        else:
+            results = networks
         # Basic Setup
         port_number = 1234
         base = 'http://localhost:' + str(port_number) + '/v1/'
@@ -346,35 +469,6 @@ class IoDriver(object):
                                 headers=headers)
             new_network_id = res.json()['networkSUID']
             print('Network created for ' + network + ': SUID = ' + str(new_network_id))
-
-    def include_sequences(self, location):
-        """
-        This function opens a folder of FASTA sequences with identifiers
-        matching to OTU identifiers in the Neo4j database.
-        The FASTA sequences are converted to a dictionary and uploaded to
-        the database with the Neo4j driver function include_nodes.
-        :param location: Folder containing FASTA sequences matching to OTU identifiers.
-        I.e. GreenGenes FASTA files are accepted.
-        :return: Updates database with 16S sequences.
-        """
-        # get list of taxa in database
-        with self._driver.session() as session:
-            taxa = session.read_transaction(self._get_list, 'Taxon')
-        sequence_dict = dict()
-        logger.info("Found " + str(len(os.listdir(location))) + " files.")
-        for filename in os.listdir(location):
-            with open(location + '//' + filename, 'r') as file:
-                lines = file.readlines()
-                logger.info("16S file " + filename + " contains " + str(int(len(lines)/2)) + " sequences.")
-            for i in range(0, len(lines), 2):
-                otu = lines[i].rstrip()[1:]  # remove > and \n
-                sequence = lines[i + 1].rstrip()
-                sequence_dict[otu] = sequence
-        # with the sequence list, run include_nodes
-        seqs_in_database = taxa.intersection(sequence_dict.keys())
-        sequence_dict = {k: {'target': v, 'weight': None} for k, v in sequence_dict.items() if k in seqs_in_database}
-        logger.info("Uploading " + str(len(sequence_dict)) + " sequences.")
-        self.include_nodes(sequence_dict, name="16S", label="Taxon", check=False)
 
     def include_nodes(self, nodes, name, label, check=True):
         """

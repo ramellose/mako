@@ -269,6 +269,25 @@ parse_io.add_argument('-del', '--delete',
                       help='Names of networks (without full path) to delete from the database. ',
                       type=list,
                       default=None)
+parse_io.add_argument('-fasta', '--fasta_sequences',
+                      dest='fasta',
+                      required=False,
+                      help='FASTA files to add to database. ',
+                      type=list,
+                      default=None)
+parse_io.add_argument('-cyto', '--cytoscape',
+                      dest='cyto',
+                      action='store_true',
+                      help='If network names are given in the networks parameter, exports these '
+                           'networks to Cytoscape. Otherwise, exports all networks. ',
+                      required=False,
+                      default=None)
+parse_io.add_argument('-meta', '--metadata',
+                      dest='meta',
+                      required=False,
+                      help='Locations of metadata, given as an edge list, to add to the database. ',
+                      type=list,
+                      default=None)
 
 
 def main():

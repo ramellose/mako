@@ -26,7 +26,7 @@ from biom import load_table
 from biom.parse import MetadataMap
 from neo4j.v1 import GraphDatabase
 import logging.handlers
-from mako.scripts.utils import _create_logger, _read_config
+from mako.scripts.utils import _create_logger, _read_config, _get_path
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -160,14 +160,10 @@ def read_bioms(files, filepath, driver):
             name = y.split(".")[0]
             driver.convert_biom(biomfile=biomtab, exp_id=name)
     else:
-        if os.path.isfile(files):
-            biomtab = load_table(files)
-        elif os.path.isfile(os.getcwd() + '/' + files):
-            biomtab = load_table(os.getcwd() + '/' + files)
-        elif os.path.isfile(filepath + '/' + files):
-            biomtab = load_table(filepath + '/' + files)
+        checked_path = _get_path(path=files, default=filepath)
+        if checked_path:
+            biomtab = load_table(checked_path)
         else:
-            logger.error('Unable to import ' + files + '!\n', exc_info=True)
             exit()
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
@@ -191,16 +187,16 @@ def read_tabs(inputs, i, driver):
     sample_metadata_fp = None
     observation_metadata_fp = None
     file_prefix = ''
-    if os.path.isfile(input_fp):
-        biomtab = load_table(input_fp)
-    elif os.path.isfile(os.getcwd() + '/' + input_fp):
-        biomtab = load_table(os.getcwd() + '/' + input_fp)
-        file_prefix = os.getcwd() + '/'
-    elif os.path.isfile(filepath + '/' + input_fp):
-        biomtab = load_table(filepath + '/' + input_fp)
-        file_prefix = filepath + '/'
+    checked_path = _get_path(path=input_fp, default=filepath)
+    if checked_path:
+        biomtab = load_table(checked_path)
+        file_prefix = ''
+        if os.path.isfile(os.getcwd() + '/' + input_fp):
+            file_prefix = os.getcwd() + '/'
+        elif os.path.isfile(filepath + '/' + input_fp):
+            file_prefix = filepath + '/'
     else:
-        logger.error('Unable to import ' + input_fp + '!\n', exc_info=True)
+        exit()
     name = input_fp.split('/')[-1]
     name = name.split('\\')[-1]
     name = name.split(".")[0]
