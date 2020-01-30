@@ -13,8 +13,7 @@ import os
 import sys
 from uuid import uuid4
 from itertools import combinations
-from neo4j.v1 import GraphDatabase
-from mako.scripts.utils import _get_unique, _create_logger, _read_config
+from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
 import logging.handlers
 
 logger = logging.getLogger(__name__)
@@ -46,3 +45,12 @@ def start_metastats(inputs):
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
         exit()
+
+
+class MetastatsDriver(ParentDriver):
+    """
+    Initializes a driver for accessing the Neo4j database.
+    This driver extracts nodes and edges from the database that are required
+    for the operations defined in the metastats module.
+    """
+

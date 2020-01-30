@@ -12,6 +12,7 @@ import sys
 import os
 import logging
 import logging.handlers
+from neo4j.v1 import GraphDatabase
 logger = logging.getLogger(__name__)
 
 
@@ -128,3 +129,55 @@ def _get_path(path, default):
     else:
         logger.error('Unable to import ' + path + '!\n', exc_info=True)
     return checked_path
+
+
+class ParentDriver:
+    def __init__(self, uri, user, password, filepath):
+        """
+        Initializes a driver for accessing the Neo4j database.
+
+        :param uri: Adress of Neo4j database
+        :param user: Username for Neo4j database
+        :param password: Password for Neo4j database
+        :param filepath: Filepath where logs will be written.
+        """
+        _create_logger(filepath)
+        try:
+            self._driver = GraphDatabase.driver(uri, auth=(user, password))
+        except Exception:
+            logger.error("Unable to start driver. \n", exc_info=True)
+            sys.exit()
+
+    def close(self):
+        """
+        Closes the connection to the database.
+        :return:
+        """
+        self._driver.close()
+
+    def query(self, query):
+        """
+        Accepts a query and provides the results.
+        :param query: String containing Cypher query
+        :return: Results of transaction with Cypher query
+        """
+        output = None
+        try:
+            with self._driver.session() as session:
+                output = session.read_transaction(self._query, query)
+        except Exception:
+            logger.error("Unable to execute query: " + query + '\n', exc_info=True)
+        return output
+
+    @staticmethod
+    def _query(tx, query):
+        """
+        Processes custom queries.
+        :param tx: Neo4j transaction
+        :param query: String of Cypher query
+        :return: Outcome of transaction
+        """
+        results = tx.run(query).data()
+        return results
+
+

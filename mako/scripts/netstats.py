@@ -11,8 +11,7 @@ __license__ = 'Apache 2.0'
 
 import sys
 from itertools import combinations
-from neo4j.v1 import GraphDatabase
-from mako.scripts.utils import _get_unique, _create_logger, _read_config
+from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
 import logging.handlers
 
 logger = logging.getLogger(__name__)
@@ -61,47 +60,12 @@ def start_netstats(inputs):
     logger.info('Completed netstats operations!  ')
 
 
-class NetstatsDriver(object):
-
-    def __init__(self, uri, user, password, filepath):
-        """
-        Initializes a driver for accessing the Neo4j database.
-        This driver extracts nodes and edges from the database that are required
-        for the operations defined in the netstats module.
-
-        :param uri: Adress of Neo4j database
-        :param user: Username for Neo4j database
-        :param password: Password for Neo4j database
-        :param filepath: Filepath where logs will be written.
-        """
-        _create_logger(filepath)
-        try:
-            self._driver = GraphDatabase.driver(uri, auth=(user, password))
-        except Exception:
-            logger.error("Unable to start IoDriver. \n", exc_info=True)
-            sys.exit()
-
-    def close(self):
-        """
-        Closes the connection to the database.
-        :return:
-        """
-        self._driver.close()
-
-    def query(self, query):
-        """
-        Accepts a query and provides the results.
-        :param query: String containing Cypher query
-        :return: Results of transaction with Cypher query
-        """
-        output = None
-        try:
-            with self._driver.session() as session:
-                output = session.read_transaction(self._query, query)
-        except Exception:
-            logger.error("Unable to execute query: " + query + '\n', exc_info=True)
-        return output
-
+class NetstatsDriver(ParentDriver):
+    """
+    Initializes a driver for accessing the Neo4j database.
+    This driver extracts nodes and edges from the database that are required
+    for the operations defined in the netstats module.
+    """
     def graph_union(self, networks=None):
         """
         Returns a subgraph that contains all nodes present in all networks.
@@ -161,17 +125,6 @@ class NetstatsDriver(object):
         except Exception:
             logger.error("Could not obtain graph difference. ", exc_info=True)
         return difference
-
-    @staticmethod
-    def _query(tx, query):
-        """
-        Processes custom queries.
-        :param tx: Neo4j transaction
-        :param query: String containing Cypher query
-        :return:
-        """
-        results = tx.run(query).data()
-        return results
 
     @staticmethod
     def _get_weight(tx, node):

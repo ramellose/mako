@@ -16,10 +16,9 @@ __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
 
-from neo4j.v1 import GraphDatabase
 from uuid import uuid4  # generates unique IDs for associations + observations
 import networkx as nx
-from mako.scripts.utils import _get_unique, _create_logger, _read_config, _get_path
+from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config, _get_path
 import numpy as np
 import pandas as pd
 import logging
@@ -282,45 +281,11 @@ def _read_network_extension(filename):
     return network
 
 
-class IoDriver(object):
-
-    def __init__(self, uri, user, password, filepath):
-        """
-        Initializes a driver for accessing the Neo4j database.
-        This driver uploads, deletes and accesses network files.
-        :param uri: Adress of Neo4j database
-        :param user: Username for Neo4j database
-        :param password: Password for Neo4j database
-        :param filepath: Filepath where logs will be written.
-        """
-        _create_logger(filepath)
-        try:
-            self._driver = GraphDatabase.driver(uri, auth=(user, password))
-        except Exception:
-            logger.error("Unable to start IoDriver. \n", exc_info=True)
-            sys.exit()
-
-    def close(self):
-        """
-        Closes the connection to the database.
-        :return:
-        """
-        self._driver.close()
-
-    def query(self, query):
-        """
-        Accepts a query and provides the results.
-        :param query: String containing Cypher query
-        :return: Results of transaction with Cypher query
-        """
-        output = None
-        try:
-            with self._driver.session() as session:
-                output = session.read_transaction(self._query, query)
-        except Exception:
-            logger.error("Unable to execute query: " + query + '\n', exc_info=True)
-        return output
-
+class IoDriver(ParentDriver):
+    """
+    Initializes a driver for accessing the Neo4j database.
+    This driver uploads, deletes and accesses network files.
+    """
     def convert_networkx(self, network_id, network):
         """
         Uploads NetworkX object to Neo4j database.
@@ -508,17 +473,6 @@ class IoDriver(object):
                 session.write_transaction(self._create_property,
                                           source=node, sourcetype=label,
                                           target=nodes[node]['target'], name=name, weight=nodes[node]['weight'])
-
-    @staticmethod
-    def _query(tx, query):
-        """
-        Processes custom queries.
-        :param tx: Neo4j transaction
-        :param query: String of Cypher query
-        :return: Outcome of transaction
-        """
-        results = tx.run(query).data()
-        return results
 
     @staticmethod
     def _create_network(tx, network, exp_id=None, log=None):

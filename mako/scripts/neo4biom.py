@@ -24,9 +24,8 @@ import sys
 import numpy as np
 from biom import load_table
 from biom.parse import MetadataMap
-from neo4j.v1 import GraphDatabase
 import logging.handlers
-from mako.scripts.utils import _create_logger, _read_config, _get_path
+from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -243,46 +242,12 @@ def read_tabs(inputs, i, driver):
     driver.convert_biom(biomfile=biomtab, exp_id=name)
 
 
-class Biom2Neo(object):
-    def __init__(self, uri, user, password, filepath):
-        """
-        Initializes a Neo4j driver for interacting with the Neo4j database.
-        This driver contains functions for uploading BIOM files to the database,
-        and also for writing BIOM files from the database to disk.
-
-        :param uri: Adress of Neo4j database
-        :param user: Username for Neo4j database
-        :param password: Password for Neo4j database
-        :param filepath: Filepath where logs will be written.
-        """
-        _create_logger(filepath)
-        try:
-            self._driver = GraphDatabase.driver(uri, auth=(user, password))
-        except Exception:
-            logger.error("Unable to start Biom2Neo driver. \n", exc_info=True)
-            sys.exit()
-
-    def close(self):
-        """
-        Closes the connection to the database.
-        :return:
-        """
-        self._driver.close()
-
-    def query(self, query):
-        """
-        Accepts a query and provides the results.
-        :param query: String containing Cypher query
-        :return: Results of transaction with Cypher query
-        """
-        output = None
-        try:
-            with self._driver.session() as session:
-                output = session.read_transaction(self._query, query)
-        except Exception:
-            logger.error("Unable to execute query: " + query + '\n', exc_info=True)
-        return output
-
+class Biom2Neo(ParentDriver):
+    """
+    Initializes a Neo4j driver for interacting with the Neo4j database.
+    This driver contains functions for uploading BIOM files to the database,
+    and also for writing BIOM files from the database to disk.
+    """
     def convert_biom(self, biomfile, exp_id):
         """
         Stores a BIOM object in the database.
@@ -351,17 +316,6 @@ class Biom2Neo(object):
         logger.info('Removed disconnected taxa...')
         self.query(("MATCH a:Experiment WHERE a.name = '" + exp_id + "' DETACH DELETE a"))
         logger.info('Finished deleting ' + exp_id + '.')
-
-    @staticmethod
-    def _query(tx, query):
-        """
-        Processes custom queries.
-        :param tx: Neo4j transaction
-        :param query: String of Cypher query
-        :return: Outcome of transaction
-        """
-        results = tx.run(query).data()
-        return results
 
     @staticmethod
     def _create_experiment(tx, exp_id):

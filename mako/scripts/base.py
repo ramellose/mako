@@ -17,9 +17,9 @@ __email__ = 'lisa.rottjers@kuleuven.be'
 __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
-from neo4j.v1 import GraphDatabase
 import owlready2
-from mako.scripts.utils import _create_logger, _resource_path, _read_config
+from neo4j.v1 import GraphDatabase
+from mako.scripts.utils import ParentDriver, _create_logger, _resource_path, _read_config
 import logging
 import sys
 import os
@@ -129,12 +129,15 @@ def start_base(inputs):
     logger.info('Completed database operations!  ')
 
 
-class BaseDriver(object):
-
+class BaseDriver(ParentDriver):
+    """
+    Initializes a driver for accessing the Neo4j database.
+    This driver constructs the Neo4j database and uploads extra data.
+    """
     def __init__(self, uri, user, password, filepath):
         """
-        Initializes a driver for accessing the Neo4j database.
-        This driver constructs the Neo4j database and uploads extra data.
+        Overwrites parent driver to add ontology.
+
         :param uri: Adress of Neo4j database
         :param user: Username for Neo4j database
         :param password: Password for Neo4j database
@@ -144,8 +147,9 @@ class BaseDriver(object):
         try:
             self._driver = GraphDatabase.driver(uri, auth=(user, password))
         except Exception:
-            logger.error("Unable to start BaseDriver. \n", exc_info=True)
+            logger.error("Unable to start driver. \n", exc_info=True)
             sys.exit()
+        # load the ontology that defines the schema
         # load the ontology that defines the schema
         onto = owlready2.get_ontology(os.getcwd() + "\\MAO.owl")
         onto.load()
@@ -160,16 +164,6 @@ class BaseDriver(object):
         for val in self.properties:
             val.label = [x.replace(" ", "_") for x in val.label]
 
-        # every property is an edge in the Neo4J graph
-        # therefore, we can check the range and domains
-
-    def close(self):
-        """
-        Closes the connection to the database.
-        :return:
-        """
-        self._driver.close()
-
     def clear_database(self):
         """
         Clears the entire database.
@@ -180,20 +174,6 @@ class BaseDriver(object):
                 session.write_transaction(self._delete_all)
         except Exception:
             logger.error("Could not clear database. \n", exc_info=True)
-
-    def query(self, query):
-        """
-        Accepts a query and provides the results.
-        :param query: String containing Cypher query
-        :return: Results of transaction with Cypher query
-        """
-        output = None
-        try:
-            with self._driver.session() as session:
-                output = session.read_transaction(self._query, query)
-        except Exception:
-            logger.error("Unable to execute query: " + query + '\n', exc_info=True)
-        return output
 
     def check_domain_range(self):
         """
@@ -274,17 +254,6 @@ class BaseDriver(object):
         :return:
         """
         tx.run("MATCH (n) DETACH DELETE n")
-
-    @staticmethod
-    def _query(tx, query):
-        """
-        Processes custom queries.
-        :param tx: Neo4j transaction
-        :param query: String of Cypher query
-        :return: Outcome of transaction
-        """
-        results = tx.run(query).data()
-        return results
 
 
 
