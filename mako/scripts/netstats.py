@@ -91,7 +91,7 @@ class NetstatsDriver(ParentDriver):
         If no networks are specified, the function returns only nodes that are
         connected to all nodes in the network.
         :param networks: List of network names
-        :param weight: If false, the intersection includes associations with matching partners but different weights
+        :param weight: If false, the intersection includes edges with matching partners but different weights
         :param fraction: If specified, fraction of networks that the intersecting node should be in
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
@@ -110,9 +110,9 @@ class NetstatsDriver(ParentDriver):
     def graph_difference(self, networks=None, weight=True):
         """
         Returns a subgraph that contains all nodes only present in one of the selected networks.
-        If no networks are specified, returns all associations that are unique across multiple networks.
+        If no networks are specified, returns all edges that are unique across multiple networks.
         :param networks: List of network names
-        :param weight: If false, the difference excludes associations with matching partners but different weights
+        :param weight: If false, the difference excludes edges with matching partners but different weights
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
         difference = None
@@ -146,11 +146,11 @@ class NetstatsDriver(ParentDriver):
         :param networks: List of network names
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
-        assocs = tx.run(("WITH " + str(networks) +
+        edges = tx.run(("WITH " + str(networks) +
                          " as names MATCH (n:Edge)-->(b:Network) "
                          "WHERE b.name in names RETURN n")).data()
-        assocs = _get_unique(assocs, 'n')
-        setname = _write_logic(tx, operation='Union', networks=networks, assocs=assocs)
+        edges = _get_unique(edges, 'n')
+        setname = _write_logic(tx, operation='Union', networks=networks, edges=edges)
         return setname
 
     @staticmethod
@@ -159,7 +159,7 @@ class NetstatsDriver(ParentDriver):
         Accesses database to return edge list of intersection of networks.
         :param tx: Neo4j transaction
         :param networks: List of network names
-        :param weight: If false, the intersection includes associations with matching partners but different weights
+        :param weight: If false, the intersection includes edges with matching partners but different weights
         :param n: If specified, number of networks that the intersecting node should be in
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
@@ -169,9 +169,9 @@ class NetstatsDriver(ParentDriver):
                 queries.append(("MATCH (n:Edge)-->(:Network {name: '" +
                                 node + "'}) "))
             query = " ".join(queries) + "RETURN n"
-            assocs = tx.run(query).data()
+            edges = tx.run(query).data()
         else:
-            assocs = list()
+            edges = list()
             combos = combinations(networks, n)
             for combo in combos:
                 queries = list()
@@ -179,42 +179,42 @@ class NetstatsDriver(ParentDriver):
                     queries.append(("MATCH (n:Edge)-->(:Network {name: '" +
                                     node + "'}) "))
                 query = " ".join(queries) + "RETURN n"
-                combo_assocs = tx.run(query).data()
-                assocs.extend(combo_assocs)
-        assocs = list(_get_unique(assocs, 'n'))
+                combo_edges = tx.run(query).data()
+                edges.extend(combo_edges)
+        edges = list(_get_unique(edges, 'n'))
         if weight:
             query = ("MATCH (a)-[:WITH_TAXON]-(n:Edge)-[:WITH_TAXON]-(b) "
                      "MATCH (a)-[:WITH_TAXON]-(m:Edge)-[:WITH_TAXON]-(b) "
                      "WHERE (n.name <> m.name) RETURN n, m")
             weighted = tx.run(query).data()
             filter_weighted = list()
-            for assoc in weighted:
-                # check whether associations are in all networks
+            for edge in weighted:
+                # check whether edges are in all networks
                 in_networks = list()
                 nets = tx.run(("MATCH (a:Edge {name: '"
-                               + assoc['n'].get('name') +
+                               + edge['n'].get('name') +
                                "'})-->(n:Network) RETURN n")).data()
                 nets = _get_unique(nets, 'n')
                 in_networks.extend(nets)
                 nets = tx.run(("MATCH (a:Edge {name: '"
-                               + assoc['m'].get('name') +
+                               + edge['m'].get('name') +
                                "'})-->(n:Network) RETURN n")).data()
                 nets = _get_unique(nets, 'n')
                 in_networks.extend(nets)
                 if n:
                     if len(in_networks) > n:
-                        filter_weighted.append(assoc)
+                        filter_weighted.append(edge)
                 else:
                     if all(x in in_networks for x in networks):
-                        filter_weighted.append(assoc)
-            assocs.extend(_get_unique(filter_weighted, 'n'))
-            assocs.extend(_get_unique(filter_weighted, 'm'))
+                        filter_weighted.append(edge)
+            edges.extend(_get_unique(filter_weighted, 'n'))
+            edges.extend(_get_unique(filter_weighted, 'm'))
         name = 'Intersection'
         if weight:
             name += '_weight'
         if n:
             name = name + '_' + str(n)
-        setname = _write_logic(tx, operation=name, networks=networks, assocs=assocs)
+        setname = _write_logic(tx, operation=name, networks=networks, edges=edges)
         return setname
 
     @staticmethod
@@ -223,40 +223,40 @@ class NetstatsDriver(ParentDriver):
         Accesses database to return edge list of difference of networks.
         :param tx: Neo4j transaction
         :param networks: List of network names
-        :param weight: If false, the difference excludes associations with matching partners but different weights
+        :param weight: If false, the difference excludes edges with matching partners but different weights
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
-        assocs = list()
+        edges = list()
         for network in networks:
-            assocs.extend(tx.run(("MATCH (n:Edge)-->(:Network {name: '" + network +
+            edges.extend(tx.run(("MATCH (n:Edge)-->(:Network {name: '" + network +
                                   "'}) WITH n MATCH (n)-[r]->(:Network) WITH n, count(r) "
                                   "as num WHERE num=1 RETURN n")).data())
-        assocs = _get_unique(assocs, 'n')
+        edges = _get_unique(edges, 'n')
         if weight:
             cleaned = list()
-            for assoc in assocs:
-                query = ("MATCH (a)-[:WITH_TAXON]-(n:Edge {name: '" + assoc +
+            for edge in edges:
+                query = ("MATCH (a)-[:WITH_TAXON]-(n:Edge {name: '" + edge +
                          "'})-[:WITH_TAXON]-(b) "
                          "MATCH (a)-[:WITH_TAXON]-(m:Edge)-[:WITH_TAXON]-(b) "
                          "WHERE (n.name <> m.name) RETURN n, m")
                 check = tx.run(query).data()
                 if len(check) == 0:
-                    cleaned.append(assoc)
-            assocs = cleaned
+                    cleaned.append(edge)
+            edges = cleaned
         name = 'Difference'
         if weight:
             name += '_weight'
-        setname = _write_logic(tx, operation=name, networks=networks, assocs=assocs)
+        setname = _write_logic(tx, operation=name, networks=networks, edges=edges)
         return setname
 
 
-def _write_logic(tx, operation, networks, assocs):
+def _write_logic(tx, operation, networks, edges):
     """
     Accesses database to return edge list of intersection of networks.
     :param tx: Neo4j transaction
     :param operation: Type of logic operation
     :param networks: List of network names
-    :param assocs: List of associations returned by logic operation
+    :param edges: List of edges returned by logic operation
     :return:
     """
     name = operation
@@ -267,9 +267,9 @@ def _write_logic(tx, operation, networks, assocs):
            "DETACH DELETE n", id=name, networks=str(networks))
     tx.run("CREATE (n:Set {name: $id, networks: $networks}) "
            "RETURN n", id=name, networks=str(networks))
-    for assoc in assocs:
+    for edge in edges:
         tx.run(("MATCH (a:Edge), (b:Set) WHERE a.name = '" +
-                assoc +
+                edge +
                 "' AND b.name = '" + name +
                 "' CREATE (a)-[r:IN_SET]->(b) "
                 "RETURN type(r)"))

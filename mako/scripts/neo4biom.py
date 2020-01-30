@@ -488,7 +488,7 @@ class Biom2Neo(ParentDriver):
     @staticmethod
     def _delete_taxon(tx, taxon):
         """
-        Deletes a taxon and all the associations linked to the taxon.
+        Deletes a taxon and all the edges linked to the taxon.
         :param tx:
         :param taxon: Taxon ID
         :return:

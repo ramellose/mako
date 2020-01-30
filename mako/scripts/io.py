@@ -16,7 +16,7 @@ __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
 
-from uuid import uuid4  # generates unique IDs for associations + observations
+from uuid import uuid4  # generates unique IDs for edges + observations
 import networkx as nx
 from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config, _get_path
 import numpy as np
@@ -293,23 +293,23 @@ class IoDriver(ParentDriver):
         :param network: NetworkX object.
         :param exp_id: Name of experiment used to generate network.
         :param log: Log of steps carried out to generate network
-        :param mode: if 'weight, weighted associations are uploaded
+        :param mode: if 'weight, weighted edges are uploaded
         :return:
         """
         try:
             with self._driver.session() as session:
                 session.write_transaction(self._create_network, network_id)
-                session.write_transaction(self._create_associations, network_id, network)
+                session.write_transaction(self._create_edges, network_id, network)
         except Exception:
             logger.error("Could not write networkx object to database. \n", exc_info=True)
 
     def delete_network(self, network_id):
         with self._driver.session() as session:
-            associations = session.read_transaction(self._assocs_to_delete, network_id).data()
+            edges = session.read_transaction(self._assocs_to_delete, network_id).data()
         with self._driver.session() as session:
-            for assoc in associations:
-                session.write_transaction(self._delete_assoc, assoc['a.name'])
-        logger.info('Detached associations...')
+            for edge in edges:
+                session.write_transaction(self._delete_assoc, edge['a.name'])
+        logger.info('Detached edges...')
         self.query(("MATCH (a:Network) WHERE a.name = '" + network_id + "' DETACH DELETE a"))
         with self._driver.session() as session:
             session.write_transaction(self._delete_method)
@@ -516,9 +516,9 @@ class IoDriver(ParentDriver):
                                 "' RETURN a"))
 
     @staticmethod
-    def _create_associations(tx, name, network):
+    def _create_edges(tx, name, network):
         """
-        Generates all the associations contained in a network and
+        Generates all the edges contained in a network and
         connects them to the related network node.
         This function uses NetworkX networks as source.
         :param tx: Neo4j transaction
@@ -526,7 +526,7 @@ class IoDriver(ParentDriver):
         :param network: NetworkX object
         :return:
         """
-        # creates metadata for eventual CoNet feature associations
+        # creates metadata for eventual CoNet feature edges
         for edge in network.edges:
             taxon1 = edge[0]
             taxon2 = edge[1]
@@ -690,17 +690,17 @@ class IoDriver(ParentDriver):
     @staticmethod
     def _association_list(tx, network):
         """
-        Returns a list of associations, as taxon1, taxon2, and, if present, weight.
+        Returns a list of edges, as taxon1, taxon2, and, if present, weight.
         :param tx: Neo4j transaction
         :param network: Name of network or set node
         :return: List of lists with source and target nodes, source networks and edge weights.
         """
-        associations = tx.run(("MATCH (n:Edge)--(b {name: '" + network +
+        edges = tx.run(("MATCH (n:Edge)--(b {name: '" + network +
                                "'}) RETURN n")).data()
         networks = dict()
         weights = dict()
-        for assoc in associations:
-            taxa = tx.run(("MATCH (m)--(:Edge {name: '" + assoc['n'].get('name') +
+        for edge in edges:
+            taxa = tx.run(("MATCH (m)--(:Edge {name: '" + edge['n'].get('name') +
                            "'})--(n) "
                            "WHERE (m:Taxon OR m:Agglom_Taxon) AND (n:Taxon OR n:Agglom_Taxon) "
                            "AND m.name <> n.name "
@@ -709,14 +709,14 @@ class IoDriver(ParentDriver):
                 pass  # apparently this can happen. Need to figure out why!!
             else:
                 edge = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
-                network = tx.run(("MATCH (:Edge {name: '" + assoc['n'].get('name') +
+                network = tx.run(("MATCH (:Edge {name: '" + edge['n'].get('name') +
                                   "'})-->(n:Network) RETURN n"))
                 network = _get_unique(network, key='n')
                 network_list = list()
                 for item in network:
                     network_list.append(item)
-                weight = [assoc['n'].get('weight')]
-                # it is possible for sets to contain associations with different weights
+                weight = [edge['n'].get('weight')]
+                # it is possible for sets to contain edges with different weights
                 if edge in networks.keys():
                     network_list.extend(networks[edge])
                     networks[edge] = set(network_list)
@@ -833,7 +833,7 @@ class IoDriver(ParentDriver):
         return names
 
     @staticmethod
-    def _delete_assoc(tx, assoc):
+    def _delete_assoc(tx, edge):
         """
         Deletes a sample node and all the observations linked to the sample.
         :param tx: Neo4j transaction
@@ -841,7 +841,7 @@ class IoDriver(ParentDriver):
         :return:
         """
         tx.run(("MATCH (a:Edge)--(b:Network) "
-                "WHERE a.name = '" + assoc +
+                "WHERE a.name = '" + edge +
                 "' DETACH DELETE a"))
 
     @staticmethod
