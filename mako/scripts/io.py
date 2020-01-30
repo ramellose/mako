@@ -59,7 +59,7 @@ def start_io(inputs):
                           filepath=inputs['fp'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
-        exit()
+        os.exit()
     # Only process network files if present
     if inputs['networks']:
         try:
@@ -246,7 +246,7 @@ def _convert_table(data, driver):
             value_dict[key] = [data_dict[data.columns[1]][key], None]
     value_dict = {k: {'target': v[0], 'weight': v[1]} for k, v in value_dict.items()}
     logger.info("Uploading " + str(len(value_dict)) + " values.")
-    driver.include_nodes(value_dict, name=target, label=source)
+    driver.include_nodes(nodes=value_dict, name=target, label=source)
 
 
 def _read_network_extension(filename):
@@ -531,14 +531,13 @@ class IoDriver(object):
         :param log: Dictionary of operations carried out to generate network
         :return:
         """
-        tx.run("CREATE (a:Network) "
-               "SET a.name = $id "
-               "RETURN a", id=network)
+        tx.run("MERGE (a:Network {name: '" + network + "'}) "
+               "RETURN a")
         if exp_id:
             tx.run(("MATCH (a:Network), (b:Experiment) "
                     "WHERE a.name = '" + network +
                     "' AND b.name = '" + exp_id +
-                    "' CREATE (a)-[r:CREATED_FROM]->(b) "
+                    "' MERGE (a)-[r:CREATED_FROM]->(b) "
                     "RETURN type(r)"))
         if log:
             for metadata in log:
@@ -611,7 +610,7 @@ class IoDriver(object):
                     tx.run(("MATCH (a:Taxon), (b:Property) WHERE a.name = '" + taxon1 +
                             "' AND b.type ='" + taxon2 +
                             "' AND b.name = '" + attr['interactionType'] +
-                            "' CREATE (a)-[r:HAS_PROPERTY]->(b) RETURN type(r)"))
+                            "' MERGE (a)-[r:HAS_PROPERTY]->(b) RETURN type(r)"))
             if not feature:
                 network_weight = None
                 if 'weight' in attr:
@@ -646,7 +645,7 @@ class IoDriver(object):
                                     "WHERE a.name = '" +
                                     uid +
                                     "' AND b.name = '" + name +
-                                    "' CREATE (a)-[r:IN_NETWORK]->(b) "
+                                    "' MERGE (a)-[r:IN_NETWORK]->(b) "
                                     "RETURN type(r)"))
                         tx.run(("MATCH (a:Edge) WHERE a.name = '" +
                                 uid +
@@ -657,29 +656,29 @@ class IoDriver(object):
                     uid = str(uuid4())
                     # non alphanumeric chars break networkx
                     if 'weight' in attr:
-                        tx.run("CREATE (a:Edge {name: $id}) "
+                        tx.run("MERGE (a:Edge {name: $id}) "
                                "SET a.weight = $weight "
                                "RETURN a", id=uid, weight=str(network_weight))
                     else:
-                        tx.run("CREATE (a:Edge {name: $id}) "
+                        tx.run("MERGE (a:Edge {name: $id}) "
                                "RETURN a", id=uid)
                     tx.run(("MATCH (a:Edge), (b:Taxon) "
                             "WHERE a.name = '" +
                             uid +
                             "' AND b.name = '" + taxon1 +
-                            "' CREATE (a)-[r:WITH_TAXON]->(b) "
+                            "' MERGE (a)-[r:WITH_TAXON]->(b) "
                             "RETURN type(r)"))
                     tx.run(("MATCH (a:Edge), (b:Taxon) "
                             "WHERE a.name = '" +
                             uid +
                             "' AND b.name = '" + taxon2 +
-                            "' CREATE (a)-[r:WITH_TAXON]->(b) "
+                            "' MERGE (a)-[r:WITH_TAXON]->(b) "
                             "RETURN type(r)"))
                     tx.run(("MATCH (a:Edge), (b:Network) "
                             "WHERE a.name = '" +
                             uid +
                             "' AND b.name = '" + name +
-                            "' CREATE (a)-[r:IN_NETWORK]->(b) "
+                            "' MERGE (a)-[r:IN_NETWORK]->(b) "
                             "RETURN type(r)"))
 
     @staticmethod
@@ -827,7 +826,7 @@ class IoDriver(object):
         :param sourcetype: Type variable of source node (not required)
         :return:
         """
-        tx.run(("MERGE (a:Property) "
+        tx.run(("MERGE (a:Property {name: '" + target + "'}) "
                 "SET a.name = '" + target +
                 "' SET a.type = '" + name + "' "
                 "RETURN a")).data()
@@ -847,7 +846,7 @@ class IoDriver(object):
                     "WHERE a.name = '" + source +
                     "' AND b.name = '" + target +
                     "' AND b.type = '" + name +
-                    "' CREATE (a)-[r:HAS_PROPERTY" + rel + "]->(b) "
+                    "' MERGE (a)-[r:HAS_PROPERTY" + rel + "]->(b) "
                     "RETURN type(r)"))
 
     @staticmethod

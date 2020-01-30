@@ -266,7 +266,7 @@ parse_io.add_argument('-net', '--networks',
 parse_io.add_argument('-del', '--delete',
                       dest='delete',
                       required=False,
-                      help='If true, specify with the -net paramter names of networks (without full path) '
+                      help='If true, specify with the -net parameter names of networks (without full path) '
                            'to delete from the database. If no networks are mentioned, all are deleted.',
                       type=list,
                       default=None)
@@ -340,9 +340,27 @@ parse_netstats.add_argument('-a', '--address',
 parse_netstats.add_argument('-net', '--networks',
                             dest='networks',
                             required=False,
-                            help='One or more network files. These can be graphml, gml or txt edge lists. ',
+                            help='If you only want to carry out set operations on specific networks, list them here. ',
                             type=list,
                             default=None)
+parse_netstats.add_argument('-set', '--set_operation',
+                            dest='set',
+                            required=False,
+                            help='If flagged, adds nodes linking associations to the union, difference and intersection. ',
+                            action='store_true',
+                            default=None)
+parse_netstats.add_argument('-w', '--weight',
+                            dest='weight',
+                            required=False,
+                            help='If flagged, edge weight is not taken into account for sets. ',
+                            action='store_false',
+                            default=True)
+parse_netstats.add_argument('-frac', '--fraction',
+                            dest='fraction',
+                            required=False,
+                            help='List of fractions to use for partial intersections. ',
+                            type=list,
+                            default=[1])
 
 
 def main():

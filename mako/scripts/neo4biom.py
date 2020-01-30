@@ -306,6 +306,7 @@ class Biom2Neo(object):
                                 session.write_transaction(self.create_property,
                                                           source=taxon, sourcetype='Taxon',
                                                           target=meta[key], name=key)
+            with self._driver.session() as session:
                 for sample in biomfile.ids(axis='sample'):
                     session.write_transaction(self._create_sample, sample, exp_id)
                     sample_index = biomfile.index(axis='sample', id=sample)
@@ -370,7 +371,7 @@ class Biom2Neo(object):
         :param exp_id: Label for experiment
         :return:
         """
-        tx.run("CREATE (a:Experiment) SET a.name = $id", id=exp_id)
+        tx.run("MERGE (a:Experiment {name: '" + exp_id + "'}) RETURN a")
 
     @staticmethod
     def _create_taxon(tx, taxon, biomfile):
@@ -383,7 +384,7 @@ class Biom2Neo(object):
         :param biomfile: BIOM file containing count data.
         :return:
         """
-        tx.run("MERGE (a:Taxon) SET a.name = $id", id=taxon)
+        tx.run("MERGE (a:Taxon {name: '" + taxon + "'}) RETURN a")
         tax_index = biomfile.index(axis='observation', id=taxon)
         if biomfile.metadata(axis='observation'):
             # it is possible that there is no metadata
@@ -415,7 +416,7 @@ class Biom2Neo(object):
                                         "), (b:" + tax_levels[i-1] +
                                         ") WHERE a.name = '" + tax_dict[i] +
                                         "' AND b.name = '" + tax_dict[i-1] +
-                                        "' CREATE (a)-[r: PART_OF]->(b) "
+                                        "' MERGE (a)-[r: PART_OF]->(b) "
                                         "RETURN type(r)"))
                             tx.run(("MATCH (a:Taxon), (b:" + tax_levels[i] +
                                     ") WHERE a.name = '" + taxon +
@@ -423,7 +424,7 @@ class Biom2Neo(object):
                                     "' MERGE (a)-[r: BELONGS_TO]->(b) "
                                     "RETURN type(r)"))
         else:
-            tx.run("CREATE (a:Taxon) SET a.name = $id", id='Bin')
+            tx.run("MERGE (a:Taxon {name: 'Bin'})")
 
     @staticmethod
     def _create_sample(tx, sample, exp_id):
@@ -434,11 +435,11 @@ class Biom2Neo(object):
         :param exp_id: Experiment name
         :return:
         """
-        tx.run("CREATE (a:Specimen) SET a.name = $id", id=sample)
+        tx.run("MERGE (a:Specimen {name: '" + sample + "'}) RETURN a")
         tx.run(("MATCH (a:Specimen), (b:Experiment) "
                 "WHERE a.name = '" + sample +
                 "' AND b.name = '" + exp_id +
-                "' CREATE (a)-[r:IN_EXPERIMENT]->(b) "
+                "' MERGE (a)-[r:IN_EXPERIMENT]->(b) "
                 "RETURN type(r)"))
 
     @staticmethod
@@ -454,8 +455,7 @@ class Biom2Neo(object):
         :param sourcetype: Type variable of source node (not required)
         :return:
         """
-        tx.run(("MERGE (a:Property) "
-                "SET a.name = '" + target +
+        tx.run(("MERGE (a:Property {name: '" + target + "'})"
                 "' SET a.type = '" + name + "' "
                 "RETURN a")).data()
         if len(sourcetype) > 0:
@@ -474,7 +474,7 @@ class Biom2Neo(object):
                     "WHERE a.name = '" + source +
                     "' AND b.name = '" + target +
                     "' AND b.type = '" + name +
-                    "' CREATE (a)-[r:HAS_PROPERTY" + rel + "]->(b) "
+                    "' MERGE (a)-[r:HAS_PROPERTY" + rel + "]->(b) "
                     "RETURN type(r)"))
 
     @staticmethod
@@ -490,7 +490,7 @@ class Biom2Neo(object):
         tx.run(("MATCH (a:Taxon), (b:Specimen) "
                 "WHERE a.name = '" + taxon +
                 "' AND b.name = '" + sample +
-                "' CREATE (a)-[r:FOUND_IN]->(b) "
+                "' MERGE (a)-[r:FOUND_IN]->(b) "
                 "SET r.count = '" + str(value) +
                 "' RETURN type(r)"))
 
