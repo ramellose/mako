@@ -81,6 +81,8 @@ class NetstatsDriver(ParentDriver):
                 logger.info("The union set operation for networks " + str(networks) +
                             " has been added to "
                             "the database\nwith name " + union + ". ")
+                size = session.read_transaction(self._get_size, union)
+                logger.info("This union contains " + str(size) + " edges. ")
         except Exception:
             logger.error("Could not obtain graph union. ", exc_info=True)
         return union
@@ -100,9 +102,11 @@ class NetstatsDriver(ParentDriver):
         try:
             with self._driver.session() as session:
                 intersection = session.read_transaction(self._get_intersection, networks, weight=weight, n=n)
-            logger.info("The intersection set operation for networks " + str(networks) +
-                        " has been added to "
-                        "the database\nwith name " + intersection + ". ")
+                logger.info("The intersection set operation for networks " + str(networks) +
+                            " has been added to "
+                            "the database\nwith name " + intersection + ". ")
+                size = session.read_transaction(self._get_size, intersection)
+                logger.info("This intersection contains " + str(size) + " edges. ")
         except Exception:
             logger.error("Could not obtain graph intersection. ", exc_info=True)
         return intersection
@@ -122,6 +126,8 @@ class NetstatsDriver(ParentDriver):
                 logger.info("The difference set operation for networks " + str(networks) +
                             " has been added to "
                             "the database \nwith name " + difference + ". ")
+                size = session.read_transaction(self._get_size, difference)
+                logger.info("This difference contains " + str(size) + " edges. ")
         except Exception:
             logger.error("Could not obtain graph difference. ", exc_info=True)
         return difference
@@ -248,6 +254,20 @@ class NetstatsDriver(ParentDriver):
             name += '_weight'
         setname = _write_logic(tx, operation=name, networks=networks, edges=edges)
         return setname
+
+    @staticmethod
+    def _get_size(tx, operation):
+        """
+        Returns the number of edges in a set.
+
+        :param tx: Neo4j transaction
+        :param operation: Name of set
+        :return: Integer
+        """
+        num = tx.run("MATCH (n:Set {name: $id})-"
+                     "[r:IN_SET]-() RETURN count(r) as count",
+                     id=operation).data()
+        return num[0]['count']
 
 
 def _write_logic(tx, operation, networks, edges):

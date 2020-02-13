@@ -92,7 +92,7 @@ def start_base(inputs):
             driver.close()
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
-            exit()
+            sys.exit()
     if inputs['clear'] and pid_exists(pid):
         driver = BaseDriver(user=config['username'],
                             password=config['password'],

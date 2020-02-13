@@ -10,6 +10,7 @@ __license__ = 'Apache 2.0'
 
 import sys
 import os
+import numpy as np
 import logging
 import logging.handlers
 from neo4j.v1 import GraphDatabase

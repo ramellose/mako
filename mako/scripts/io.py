@@ -116,7 +116,9 @@ def delete_network(inputs):
     if not names:
         names = [x['a']['name'] for x in driver.query("MATCH (a:Network) RETURN a")]
     for name in names:
+        logger.info("Deleting " + name + "...")
         driver.delete_network(name)
+    driver.query("MATCH (a:Set) DETACH DELETE a")
 
 
 def read_networks(files, filepath, driver):
@@ -354,7 +356,7 @@ class IoDriver(ParentDriver):
                     else:
                         all_weights = []
                 all_weights = [float(x) for x in all_weights]
-                weight = float(np.mean(all_weights))
+                weight = float(np.median(all_weights))
                 g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
                            weight=weight, all_weights=str(all_weights))
             # necessary for networkx indexing
@@ -474,6 +476,33 @@ class IoDriver(ParentDriver):
                                           source=node, sourcetype=label,
                                           target=nodes[node]['target'], name=name, weight=nodes[node]['weight'])
 
+    def export_fasta(self, fp, name):
+        """
+        This function exports a FASTA file compatible with other tools,
+        e.g. PICRUSt2.
+        The advantage of using this FASTA file is that it
+        only contains taxa present in the database.
+        Hence, tools like PICRUSt2 will run much faster.
+        While mako cannot directly run PICRUSt2, the below command
+        is an example of how you could generate a PICRUSt2 table to provide to mako.
+        You don't need to run the full PICRUSt2 pipeline because
+        massoc will not use the predicted function abundances.
+        For the cheese demo, you could run PICRUSt2 as follows:
+        place seqs.py -s cheese.fasta -o cheese.tre -p 1
+        :param fp: Output filepath for storing intermediate files.
+        :param name: List of names for files in database.
+        :return:
+        """
+        # first run the system_call_check place_seqs_cmd
+        # many of the commands are default
+        # we can extract a fasta of sequences from the database
+        with self._driver.session() as session:
+            study_fasta = session.read_transaction(self._get_fasta)
+        file = open(fp + "//" + ''.join(name) + ".fasta", "w")
+        file.write(study_fasta)
+        file.close()
+        # use default reference files
+
     @staticmethod
     def _create_network(tx, network, exp_id=None, log=None):
         """
@@ -568,14 +597,23 @@ class IoDriver(ParentDriver):
             if not feature:
                 network_weight = None
                 if 'weight' in attr:
-                    network_weight = str(attr['weight'])
-                hit = tx.run(("MATCH p=(a)<--(:Edge)-->(b) "
-                              "WHERE a.name = '" + taxon1 +
-                              "' AND b.name = '" + taxon2 +
-                              "' RETURN p")).data()
-                # first check if association is already present)
+                    network_weight = attr['weight']
+                    hit = tx.run(("MATCH p=(a)<--(:Edge)-->(b) "
+                                  "WHERE a.name = '" + taxon1 +
+                                  "' AND b.name = '" + taxon2 +
+                                  "' RETURN p")).data()
+                else:
+                    hit = tx.run(("MATCH p=(a)<--(e:Edge)-->(b) "
+                                  "WHERE a.name = '" + taxon1 +
+                                  "' AND b.name = '" + taxon2 +
+                                  "' AND e.weight = " + str(network_weight) +
+                                  " RETURN p")).data()
+                # first check if association is already present
                 if len(hit) > 0:
-                    weights = [network_weight]
+                    # we upload weights twice
+                    # once as the sign of the median
+                    # once as a list of strings
+                    weights = [str(network_weight)]
                     for association in hit:
                         uid = association['p'].nodes[1].get('name')
                         # first check if there is already a link between the association and network
@@ -584,7 +622,7 @@ class IoDriver(ParentDriver):
                                               uid +
                                               "' AND b.name = '" + name +
                                               "' RETURN p")).data()
-                        database_weight = association['p'].nodes[1].get('weight')
+                        database_weight = association['p'].nodes[1].get('weights')
                         try:
                             database_weight = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[.]?\d*(?:[eE][-+]?\d+)?",
                                                          database_weight)
@@ -603,15 +641,21 @@ class IoDriver(ParentDriver):
                                     "RETURN type(r)"))
                         tx.run(("MATCH (a:Edge) WHERE a.name = '" +
                                 uid +
-                                "' SET a.weight = " +
+                                "' SET a.weights = " +
                                 str(weights) +
+                                " RETURN a"))
+                        median_weight = np.median([float(x) for x in weights])
+                        tx.run(("MATCH (a:Edge) WHERE a.name = '" +
+                                uid +
+                                "' SET a.weight = " +
+                                str(median_weight) +
                                 " RETURN a"))
                 else:
                     uid = str(uuid4())
                     # non alphanumeric chars break networkx
                     if 'weight' in attr:
                         tx.run("MERGE (a:Edge {name: $id}) "
-                               "SET a.weight = $weight "
+                               "SET a.weight = $weight SET a.weights = $weight "
                                "RETURN a", id=uid, weight=str(network_weight))
                     else:
                         tx.run("MERGE (a:Edge {name: $id}) "
@@ -652,7 +696,7 @@ class IoDriver(ParentDriver):
             for level in tax_levels:
                 tax = None
                 level_name = tx.run("MATCH (b {name: '" + item +
-                                 "'})--(n:"+ level + ") RETURN n").data()
+                                    "'})--(n:"+ level + ") RETURN n").data()
                 if len(level_name) != 0:
                     tax = level_name[0]['n'].get('name')
                 if tax:
