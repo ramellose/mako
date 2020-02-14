@@ -740,8 +740,8 @@ class IoDriver(ParentDriver):
                 weight = edge['n'].get('weight')
                 if not weight:
                     weight = edge['n'].get('sign')
-                networks[edge] = network_list
-                weights[edge] = weight
+                networks[edge_tuple] = network_list
+                weights[edge_tuple] = weight
         edge_list = (networks, weights)
         return edge_list
 
