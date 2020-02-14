@@ -12,6 +12,7 @@ __license__ = 'Apache 2.0'
 import sys
 import re
 from uuid import uuid4
+import numpy as np
 from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
 import logging.handlers
 from scipy.stats import hypergeom, spearmanr
@@ -52,7 +53,7 @@ def start_metastats(inputs):
         for level in range(0, level_id + 1):
             # pub.sendMessage('update', msg="Agglomerating edges...")
             logger.info("Agglomerating edges...")
-            networks = driver.agglomerate_network(level=tax_list[level], weight=inputs['weight'], networks=networks)
+            networks = driver.agglomerate_networks(level=tax_list[level], weight=inputs['weight'], networks=networks)
             # networks assignment contains names of new networks
     if inputs['variable']:
         logger.info("Associating samples...  ")
@@ -85,7 +86,7 @@ class MetastatsDriver(ParentDriver):
         per network in the database.
         :param level: Taxonomic level matching taxonomic assignments in Neo4j database
         :param weight: if True, takes edge weight into account
-        :param If specified, only these networks are agglomerated
+        :param networks: If specified, only these networks are agglomerated
         :return:
         """
         tax_list = ['Species', 'Genus', 'Family', 'Order', 'Class', 'Phylum', 'Kingdom']
@@ -112,17 +113,19 @@ class MetastatsDriver(ParentDriver):
             # possible with nodes that do not have large taxonomy
             testpair = self.get_pairlist(level, weight, previous_network)
             if not len(testpair) == 0:
+                logger.info("Copying " + previous_network + "...")
                 self.copy_network(previous_network, new_name)
             else:
                 new_networks[new_name] = None
         try:
             for network in new_networks:
                 if new_networks[network]:
+                    logger.info("Agglomerating " + network + "...")
                     stop_condition = False
                     while not stop_condition:
                         # limit is necessary to prevent excessively long queries
                         pairs = self.get_pairlist(level=level, weight=weight, network=network)
-                        if len(pairs) > 0:
+                        if pairs:
                             pair = pairs[0]['p']
                             self.agglomerate_pair(pair, level=level, weight=weight, network=network)
                         else:
@@ -132,19 +135,24 @@ class MetastatsDriver(ParentDriver):
                         # after agglomerating edges
                         # taxa with same taxonomic assignments should be merged
                         # this rewires the network
-                        pairs = self.get_taxlist(level=level)
-                        if len(pairs) > 0:
-                            pair = pairs[0]
-                            self.agglomerate_taxa(pair, level=level)
+                        tax_nodes = self.get_taxlist(level=level, network=network)
+                        if tax_nodes:
+                            tax_nodes = tax_nodes[0]
+                            self.agglomerate_taxa(tax_nodes, level=level)
                         else:
                             # if no pairs are found, they may be with unassigned taxa
                             # the unassigned_pairlist function looks for those
                             pairs = self.get_unassigned_taxlist(level=level)
-                            if len(pairs) > 0:
+                            if pairs:
                                 pair = pairs[0]
                                 self.agglomerate_taxa(pair, level=level)
                             else:
                                 stop_condition = True
+                    num = self.query("MATCH (n:Network {name: $id})-"
+                                     "[r:IN_SET]-() RETURN count(r) as count",
+                                     id=network).data()
+                    logger.info("The agglomerated network " + network +
+                                " contains " + str(num) + " edges.")
         except Exception:
             logger.error("Could not agglomerate edges to higher taxonomic levels. \n", exc_info=True)
         return new_networks
@@ -153,6 +161,7 @@ class MetastatsDriver(ParentDriver):
         """
         Copies a network node and its edges.
         The network node name is new_network, edge IDs are generated with uuid4.
+        The weights of the edges are not copied, only the signs.
 
         :param source_network: Source network name
         :param new_network: New network name
@@ -176,7 +185,7 @@ class MetastatsDriver(ParentDriver):
         that have the same taxonomic assignment at the specified level,
         e.g. Nitrobacter-edge-Nitrosomonas.
         :param level: Taxonomic level to identify a pair.
-        :param weight: if True, specifies that edges should have identical weights.
+        :param weight: if True, specifies that edge weights should have the same sign.
         :param network: Name of network that the pairs should belong to
         :return: List containing results of Neo4j transaction
         """
@@ -197,7 +206,7 @@ class MetastatsDriver(ParentDriver):
         are deleted and replaced by a new edge.
         :param pair: List containing transaction results of query for pair
         :param level: Taxonomic level to identify a pair.
-        :param weight: if True, specifies that edges should have identical weights.
+        :param weight: if True, specifies that edge weights should have identical signs.
         :param network: Name of network
         :return:
         """
@@ -209,11 +218,12 @@ class MetastatsDriver(ParentDriver):
                 session.write_transaction(self._chainlinks, agglom_2, pair.nodes[5], pair.nodes[7])
                 session.write_transaction(self._taxonomy, agglom_1, pair.nodes[2], level)
                 session.write_transaction(self._taxonomy, agglom_2, pair.nodes[6], level)
-                edge_weight = [pair.nodes[0]['weight'], pair.nodes[4]['weight']]
-                edge_weight = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[.]?\d*(?:[eE][-+]?\d+)?",
-                                         edge_weight)
+                if weight:
+                    edge_sign = pair.nodes[0]['sign']
+                else:
+                    edge_sign = None
                 session.write_transaction(self._create_edge, agglom_1, agglom_2, network,
-                                          edge_weight=edge_weight, weight=weight)
+                                          edge_sign=edge_sign)
             with self._driver.session() as session:
                 session.write_transaction(self._delete_old_edges, [pair.nodes[0], pair.nodes[4]])
         except Exception:
@@ -307,33 +317,18 @@ class MetastatsDriver(ParentDriver):
         except Exception:
             logger.error("Could not associate a specific taxon to sample variables. \n", exc_info=True)
 
-    def get_taxlist(self, level):
+    def get_taxlist(self, level, network):
         """
         Starts a new transaction for every tax list request.
         A tax list is a list containing two edges linked to identical taxa.
         :param level: Taxonomic level.
+        :param network: Network name
         :return: List of transaction outcomes
         """
         pairs = None
         try:
             with self._driver.session() as session:
-                pairs = session.read_transaction(self._tax_list, level)
-        except Exception:
-            logger.error("Could not obtain list of matching taxa. \n", exc_info=True)
-        return pairs
-
-    def get_unassigned_taxlist(self, level):
-        """
-        Starts a new transaction for every tax list request.
-        This tax list contains edges with nodes that do not have
-        an assignment at the specified level.
-        :param level: Taxonomic level.
-        :return: List of transaction outcomes
-        """
-        pairs = None
-        try:
-            with self._driver.session() as session:
-                pairs = session.read_transaction(self._unassigned_tax_list, level)
+                pairs = session.read_transaction(self._tax_list, level, network)
         except Exception:
             logger.error("Could not obtain list of matching taxa. \n", exc_info=True)
         return pairs
@@ -369,13 +364,13 @@ class MetastatsDriver(ParentDriver):
         only edges with identical weight are returned.
         :param tx: Neo4j transaction
         :param level: Taxonomic level
-        :param weight: if True, searches for edges with matching weights
+        :param weight: if True, specifies that edge weights should have identical signs.
         :return: List of transaction outputs
         """
         if weight:
             result = tx.run(("MATCH (a:Edge)--(:Network {name: '" + network +
                              "'})--(b:Edge) WHERE (a.name <> b.name) "
-                             "AND (a.weight = b.weight) "
+                             "AND (a.sign = b.sign) "
                              "WITH a, b "
                              "MATCH p=(a:Edge)--()--(x:" + level +
                              ")--()--(b:Edge)--()--(y:" + level +
@@ -383,7 +378,7 @@ class MetastatsDriver(ParentDriver):
                              "RETURN p LIMIT 1"))
         else:
             result = tx.run(("MATCH (a:Edge)--(:Network {name: '" + network +
-                             "'})--(b:Edge) WHERE (a:name <> b:name) "
+                             "'})--(b:Edge) WHERE (a.name <> b.name) "
                              "WITH a, b "
                              "MATCH p=(a:Edge)--()--(x:" + level +
                              ")--()--(b:Edge)--()--(y:" + level +
@@ -392,18 +387,24 @@ class MetastatsDriver(ParentDriver):
         return result.data()
 
     @staticmethod
-    def _tax_list(tx, level):
+    def _tax_list(tx, level, network):
         """
         Returns a list of taxon pairs, where the
         taxonomic levels match.
+        Since each taxon is merged based on edge pairs,
+        this function also only includes taxa belonging to the
+        network that is being merged.
+
         :param tx: Neo4j transaction
         :param level: Taxonomic level
+        :param network: Network
         :return: List of transaction outcomes
         """
         result = tx.run(("MATCH p=(e:" +
-                         level + ")--(m)--(:Edge) MATCH r=(h:" + level +
-                         ")<--(n)--(:Edge) WHERE (m.name <> n.name) "
-                         "AND (e.name = h.name) RETURN p,r LIMIT 1"))
+                         level + ")--(m)--(:Edge)--(:Network {name: '" + network +
+                         "'}--(:Edge)--(n)--(f: " + level +
+                         ") WHERE (e.name = f.name) "
+                         "AND (m.name <> n.name) RETURN p LIMIT 1"))
         return result.data()
 
     @staticmethod
@@ -531,9 +532,9 @@ class MetastatsDriver(ParentDriver):
             weight = tx.run(("MATCH (a:Agglom_Taxon)--(b:Edge) "
                              "WHERE a.name = '" + node +
                              "' AND b.name = '" + assoc +
-                             "' RETURN b.weight")).data()
+                             "' RETURN b.sign")).data()
             targets.append(target[0]['m'].get('name'))
-            weights.append(weight[0]['b.weight'])
+            weights.append(weight[0]['b.sign'])
         while len(targets) > 1:
             item = targets[0]
             # write function for finding edges that have both matching
@@ -633,10 +634,10 @@ class MetastatsDriver(ParentDriver):
         edge_partners = tx.run(("MATCH (a)-[:WITH_TAXON]-(:Edge {name: '" + edge +
                                 "'})-[:WITH_TAXON]-(b) WHERE (a.name <> b.name)"
                                 " RETURN a, b LIMIT 1")).data()
-        edge_weight = tx.run(("MATCH (a:Edge {name: '" + edge + "'}) RETURN a.weight")).data()
+        edge_sign = tx.run(("MATCH (a:Edge {name: '" + edge + "'}) RETURN a.sign")).data()
         uid = str(uuid4())
         tx.run("CREATE (a:Edge {name: '" + uid +
-               "'}) SET a.weight = " + str(edge_weight[0]['a.weight']) +
+               "'}) SET a.sign = " + str(np.sign(edge_sign[0]['a.sign'])) +
                " RETURN a")
         tx.run("MATCH (a:Edge {name: '" + uid +
                "'}), (b:Network {name: '" + network +
@@ -649,7 +650,7 @@ class MetastatsDriver(ParentDriver):
                 edge_partners[0]['b']['name'] + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
 
     @staticmethod
-    def _create_edge(tx, agglom_1, agglom_2, network, edge_weight, weight):
+    def _create_edge(tx, agglom_1, agglom_2, network, edge_sign=None):
         """
         Creates new edges between agglomerated nodes, with
         the appropriate weight and Network node connections.
@@ -657,15 +658,14 @@ class MetastatsDriver(ParentDriver):
         :param agglom_1: Source taxon UID
         :param agglom_2: Source taxon UID
         :param network: Network containing pair_list edges
-        :param edge_weight: weight of edge
-        :param weight: if True, generates weighted edge
+        :param edge_sign: sign of edge
         :return:
         """
         uid = str(uuid4())
         # non alphanumeric chars break networkx
-        if weight:
+        if edge_sign:
             tx.run("CREATE (a:Edge {name: '" + uid +
-                   "'}) SET a.weight = " + str(edge_weight) +
+                   "'}) SET a.sign = " + str(edge_sign) +
                    " RETURN a")
         else:
             tx.run("CREATE (a:Edge {name: $id}) RETURN a",
@@ -697,18 +697,6 @@ class MetastatsDriver(ParentDriver):
                 networks.append(item['n'].get('name'))
         networks = list(set(networks))
         return networks
-
-    @staticmethod
-    def _get_weight(tx, nodes):
-        """
-        Returns the weight of an Edge node.
-        :param tx: Neo4j transaction
-        :param nodes: List of edge names
-        :return: List of edge weights
-        """
-        weight = tx.run("MATCH (n:Edge {name: '" + nodes[0].get('name') +
-                        "'}) RETURN n").data()[0]['n'].get('weight')
-        return weight
 
     @staticmethod
     def _delete_old_edges(tx, edges):

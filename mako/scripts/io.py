@@ -58,9 +58,9 @@ def start_io(inputs):
                           filepath=inputs['fp'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
-        os.exit()
+        sys.exit()
     # Only process network files if present
-    if inputs['networks']:
+    if inputs['networks'] and not inputs['delete'] and not inputs['write']:
         try:
             for x in inputs['networks']:
                 logger.info('Working on ' + x + '...')
@@ -146,7 +146,7 @@ def read_networks(files, filepath, driver):
         if checked_path:
             network = _read_network_extension(checked_path)
         else:
-            exit()
+            sys.exit()
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
         name = name.split(".")[0]
@@ -179,7 +179,7 @@ def add_sequences(filepath, location, driver):
     if checked_path:
         sequence_dict.update(_convert_fasta(filename))
     else:
-        exit()
+        sys.exit()
     # with the sequence list, run include_nodes
     seqs_in_database = taxa.intersection(sequence_dict.keys())
     sequence_dict = {k: {'target': v, 'weight': None} for k, v in sequence_dict.items() if k in seqs_in_database}
@@ -271,7 +271,7 @@ def _read_network_extension(filename):
         else:
             logger.warning('Format not accepted. '
                            'Please specify the filename including extension (e.g. test.graphml).', exc_info=True)
-            exit()
+            sys.exit()
         try:
             if 'name' in network.nodes[list(network.nodes)[0]]:
                 if network.nodes[list(network.nodes)[0]]['name'] != list(network.nodes)[0]:
@@ -466,7 +466,7 @@ class IoDriver(ParentDriver):
             found_nodes = sum([matches[x] for x in matches])
             if found_nodes == 0:
                 logger.warning('No source nodes are present in the network. \n')
-                exit()
+                sys.exit()
             else:
                 logger.info(str(found_nodes) + ' out of ' + str(len(matches)) + ' values found in database.')
         found_nodes = {x: v for x, v in nodes.items() if matches[x]}
@@ -570,114 +570,92 @@ class IoDriver(ParentDriver):
             # need to check this, because these taxa will NOT be in the dataset
             # in that case, we need to create nodes that represent
             # the features
-            feature = False
-            if 'isafeature' in network.nodes[edge[0]]:
-                if network.nodes[edge[0]]['isafeature'] == 'yes':
-                    feature = True
-                    # find if TaxonProperty already exists
-                    # otherwise, create it and link to Taxon
-                    tx.run(("MERGE (a:Property) SET a.type = '" +
-                            taxon1 + "' SET a.name = '" +
-                            attr['interactionType'] + "'"))
-                    tx.run(("MATCH (a:Taxon), (b:Property) WHERE a.name = '" + taxon2 +
-                            "' AND b.type ='" + taxon1 +
-                            "' AND b.name = '" + attr['interactionType'] +
-                            "' MERGE (a)-[r:HAS_PROPERTY]->(b) RETURN type(r)"))
-                elif network.nodes[edge[1]]['isafeature'] == 'yes':
-                    feature = True
-                    # find if TaxonProperty already exists
-                    # otherwise, create it and link to Taxon
-                    tx.run(("MERGE (a:Property) SET a.type = '" +
-                            taxon2 + "' SET a.name = '" +
-                            attr['interactionType'] + "'"))
-                    tx.run(("MATCH (a:Taxon), (b:Property) WHERE a.name = '" + taxon1 +
-                            "' AND b.type ='" + taxon2 +
-                            "' AND b.name = '" + attr['interactionType'] +
-                            "' MERGE (a)-[r:HAS_PROPERTY]->(b) RETURN type(r)"))
-            if not feature:
-                network_weight = None
+            network_weight = None
+            if 'weight' in attr:
+                network_weight = attr['weight']
+                hit = tx.run(("MATCH p=(a)<--(e:Edge)-->(b) "
+                              "WHERE a.name = '" + taxon1 +
+                              "' AND b.name = '" + taxon2 +
+                              "' AND e.sign = " + str(np.sign(network_weight)) +
+                              " RETURN p")).data()
+
+            else:
+                hit = tx.run(("MATCH p=(a)<--(e:Edge)-->(b) "
+                              "WHERE a.name = '" + taxon1 +
+                              "' AND b.name = '" + taxon2 +
+                              "' RETURN p")).data()
+            # first check if association is already present
+            if len(hit) > 0:
+                # we upload weights twice
+                # once as the sign of the median
+                # once as a list of strings
+                weights = [str(network_weight)]
+                for association in hit:
+                    uid = association['p'].nodes[1].get('name')
+                    # first check if there is already a link between the association and network
+                    network_hit = tx.run(("MATCH p=(a:Edge)--(b:Network) "
+                                          "WHERE a.name = '" +
+                                          uid +
+                                          "' AND b.name = '" + name +
+                                          "' RETURN p")).data()
+                    database_weight = association['p'].nodes[1].get('weights')
+                    try:
+                        database_weight = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[.]?\d*(?:[eE][-+]?\d+)?",
+                                                     database_weight)
+                    except TypeError:
+                        if type(database_weight) == list:
+                            pass
+                        else:
+                            database_weight = []
+                    weights.extend(database_weight)
+                    if len(network_hit) == 0:
+                        tx.run(("MATCH (a:Edge), (b:Network) "
+                                "WHERE a.name = '" +
+                                uid +
+                                "' AND b.name = '" + name +
+                                "' MERGE (a)-[r:IN_NETWORK]->(b) "
+                                "RETURN type(r)"))
+                    tx.run(("MATCH (a:Edge) WHERE a.name = '" +
+                            uid +
+                            "' SET a.weights = " +
+                            str(weights) +
+                            " RETURN a"))
+                    median_weight = np.median([float(x) for x in weights])
+                    tx.run(("MATCH (a:Edge) WHERE a.name = '" +
+                            uid +
+                            "' SET a.weight = " +
+                            str(median_weight) +
+                            " SET a.sign = " + str(np.sign(median_weight)) +
+                            " RETURN a"))
+            else:
+                uid = str(uuid4())
+                # non alphanumeric chars break networkx
                 if 'weight' in attr:
-                    network_weight = attr['weight']
-                    hit = tx.run(("MATCH p=(a)<--(:Edge)-->(b) "
-                                  "WHERE a.name = '" + taxon1 +
-                                  "' AND b.name = '" + taxon2 +
-                                  "' RETURN p")).data()
+                    tx.run("MERGE (a:Edge {name: $id}) "
+                           "SET a.weight = $weight SET a.weights = $weight "
+                           "SET a.sign = " + str(np.sign(network_weight)) +
+                           " RETURN a", id=uid, weight=str(network_weight))
                 else:
-                    hit = tx.run(("MATCH p=(a)<--(e:Edge)-->(b) "
-                                  "WHERE a.name = '" + taxon1 +
-                                  "' AND b.name = '" + taxon2 +
-                                  "' AND e.weight = " + str(network_weight) +
-                                  " RETURN p")).data()
-                # first check if association is already present
-                if len(hit) > 0:
-                    # we upload weights twice
-                    # once as the sign of the median
-                    # once as a list of strings
-                    weights = [str(network_weight)]
-                    for association in hit:
-                        uid = association['p'].nodes[1].get('name')
-                        # first check if there is already a link between the association and network
-                        network_hit = tx.run(("MATCH p=(a:Edge)--(b:Network) "
-                                              "WHERE a.name = '" +
-                                              uid +
-                                              "' AND b.name = '" + name +
-                                              "' RETURN p")).data()
-                        database_weight = association['p'].nodes[1].get('weights')
-                        try:
-                            database_weight = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[.]?\d*(?:[eE][-+]?\d+)?",
-                                                         database_weight)
-                        except TypeError:
-                            if type(database_weight) == list:
-                                pass
-                            else:
-                                database_weight = []
-                        weights.extend(database_weight)
-                        if len(network_hit) == 0:
-                            tx.run(("MATCH (a:Edge), (b:Network) "
-                                    "WHERE a.name = '" +
-                                    uid +
-                                    "' AND b.name = '" + name +
-                                    "' MERGE (a)-[r:IN_NETWORK]->(b) "
-                                    "RETURN type(r)"))
-                        tx.run(("MATCH (a:Edge) WHERE a.name = '" +
-                                uid +
-                                "' SET a.weights = " +
-                                str(weights) +
-                                " RETURN a"))
-                        median_weight = np.median([float(x) for x in weights])
-                        tx.run(("MATCH (a:Edge) WHERE a.name = '" +
-                                uid +
-                                "' SET a.weight = " +
-                                str(median_weight) +
-                                " RETURN a"))
-                else:
-                    uid = str(uuid4())
-                    # non alphanumeric chars break networkx
-                    if 'weight' in attr:
-                        tx.run("MERGE (a:Edge {name: $id}) "
-                               "SET a.weight = $weight SET a.weights = $weight "
-                               "RETURN a", id=uid, weight=str(network_weight))
-                    else:
-                        tx.run("MERGE (a:Edge {name: $id}) "
-                               "RETURN a", id=uid)
-                    tx.run(("MATCH (a:Edge), (b:Taxon) "
-                            "WHERE a.name = '" +
-                            uid +
-                            "' AND b.name = '" + taxon1 +
-                            "' MERGE (a)-[r:WITH_TAXON]->(b) "
-                            "RETURN type(r)"))
-                    tx.run(("MATCH (a:Edge), (b:Taxon) "
-                            "WHERE a.name = '" +
-                            uid +
-                            "' AND b.name = '" + taxon2 +
-                            "' MERGE (a)-[r:WITH_TAXON]->(b) "
-                            "RETURN type(r)"))
-                    tx.run(("MATCH (a:Edge), (b:Network) "
-                            "WHERE a.name = '" +
-                            uid +
-                            "' AND b.name = '" + name +
-                            "' MERGE (a)-[r:IN_NETWORK]->(b) "
-                            "RETURN type(r)"))
+                    tx.run("MERGE (a:Edge {name: $id}) "
+                           "RETURN a", id=uid)
+                tx.run(("MATCH (a:Edge), (b:Taxon) "
+                        "WHERE a.name = '" +
+                        uid +
+                        "' AND b.name = '" + taxon1 +
+                        "' MERGE (a)-[r:WITH_TAXON]->(b) "
+                        "RETURN type(r)"))
+                tx.run(("MATCH (a:Edge), (b:Taxon) "
+                        "WHERE a.name = '" +
+                        uid +
+                        "' AND b.name = '" + taxon2 +
+                        "' MERGE (a)-[r:WITH_TAXON]->(b) "
+                        "RETURN type(r)"))
+                tx.run(("MATCH (a:Edge), (b:Network) "
+                        "WHERE a.name = '" +
+                        uid +
+                        "' AND b.name = '" + name +
+                        "' MERGE (a)-[r:IN_NETWORK]->(b) "
+                        "RETURN type(r)"))
 
     @staticmethod
     def _tax_dict(tx):
@@ -752,28 +730,18 @@ class IoDriver(ParentDriver):
             if len(taxa) == 0:
                 pass  # apparently this can happen. Need to figure out why!!
             else:
-                edge = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
-                network = tx.run(("MATCH (:Edge {name: '" + edge['n'].get('name') +
+                edge_tuple = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
+                network = tx.run(("MATCH (:Edge {name: '" + taxa[0]['n'].get('name') +
                                   "'})-->(n:Network) RETURN n"))
                 network = _get_unique(network, key='n')
                 network_list = list()
                 for item in network:
                     network_list.append(item)
-                weight = [edge['n'].get('weight')]
-                # it is possible for sets to contain edges with different weights
-                if edge in networks.keys():
-                    network_list.extend(networks[edge])
-                    networks[edge] = set(network_list)
-                    weight.extend(weights[edge])
-                    weights[edge] = weight
-                elif (edge[1], edge[0]) in networks.keys():
-                    network_list.extend(networks[(edge[1], edge[0])])
-                    networks[(edge[1], edge[0])] = set(network_list)
-                    weight.extend(weights[(edge[1], edge[0])])
-                    weights[(edge[1], edge[0])] = weight
-                else:
-                    networks[edge] = network_list
-                    weights[edge] = weight
+                weight = edge['n'].get('weight')
+                if not weight:
+                    weight = edge['n'].get('sign')
+                networks[edge] = network_list
+                weights[edge] = weight
         edge_list = (networks, weights)
         return edge_list
 
