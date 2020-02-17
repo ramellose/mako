@@ -52,7 +52,7 @@ def start_metastats(inputs):
         networks = inputs['networks']
         for level in range(0, level_id + 1):
             # pub.sendMessage('update', msg="Agglomerating edges...")
-            logger.info("Agglomerating edges...")
+            logger.info("Checking " + tax_list[level] + " level...")
             networks = driver.agglomerate_networks(level=tax_list[level], weight=inputs['weight'], networks=networks)
             # networks assignment contains names of new networks
     if inputs['variable']:
@@ -78,7 +78,7 @@ class MetastatsDriver(ParentDriver):
         """
         Agglomerates to specified taxonomic level, or, if no level is specified,
         over all levels. Edges are agglomerated based on similarity
-        at the specified taxonomic level. If the mode is set to 'weight',
+        at the specified taxonomic level. If 'weight' is set to True,
         edges are only agglomerated if their weight matches.
         The stop condition is the length of the pair list;
         as soon as no pair meets the qualification, agglomeration is terminated.
@@ -137,20 +137,12 @@ class MetastatsDriver(ParentDriver):
                         # this rewires the network
                         tax_nodes = self.get_taxlist(level=level, network=network)
                         if tax_nodes:
-                            tax_nodes = tax_nodes[0]
+                            tax_nodes = tax_nodes[0]['p']
                             self.agglomerate_taxa(tax_nodes, level=level)
                         else:
-                            # if no pairs are found, they may be with unassigned taxa
-                            # the unassigned_pairlist function looks for those
-                            pairs = self.get_unassigned_taxlist(level=level)
-                            if pairs:
-                                pair = pairs[0]
-                                self.agglomerate_taxa(pair, level=level)
-                            else:
-                                stop_condition = True
-                    num = self.query("MATCH (n:Network {name: $id})-"
-                                     "[r:IN_SET]-() RETURN count(r) as count",
-                                     id=network).data()
+                            stop_condition = True
+                    num = self.query("MATCH (n:Network {name: '" + network + "'})-"
+                                     "[r:IN_NETWORK]-() RETURN count(r) as count")
                     logger.info("The agglomerated network " + network +
                                 " contains " + str(num) + " edges.")
         except Exception:
@@ -253,20 +245,14 @@ class MetastatsDriver(ParentDriver):
                 tax_nodes = session.read_transaction(self._query, "MATCH (n)--(:Edge) WHERE n:Taxon RETURN n")
                 tax_nodes = _get_unique(tax_nodes, 'n')
             for node in tax_nodes:
-                self.associate_taxon(mode='Taxon', taxon=node, null_input=null_input, properties=properties)
-            with self._driver.session() as session:
-                tax_nodes = session.read_transaction(self._query, "MATCH (n)--(:Edge) WHERE n:Agglom_Taxon RETURN n")
-                tax_nodes = _get_unique(tax_nodes, 'n')
-            for node in tax_nodes:
-                self.associate_taxon(taxon=node, mode='Agglom_Taxon', null_input=null_input, properties=properties)
+                self.associate_taxon(taxon=node, null_input=null_input, properties=properties)
         except Exception:
             logger.error("Could not associate sample variables to taxa. \n", exc_info=True)
 
-    def associate_taxon(self, taxon, mode, null_input, properties):
+    def associate_taxon(self, taxon, null_input, properties):
         """
         Tests whether specific sample properties can be associated to a taxon.
         :param taxon: Name of a taxon.
-        :param mode: Can be 'Taxon' or 'Agglom_Taxon', specifies which label of taxonomic node.
         :param null_input: If missing values are not specified as NA, specify the NA input here.
         :param properties: List specifying types of properties to query.
         :return:
@@ -275,15 +261,9 @@ class MetastatsDriver(ParentDriver):
             conts = list()
             categs = list()
             with self._driver.session() as session:
-                if mode == 'Taxon':
-                    query = "WITH " + str(properties) + \
-                            " as names MATCH (:Taxon {name: '" + taxon + \
-                            "'})-->(:Sample)-->(n:Property) WHERE n.name in names RETURN n"
-                if mode == 'Agglom_Taxon':
-                    query = "WITH " + str(properties) + \
-                            " as names MATCH (:Agglom_Taxon {name: '" + taxon + \
-                            "'})-[:AGGLOMERATED]-(:Taxon)--" \
-                            "(:Sample)-->(n:Property) WHERE n.name in names RETURN n"
+                query = "WITH " + str(properties) + \
+                        " as names MATCH (:Taxon {name: '" + taxon + \
+                        "'})-->(:Sample)-->(n:Property) WHERE n.name in names RETURN n"
                 sample_properties = session.read_transaction(self._query, query)
                 for item in sample_properties:
                     value = item['n'].get('name')
@@ -302,18 +282,18 @@ class MetastatsDriver(ParentDriver):
             categs = set(tuple(categ) for categ in categs)
             for categ_val in categs:
                 with self._driver.session() as session:
-                    hypergeom_vals = session.read_transaction(self._hypergeom_population, taxon, categ_val, mode)
+                    hypergeom_vals = session.read_transaction(self._hypergeom_population, taxon, categ_val)
                     prob = hypergeom.cdf(hypergeom_vals['success_taxon'], hypergeom_vals['total_pop'],
                                          hypergeom_vals['success_pop'], hypergeom_vals['total_taxon'])
                     if prob < 0.05:
-                        session.write_transaction(self._shortcut_categorical, taxon, categ_val, mode, prob)
+                        session.write_transaction(self._shortcut_categorical, taxon, categ_val, prob)
             for cont_val in conts:
                 with self._driver.session() as session:
                     spearman_result = session.read_transaction(self._spearman_test,
-                                                               taxon, cont_val, mode)
+                                                               taxon, cont_val)
                     if spearman_result.pvalue < 0.05:
                         var_dict = {cont_val: spearman_result.correlation}
-                        session.write_transaction(self._shortcut_continuous, taxon, var_dict, mode)
+                        session.write_transaction(self._shortcut_continuous, taxon, var_dict)
         except Exception:
             logger.error("Could not associate a specific taxon to sample variables. \n", exc_info=True)
 
@@ -348,10 +328,9 @@ class MetastatsDriver(ParentDriver):
         try:
             with self._driver.session() as session:
                 agglom_1 = session.write_transaction(self._create_agglom)
-                session.write_transaction(self._chainlinks, agglom_1, pair['p'].nodes[1], pair['r'].nodes[1])
-                session.write_transaction(self._taxonomy, agglom_1, pair['p'].nodes[2], pair['p'].nodes[1], level)
-                session.write_transaction(self._rewire_edges, agglom_1, pair['p'], pair['r'])
-                session.write_transaction(self._delete_old_agglomerations, ([pair['p'].nodes[1]] + [pair['r'].nodes[1]]))
+                session.write_transaction(self._taxonomy, agglom_1, pair.nodes[0], level)
+                session.write_transaction(self._rewire_edges, agglom_1, pair)
+                session.write_transaction(self._delete_old_agglomerations, ([pair.nodes[1]] + [pair.nodes[5]]))
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
 
@@ -402,40 +381,16 @@ class MetastatsDriver(ParentDriver):
         """
         result = tx.run(("MATCH p=(e:" +
                          level + ")--(m)--(:Edge)--(:Network {name: '" + network +
-                         "'}--(:Edge)--(n)--(f: " + level +
+                         "'})--(:Edge)--(n)--(f: " + level +
                          ") WHERE (e.name = f.name) "
                          "AND (m.name <> n.name) RETURN p LIMIT 1"))
         return result.data()
 
-    @staticmethod
-    def _unassigned_tax_list(tx, level):
-        """
-        Returns a list of taxon pairs, where the
-        taxonomic levels are lacking for both taxa.
-        :param tx: Neo4j transaction
-        :param level: Taxonomic level
-        :return: List of transaction outcomes
-        """
-        levels = ['Species', 'Genus', 'Family', 'Order', 'Class', 'Phylum', 'Kingdom']
-        current = levels.index(level)
-        out = list()
-        for j in range(current, 6):
-            result = tx.run(("MATCH p=(e:" + levels[j+1] + ")--(m)--(:Edge)--(k)--(:Kingdom) "
-                             "MATCH r=(h:" + levels[j+1] + ")<--(n)--(:Edge)--()--(:Kingdom) "
-                             "WHERE (m.name <> n.name) AND (k.name <> n.name) "
-                             "AND (e.name = h.name) AND NOT (n)--(:" + levels[j] +
-                             ") AND NOT (m)--(:" + levels[j] +
-                             ")RETURN p,r")).data()
-            if len(result) > 0:
-                pair = result[0]
-                out.append(pair)
-                break
-        return out
 
     @staticmethod
     def _create_agglom(tx):
         """
-        Creates an Agglom_Taxon node and returns its id.
+        Creates a Taxon node and returns its id.
         :param tx: Neo4j transaction
         :return: UID of new node
         """
@@ -479,57 +434,55 @@ class MetastatsDriver(ParentDriver):
                             "' CREATE (a)-[r:AGGLOMERATED]->(b) RETURN type(r)"))
 
     @staticmethod
-    def _rewire_edges(tx, node, source1, source2):
+    def _rewire_edges(tx, node, path):
         """
-        Each Agglom_Taxon node is linked to the Taxon node
-        it originated from. If it was generated from an Agglom_Taxon node,
+        Each aglommerated Taxon node is linked to the Taxon node
+        it originated from. If it was generated from an agglomerated Taxon node,
         that source node's relationships to Taxon nodes are copied to the new node.
         :param tx: Neo4j transaction
-        :param node: UID of agglom_taxon
-        :param source1: Source node of agglom_taxon as value in pairlist dictionary
-        :param source2: Source node of agglom_taxon as value in pairlist dictionary
+        :param node: UID of agglomerated taxon
+        :param path: Path containing two nodes to be merged
         :return:
         """
         old1 = tx.run(("MATCH p=(a)--(:Edge) WHERE a.name = '" +
-                                    source1.nodes[1].get('name') + "' RETURN p")).data()
+                                    path.nodes[1].get('name') + "' RETURN p")).data()
         old2 = tx.run(("MATCH p=(a)--(:Edge) WHERE a.name = '" +
-                                    source2.nodes[1].get('name') + "' RETURN p")).data()
+                                    path.nodes[5].get('name') + "' RETURN p")).data()
         old_links = list()
         for item in old1:
             old_links.append(item['p'].nodes[1].get('name'))
         for item in old2:
             old_links.append(item['p'].nodes[1].get('name'))
-
         tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge) WHERE a.name = '" +
-                source1.nodes[1].get('name') + "' DELETE r"))
+                path.nodes[1].get('name') + "' DELETE r"))
         tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge) WHERE a.name = '" +
-                source2.nodes[1].get('name') + "' DELETE r"))
+                path.nodes[5].get('name') + "' DELETE r"))
         old_links = list(set(old_links))  # issue with self loops causing deletion issues
         targets = list()
         weights = list()
         selfloops = list()
         for assoc in old_links:
             # first need to check if the old edges are to the same taxa.
-            tx.run(("MATCH (a:Agglom_Taxon),(b:Edge) WHERE a.name = '" +
+            tx.run(("MATCH (a:Taxon),(b:Edge) WHERE a.name = '" +
                     node + "' AND b.name = '" + assoc +
                     "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)")).data()
         for assoc in old_links:
-            target = tx.run(("MATCH (a:Agglom_Taxon)--(b:Edge)--(m) "
+            target = tx.run(("MATCH (a:Taxon)--(b:Edge)--(m) "
                              "WHERE a.name = '" + node +
                              "' AND b.name = '" + assoc +
                              "' AND NOT m:Network RETURN m")).data()
             if len(target) == 0:
                  # this can happen when the target is a loop between
                  # source1 and source 2
-                 target = tx.run(("MATCH (m:Agglom_Taxon)--(b:Edge) "
-                                               "WHERE m.name = '" + node +
-                                               "' AND b.name = '" + assoc +
-                                               "' RETURN m")).data()
-                 tx.run(("MATCH (m:Agglom_Taxon), (b:Edge) "
-                                          "WHERE m.name = '" + node +
-                                          "' AND b.name = '" + assoc +
-                                          "' CREATE (m)-[r:WITH_TAXON]->(b) RETURN type(r)"))
-            weight = tx.run(("MATCH (a:Agglom_Taxon)--(b:Edge) "
+                 target = tx.run(("MATCH (m:Taxon)--(b:Edge) "
+                                  "WHERE m.name = '" + node +
+                                  "' AND b.name = '" + assoc +
+                                  "' RETURN m")).data()
+                 tx.run(("MATCH (m:Taxon), (b:Edge) "
+                         "WHERE m.name = '" + node +
+                         "' AND b.name = '" + assoc +
+                         "' CREATE (m)-[r:WITH_TAXON]->(b) RETURN type(r)"))
+            weight = tx.run(("MATCH (a:Taxon)--(b:Edge) "
                              "WHERE a.name = '" + node +
                              "' AND b.name = '" + assoc +
                              "' RETURN b.sign")).data()
@@ -550,33 +503,19 @@ class MetastatsDriver(ParentDriver):
                     del old_links[0]
                     del targets[0]
                     del weights[0]
-                for match in matches:
-                    # if the weights of the edges with the same targets match
-                    # the network links are added to indices[0]
-                    # and the edge of indices[1] is removed
-                    networks_1 = tx.run(("MATCH (a:Edge {name: '" + old_links[indices[0]] +
-                                         "'})--(m:Network) RETURN m")).data()
-                    networks_2 = tx.run(("MATCH (a:Edge {name: '" + old_links[match] +
-                                         "'})--(m:Network) RETURN m")).data()
-                    all_networks = networks_1 + networks_2
-                    netnames = list()
-                    for network in all_networks:
-                        netnames.append(network['m'].get('name'))
-                    netnames = list(set(netnames))
-                    # first delete all old network relationships of node 0
-                    tx.run(("MATCH (a:Edge {name: '" + old_links[indices[0]] +
-                            "'})-[r:IN_NETWORK]->(m:Network) DELETE r"))
-                    # next delete matching edge from database
-                    tx.run(("MATCH (a:Edge {name: '" + old_links[match] +
-                            "'}) DETACH DELETE a"))
-                    # remove edge from old_links, targets and weights
-                    for network in netnames:
-                        tx.run(("MATCH (a:Network),(b:Edge) WHERE a.name = '" +
-                                network + "' AND b.name = '" + old_links[indices[0]] +
-                                "' CREATE (a)<-[r:Edge]-(b) RETURN type(r)")).data()
-                    del old_links[match]
-                    del targets[match]
-                    del weights[match]
+                else:
+                    network = path.nodes[3]['name']
+                    # pick one edge to keep
+                    edge = tx.run(("MATCH p=(:Taxon {name: '" + node +
+                                   "'})--(a:Edge)--(:Taxon {name: '" + item +
+                                   "'}) RETURN a.name LIMIT 1")).data()
+                    tx.run(("MATCH p=(:Taxon {name: '" + node +
+                            "'})--(a:Edge)--(:Taxon {name: '" + item +
+                            "'}) WHERE (a.name <> '" + edge[0]['a.name'] +
+                            "') DETACH DELETE a"))
+                    del old_links[0]
+                    del targets[0]
+                    del weights[0]
             else:
                 # if the weights do not match, the edge is not changed,
                 # but the edge is removed from old_links, weights and targets
@@ -634,6 +573,15 @@ class MetastatsDriver(ParentDriver):
         edge_partners = tx.run(("MATCH (a)-[:WITH_TAXON]-(:Edge {name: '" + edge +
                                 "'})-[:WITH_TAXON]-(b) WHERE (a.name <> b.name)"
                                 " RETURN a, b LIMIT 1")).data()
+        selfloop = False
+        if len(edge_partners) == 0:
+            selfloop = tx.run(("MATCH (a)-[:WITH_TAXON]-(:Edge {name: '" + edge +
+                                "'})"
+                                " RETURN a, count(r) LIMIT 1")).data()
+            if selfloop[0]['count(r)'] == 2:
+                edge_partners = selfloop
+            else:
+                logger.error("Detected edge with only 1 interaction partner!", exc_info=True)
         edge_sign = tx.run(("MATCH (a:Edge {name: '" + edge + "'}) RETURN a.sign")).data()
         uid = str(uuid4())
         tx.run("CREATE (a:Edge {name: '" + uid +
@@ -645,9 +593,10 @@ class MetastatsDriver(ParentDriver):
         tx.run(("MATCH (a:Edge),(b) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
                 edge_partners[0]['a']['name'] + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
-        tx.run(("MATCH (a:Edge),(b) "
-                "WHERE a.name = '" + uid + "' AND b.name = '" +
-                edge_partners[0]['b']['name'] + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
+        if not selfloop:
+            tx.run(("MATCH (a:Edge),(b) "
+                    "WHERE a.name = '" + uid + "' AND b.name = '" +
+                    edge_partners[0]['b']['name'] + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
 
     @staticmethod
     def _create_edge(tx, agglom_1, agglom_2, network, edge_sign=None):
@@ -712,18 +661,19 @@ class MetastatsDriver(ParentDriver):
     @staticmethod
     def _delete_old_agglomerations(tx, nodes):
         """
-        Deletes old Agglom_Taxon nodes.
+        Deletes old agglomerated Taxon nodes.
         :param tx: Neo4j transaction
         :param nodes: List of edge names
         :return:
         """
         for node in nodes:
-            result = tx.run(("MATCH (n:Agglom_Taxon {name: '" + node.get('name') + "'}) RETURN n")).data()
+            result = tx.run(("MATCH (n:Taxon {name: '" + node.get('name') + "'}) RETURN n")).data()
             if len(result) > 0:
-                tx.run(("MATCH (n:Agglom_Taxon {name: '" + node.get('name') + "'}) DETACH DELETE n"))
+                if len(result[0]['n']['name']) != 36:
+                    tx.run(("MATCH (n:Taxon {name: '" + node.get('name') + "'}) DETACH DELETE n"))
 
     @staticmethod
-    def _hypergeom_population(tx, taxon, categ, mode):
+    def _hypergeom_population(tx, taxon, categ):
         """
         Returns 4 numbers:
         The number of samples in the database that is linked to the specified type,
@@ -733,7 +683,6 @@ class MetastatsDriver(ParentDriver):
         :param tx: Neo4j transaction
         :param taxon: Taxon name
         :param categ: List containing metadata node type and categorical value representing success
-        :param mode: Carries out hypergeometric test on 'Taxon' or 'Agglom_Taxon'
         :return: List of population values necessary for hypergeometric test
         """
         type_val = categ[0]
@@ -747,42 +696,25 @@ class MetastatsDriver(ParentDriver):
                 "', name: '" + success + "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['success_pop'] = _get_unique(total_samples, 'n', 'num')
-        if mode is 'Taxon':
-            query = "MATCH (:Taxon {name: '" + taxon +\
-                    "'})-->(n:Sample)-->(:Property {type: '" + type_val + \
-                    "'}) RETURN n"
-            total_samples = tx.run(query).data()
-            hypergeom_vals['total_taxon'] = _get_unique(total_samples, 'n', 'num')
-        if mode is 'Agglom_Taxon':
-            query = "MATCH (:Agglom_Taxon {name: '" + taxon +\
-                    "'})-[:AGGLOMERATED]-(:Taxon)--(n:Sample)-->" \
-                    "(:Property {type: '" + type_val + \
-                    "'}) RETURN n"
-            total_samples = tx.run(query).data()
-            hypergeom_vals['total_taxon'] = _get_unique(total_samples, 'n', 'num')
-        if mode is 'Taxon':
-            query = "MATCH (:Taxon {name: '" + taxon +\
-                    "'})-->(n:Sample)-->(:Property {type: '" + type_val + \
-                    "', name: '" + success + "'}) RETURN n"
-            total_samples = tx.run(query).data()
-            hypergeom_vals['success_taxon'] = _get_unique(total_samples, 'n', 'num')
-        if mode is 'Agglom_Taxon':
-            query = "MATCH (:Agglom_Taxon {name: '" + taxon +\
-                    "'})-[:AGGLOMERATED]-(:Taxon)-->(n:Sample)-->" \
-                    "(:Property {type: '" + type_val + \
-                    "', name: '" + success + "'}) RETURN n"
-            total_samples = tx.run(query).data()
-            hypergeom_vals['success_taxon'] = _get_unique(total_samples, 'n', 'num')
+        query = "MATCH (:Taxon {name: '" + taxon +\
+                "'})-->(n:Sample)-->(:Property {type: '" + type_val + \
+                "'}) RETURN n"
+        total_samples = tx.run(query).data()
+        hypergeom_vals['total_taxon'] = _get_unique(total_samples, 'n', 'num')
+        query = "MATCH (:Taxon {name: '" + taxon +\
+                "'})-->(n:Sample)-->(:Property {type: '" + type_val + \
+                "', name: '" + success + "'}) RETURN n"
+        total_samples = tx.run(query).data()
+        hypergeom_vals['success_taxon'] = _get_unique(total_samples, 'n', 'num')
         return hypergeom_vals
 
     @staticmethod
-    def _spearman_test(tx, taxon, type_val, mode):
+    def _spearman_test(tx, taxon, type_val):
         """
         Returns p-value of Spearman correlation.
         :param tx: Neo4j transaction
         :param taxon: Taxon name
         :param type_val: Metadata node type
-        :param mode: Carries out correlation on 'Taxon' or 'Agglom_Taxon'
         :return: Spearman correlation and p-value
         """
         # get vector of sample values
@@ -805,39 +737,25 @@ class MetastatsDriver(ParentDriver):
                 sample_values.append(sample_value)
                 sample_names.append(item)
         for sample in sample_names:
-            if mode is 'Taxon':
-                query = "MATCH (:Sample {name: '" + sample + \
-                        "'})<-[r:FOUND_IN]-(:Taxon {name: '" + taxon + \
-                        "'}) RETURN r"
-                counts = tx.run(query).data()
-                if len(counts) == 0:
-                    count = 0
-                else:
-                    count = float(counts[0]['r'].get('count'))
-            if mode is 'Agglom_Taxon':
-                query = "MATCH (:Sample {name: '" + sample + \
-                        "'})<-[r:FOUND_IN]-(:Taxon)-[:AGGLOMERATED]-" \
-                        "(:Agglom_Taxon {name: '" + taxon + \
-                        "'}) RETURN r"
-                counts = tx.run(query).data()
-                if len(counts) == 0:
-                    count = 0
-                else:
-                    count = 0
-                    for item in counts:
-                        count += float(item['r'].get('count'))
+            query = "MATCH (:Sample {name: '" + sample + \
+                    "'})<-[r:FOUND_IN]-(:Taxon {name: '" + taxon + \
+                    "'}) RETURN r"
+            counts = tx.run(query).data()
+            if len(counts) == 0:
+                count = 0
+            else:
+                count = float(counts[0]['r'].get('count'))
             taxon_values.append(count)
         result = spearmanr(taxon_values, sample_values)
         return result
 
     @staticmethod
-    def _shortcut_categorical(tx, taxon, categ, mode, prob):
+    def _shortcut_categorical(tx, taxon, categ, prob):
         """
         Creates relationship between categorical variable and taxon.
         :param tx: Neo4j transaction
         :param taxon: Taxon name
         :param categ: List containing metadata node type and categorical value representing success
-        :param mode: Carries out hypergeometric test on 'Taxon' or 'Agglom_Taxon'
         :param prob: Outcome of hypergeometric test
         :return:
         """
@@ -846,8 +764,7 @@ class MetastatsDriver(ParentDriver):
         if len(hit) == 0:
             tx.run(("CREATE (a:Property {type: 'hypergeom_" + categ[0] +
                     "', name: '" + str(prob) + "'}) RETURN a"))
-        tx.run(("MATCH (a:" + mode +
-                "),(b:Property) "
+        tx.run(("MATCH (a:Taxon),(b:Property) "
                 "WHERE a.name = '" + taxon +
                 "' AND b.name = '" + str(prob) +
                 "' AND b.type = 'hypergeom_" + categ[0] +
@@ -855,13 +772,12 @@ class MetastatsDriver(ParentDriver):
                 "RETURN type(r)"))
 
     @staticmethod
-    def _shortcut_continuous(tx, taxon, type_val, mode):
+    def _shortcut_continuous(tx, taxon, type_val):
         """
         Creates relationship between categorical variable and taxon.
         :param tx: Neo4j transaction
         :param taxon: Taxon name
         :param type_val: Metadata node type
-        :param mode: Carries out correlation on 'Taxon' or 'Agglom_Taxon'
         :return:
         """
         var_id = list(type_val.keys())[0]
@@ -871,8 +787,7 @@ class MetastatsDriver(ParentDriver):
         if len(hit) == 0:
             tx.run(("CREATE (a:Property {type: 'spearman_" + var_id +
                     "', name: '" + str(type_val[var_id]) + "'}) RETURN a"))
-        tx.run(("MATCH (a:" + mode +
-                "),(b:Property) "
+        tx.run(("MATCH (a:Taxon),(b:Property) "
                 "WHERE a.name = '" + taxon +
                 "' AND b.type = 'spearman_" + var_id +
                 "' AND b.name = '" + str(type_val[var_id]) +

@@ -628,18 +628,24 @@ class IoDriver(ParentDriver):
                 else:
                     tx.run("MERGE (a:Edge {name: $id}) "
                            "RETURN a", id=uid)
-                tx.run(("MATCH (a:Edge), (b:Taxon) "
-                        "WHERE a.name = '" +
-                        uid +
-                        "' AND b.name = '" + taxon1 +
-                        "' MERGE (a)-[r:WITH_TAXON]->(b) "
-                        "RETURN type(r)"))
-                tx.run(("MATCH (a:Edge), (b:Taxon) "
-                        "WHERE a.name = '" +
-                        uid +
-                        "' AND b.name = '" + taxon2 +
-                        "' MERGE (a)-[r:WITH_TAXON]->(b) "
-                        "RETURN type(r)"))
+                match = tx.run(("MATCH (a:Edge), (b:Taxon) "
+                                "WHERE a.name = '" +
+                                uid +
+                                "' AND b.name = '" + taxon1 +
+                                "' MERGE (a)-[r:WITH_TAXON]->(b) "
+                                "RETURN type(r)")).data()
+                if len(match) == 0:
+                    logger.error("Taxon in network not in database. Cancelling network upload.")
+                    sys.exit()
+                match = tx.run(("MATCH (a:Edge), (b:Taxon) "
+                                "WHERE a.name = '" +
+                                uid +
+                                "' AND b.name = '" + taxon2 +
+                                "' MERGE (a)-[r:WITH_TAXON]->(b) "
+                                "RETURN type(r)")).data()
+                if len(match) == 0:
+                    logger.error("Taxon in network not in database. Cancelling network upload.")
+                    sys.exit()
                 tx.run(("MATCH (a:Edge), (b:Network) "
                         "WHERE a.name = '" +
                         uid +
@@ -708,7 +714,7 @@ class IoDriver(ParentDriver):
         :return: List of lists with source and target nodes, source networks and edge weights.
         """
         edges = tx.run(("MATCH (n:Edge)--(b {name: '" + network +
-                               "'}) RETURN n")).data()
+                        "'}) RETURN n")).data()
         networks = dict()
         weights = dict()
         for edge in edges:
@@ -859,3 +865,4 @@ class IoDriver(ParentDriver):
             tx.run(("MATCH (a:Method) "
                     "WHERE a.name = '" + name['a'] +
                     "' DETACH DELETE a"))
+
