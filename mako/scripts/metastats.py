@@ -58,13 +58,11 @@ def start_metastats(inputs):
     if inputs['variable']:
         logger.info("Associating samples...  ")
         # sys.stdout.write("Associating samples...")
+        variables = inputs['variable']
         if inputs['variable'][0] == 'all':
-            properties = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.type") for y in x])
-            for prop in properties:
-                driver.associate_samples(label=prop)
-        else:
-            for var in inputs['variable']:
-                driver.associate_samples(label=var)
+            variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.type") for y in x])
+        for var in variables:
+            driver.associate_samples(label=var)
     logger.info('Completed metastats operations!  ')
 
 
@@ -221,7 +219,7 @@ class MetastatsDriver(ParentDriver):
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
 
-    def associate_samples(self, type, null_input=None):
+    def associate_samples(self, label, null_input=None):
         """
         Sample identities themselves are not that informative,
         but the properties associated with them are.
@@ -232,14 +230,14 @@ class MetastatsDriver(ParentDriver):
         2. For quantitative variables, Spearman correlation is performed.
         Because this is a hypothesis-generating tool,
         multiple-testing correction should be applied with care.
-        :param type: Type of property (e.g. pH) to query.
+        :param label: Label of property (e.g. pH) to query.
         :param null_input: If missing values are not specified as NA, specify the NA input here.
         :return:
         """
         with self._driver.session() as session:
-            type_nodes = session.read_transaction(self._query, "MATCH (n:Property) WHERE n.type = '" +
-                                                  type + "' RETURN n.name")
-        properties = list(set().union(*(d.values() for d in type_nodes)))
+            label_nodes = session.read_transaction(self._query, "MATCH (n:Property) WHERE n.type = '" +
+                                                   label + "' RETURN n.name")
+        properties = list(set().union(*(d.values() for d in label_nodes)))
         try:
             with self._driver.session() as session:
                 tax_nodes = session.read_transaction(self._query, "MATCH (n)--(:Edge) WHERE n:Taxon RETURN n")
@@ -444,10 +442,13 @@ class MetastatsDriver(ParentDriver):
         :param path: Path containing two nodes to be merged
         :return:
         """
-        old1 = tx.run(("MATCH p=(a)--(:Edge) WHERE a.name = '" +
-                                    path.nodes[1].get('name') + "' RETURN p")).data()
-        old2 = tx.run(("MATCH p=(a)--(:Edge) WHERE a.name = '" +
-                                    path.nodes[5].get('name') + "' RETURN p")).data()
+        network = path.nodes[3]['name']
+        old1 = tx.run(("MATCH p=(a)--(:Edge)--(:Network {name: '" + network +
+                       "'}) WHERE a.name = '" +
+                       path.nodes[1].get('name') + "' RETURN p")).data()
+        old2 = tx.run(("MATCH p=(a)--(:Edge)--(:Network {name: '" + network +
+                       "'}) WHERE a.name = '" +
+                       path.nodes[5].get('name') + "' RETURN p")).data()
         old_links = list()
         for item in old1:
             old_links.append(item['p'].nodes[1].get('name'))
@@ -474,8 +475,8 @@ class MetastatsDriver(ParentDriver):
             if len(target) == 0:
                  # this can happen when the target is a loop between
                  # source1 and source 2
-                 target = tx.run(("MATCH (m:Taxon)--(b:Edge) "
-                                  "WHERE m.name = '" + node +
+                 target = tx.run(("MATCH (m:Taxon)--(b:Edge)--(:Network {name: '" + network +
+                                  "'}) WHERE m.name = '" + node +
                                   "' AND b.name = '" + assoc +
                                   "' RETURN m")).data()
                  tx.run(("MATCH (m:Taxon), (b:Edge) "
@@ -504,13 +505,16 @@ class MetastatsDriver(ParentDriver):
                     del targets[0]
                     del weights[0]
                 else:
-                    network = path.nodes[3]['name']
                     # pick one edge to keep
-                    edge = tx.run(("MATCH p=(:Taxon {name: '" + node +
-                                   "'})--(a:Edge)--(:Taxon {name: '" + item +
+                    edge = tx.run(("MATCH (a:Edge)--(:Network {name: '" + network +
+                                   "'}) WITH a "
+                                   "MATCH p=(:Taxon {name: '" + node +
+                                   "'})--(a)--(:Taxon {name: '" + item +
                                    "'}) RETURN a.name LIMIT 1")).data()
-                    tx.run(("MATCH p=(:Taxon {name: '" + node +
-                            "'})--(a:Edge)--(:Taxon {name: '" + item +
+                    tx.run(("MATCH (a:Edge)--(:Network {name: '" + network +
+                            "'}) WITH a "
+                            "MATCH p=(:Taxon {name: '" + node +
+                            "'})--(a)--(:Taxon {name: '" + item +
                             "'}) WHERE (a.name <> '" + edge[0]['a.name'] +
                             "') DETACH DELETE a"))
                     del old_links[0]
@@ -575,7 +579,7 @@ class MetastatsDriver(ParentDriver):
                                 " RETURN a, b LIMIT 1")).data()
         selfloop = False
         if len(edge_partners) == 0:
-            selfloop = tx.run(("MATCH (a)-[:WITH_TAXON]-(:Edge {name: '" + edge +
+            selfloop = tx.run(("MATCH (a)-[r:WITH_TAXON]-(:Edge {name: '" + edge +
                                 "'})"
                                 " RETURN a, count(r) LIMIT 1")).data()
             if selfloop[0]['count(r)'] == 2:
@@ -656,7 +660,7 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         for node in edges:
-            tx.run(("MATCH (n {name: '" + node.get('name') + "'}) DETACH DELETE n"))
+            tx.run(("MATCH (n:Edge {name: '" + node.get('name') + "'}) DETACH DELETE n"))
 
     @staticmethod
     def _delete_old_agglomerations(tx, nodes):
@@ -669,7 +673,7 @@ class MetastatsDriver(ParentDriver):
         for node in nodes:
             result = tx.run(("MATCH (n:Taxon {name: '" + node.get('name') + "'}) RETURN n")).data()
             if len(result) > 0:
-                if len(result[0]['n']['name']) != 36:
+                if len(result[0]['n']['name']) == 36:
                     tx.run(("MATCH (n:Taxon {name: '" + node.get('name') + "'}) DETACH DELETE n"))
 
     @staticmethod
