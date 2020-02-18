@@ -765,16 +765,14 @@ class MetastatsDriver(ParentDriver):
         :param prob: Outcome of hypergeometric test
         :return:
         """
-        hit = tx.run(("MATCH (a:Property {type: 'hypergeom_" + categ[0] +
-                      "', name: '" + str(prob) + "'}) RETURN a")).data()
-        if len(hit) == 0:
-            tx.run(("CREATE (a:Property {type: 'hypergeom_" + categ[0] +
-                    "', name: '" + str(prob) + "'}) RETURN a"))
+        name = str(np.round(prob, 3))
+        tx.run(("MERGE (a:Property {type: 'hypergeom_" + categ[0] +
+                "', name: '" + name + "'}) RETURN a"))
         tx.run(("MATCH (a:Taxon),(b:Property) "
                 "WHERE a.name = '" + taxon +
-                "' AND b.name = '" + str(prob) +
+                "' AND b.name = '" + name +
                 "' AND b.type = 'hypergeom_" + categ[0] +
-                "' CREATE (a)-[r:HYPERGEOM]->(b) "
+                "' MERGE (a)-[r:HYPERGEOM]->(b) "
                 "RETURN type(r)"))
 
     @staticmethod
@@ -787,15 +785,13 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         var_id = list(type_val.keys())[0]
+        name = str(np.round(type_val[var_id], 3))
         # first check if property already exists
-        hit = tx.run(("MATCH (a:Property {type: 'spearman_" + var_id +
-                      "', name: '" + str(type_val[var_id]) + "'}) RETURN a")).data()
-        if len(hit) == 0:
-            tx.run(("CREATE (a:Property {type: 'spearman_" + var_id +
-                    "', name: '" + str(type_val[var_id]) + "'}) RETURN a"))
+        tx.run(("MERGE (a:Property {type: 'spearman_" + var_id +
+                "', name: '" + name + "'}) RETURN a"))
         tx.run(("MATCH (a:Taxon),(b:Property) "
                 "WHERE a.name = '" + taxon +
                 "' AND b.type = 'spearman_" + var_id +
-                "' AND b.name = '" + str(type_val[var_id]) +
-                "' CREATE (a)-[r:SPEARMAN]->(b) "
+                "' AND b.name = '" + name +
+                "' MERGE (a)-[r:SPEARMAN]->(b) "
                 "RETURN type(r)"))
