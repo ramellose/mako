@@ -62,9 +62,8 @@ def _resource_path(relative_path):
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
         base_path = sys._MEIPASS
-        print(base_path)
         if base_path[-5:] == 'tests':
-            base_path = base_path[-6:]
+            base_path = base_path[-5:]
     except Exception:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
