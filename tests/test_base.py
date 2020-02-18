@@ -55,6 +55,7 @@ class TestBase(unittest.TestCase):
                   'quit': False,
                   'store_config': True,
                   'check': False}
+        print(_resource_path('config'))
         self.assertWarns(start_base(inputs))
 
 
