@@ -7,8 +7,10 @@ The file first sets up a simple Neo4j database for carrying out the tests.
 
 import unittest
 import os
+from psutil import pid_exists, Process
+from signal import CTRL_C_EVENT
 from mako.scripts.base import start_base, BaseDriver
-from mako.scripts.utils import _resource_path
+from mako.scripts.utils import _read_config
 
 __author__ = 'Lisa Rottjers'
 __maintainer__ = 'Lisa Rottjers'
@@ -36,6 +38,8 @@ neo4j:latest"
 class TestBase(unittest.TestCase):
     """
     Tests Base methods.
+    Warning: most of these functions are to start a local database.
+    Therefore, the presence of the necessary local files is a prerequisite.
     """
 
     def test_start_base_pid(self):
@@ -45,18 +49,21 @@ class TestBase(unittest.TestCase):
         :param inputs: Default arguments
         :return:
         """
-        inputs = {'fp': 'C:/Users/u0118219/Documents/mako_files',
-                  'neo4j': 'C://Users//u0118219//Documents//neo4j',
+        inputs = {'fp': loc + '/Documents/mako_files',
+                  'neo4j': loc + 'Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
-                  'address': 'bolt://localhost:7688',
-                  'start': False,
+                  'address': 'bolt://localhost:7687',
+                  'start': True,
                   'clear': False,
                   'quit': False,
                   'store_config': True,
                   'check': False}
-        print(_resource_path('config'))
-        self.assertWarns(start_base(inputs))
+        start_base(inputs)
+        config = _read_config(inputs)
+        self.assertTrue(pid_exists(int(config['pid'])))
+        parent = Process(int(config['pid']))
+        parent.send_signal(CTRL_C_EVENT)
 
 
 if __name__ == '__main__':
