@@ -261,7 +261,7 @@ class MetastatsDriver(ParentDriver):
             with self._driver.session() as session:
                 query = "WITH " + str(properties) + \
                         " as names MATCH (:Taxon {name: '" + taxon + \
-                        "'})-->(:Sample)-->(n:Property) WHERE n.name in names RETURN n"
+                        "'})-->(:Specimen)-->(n:Property) WHERE n.name in names RETURN n"
                 sample_properties = session.read_transaction(self._query, query)
                 for item in sample_properties:
                     value = item['n'].get('name')
@@ -694,21 +694,21 @@ class MetastatsDriver(ParentDriver):
         type_val = categ[0]
         success = categ[1]
         hypergeom_vals = dict()
-        query = "MATCH (n:Sample)-->(:Property {type: '" + type_val + \
+        query = "MATCH (n:Specimen)-->(:Property {type: '" + type_val + \
                 "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['total_pop'] = _get_unique(total_samples, 'n', 'num')
-        query = "MATCH (n:Sample)-->(:Property {type: '" + type_val + \
+        query = "MATCH (n:Specimen)-->(:Property {type: '" + type_val + \
                 "', name: '" + success + "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['success_pop'] = _get_unique(total_samples, 'n', 'num')
         query = "MATCH (:Taxon {name: '" + taxon +\
-                "'})-->(n:Sample)-->(:Property {type: '" + type_val + \
+                "'})-->(n:Specimen)-->(:Property {type: '" + type_val + \
                 "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['total_taxon'] = _get_unique(total_samples, 'n', 'num')
         query = "MATCH (:Taxon {name: '" + taxon +\
-                "'})-->(n:Sample)-->(:Property {type: '" + type_val + \
+                "'})-->(n:Specimen)-->(:Property {type: '" + type_val + \
                 "', name: '" + success + "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['success_taxon'] = _get_unique(total_samples, 'n', 'num')
@@ -727,11 +727,11 @@ class MetastatsDriver(ParentDriver):
         sample_values = list()
         sample_names = list()
         taxon_values = list()
-        query = "MATCH (n:Sample)-->(:Property {type: '" + type_val + \
+        query = "MATCH (n:Specimen)-->(:Property {type: '" + type_val + \
                 "'}) RETURN n"
         samples = _get_unique(tx.run(query).data(), 'n')
         for item in samples:
-            query = "MATCH (:Sample {name: '" + item + \
+            query = "MATCH (:Specimen {name: '" + item + \
                     "'})-->(n:Property {type: '" + type_val + \
                     "'}) RETURN n"
             sample_value = tx.run(query).data()[0]['n'].get('name')
@@ -743,7 +743,7 @@ class MetastatsDriver(ParentDriver):
                 sample_values.append(sample_value)
                 sample_names.append(item)
         for sample in sample_names:
-            query = "MATCH (:Sample {name: '" + sample + \
+            query = "MATCH (:Specimen {name: '" + sample + \
                     "'})<-[r:FOUND_IN]-(:Taxon {name: '" + taxon + \
                     "'}) RETURN r"
             counts = tx.run(query).data()

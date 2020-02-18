@@ -464,7 +464,8 @@ class IoDriver(ParentDriver):
             with self._driver.session() as session:
                 session.write_transaction(self._create_property,
                                           source=node, sourcetype=label,
-                                          target=nodes[node]['target'], name=name, weight=nodes[node]['weight'])
+                                          target=str(nodes[node]['target']), name=name,
+                                          weight=nodes[node]['weight'])
 
     def export_fasta(self, fp, name):
         """
@@ -788,9 +789,8 @@ class IoDriver(ParentDriver):
         :param sourcetype: Type variable of source node (not required)
         :return:
         """
-        tx.run(("MERGE (a:Property {name: '" + target + "'}) "
-                "SET a.name = '" + target +
-                "' SET a.type = '" + name + "' "
+        tx.run(("MERGE (a:Property {name: '" + str(target) + "'}) "
+                "SET a.type = '" + name + "' "
                 "RETURN a")).data()
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
@@ -800,7 +800,7 @@ class IoDriver(ParentDriver):
                                "' AND b.type = '" + name +
                                "' RETURN r")).data()
         if weight:
-            rel = " {weight: [" + weight + "]}"
+            rel = " {weight: [" + str(weight) + "]}"
         else:
             rel = ""
         if len(matching_rel) == 0:
