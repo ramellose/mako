@@ -454,10 +454,10 @@ class MetastatsDriver(ParentDriver):
             old_links.append(item['p'].nodes[1].get('name'))
         for item in old2:
             old_links.append(item['p'].nodes[1].get('name'))
-        tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge)-(:Network {name: '" + network +
+        tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge)--(:Network {name: '" + network +
                 "'}) WHERE a.name = '" +
                 path.nodes[1].get('name') + "' DELETE r"))
-        tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge)-(:Network {name: '" + network +
+        tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge)--(:Network {name: '" + network +
                 "'}) WHERE a.name = '" +
                 path.nodes[5].get('name') + "' DELETE r"))
         old_links = list(set(old_links))  # issue with self loops causing deletion issues
