@@ -140,7 +140,7 @@ class MetastatsDriver(ParentDriver):
                         else:
                             stop_condition = True
                     num = self.query("MATCH (n:Network {name: '" + network + "'})-"
-                                     "[r:IN_NETWORK]-() RETURN count(r) as count")
+                                     "[r:PART_OF]-() RETURN count(r) as count")
                     logger.info("The agglomerated network " + network +
                                 " contains " + str(num) + " edges.")
         except Exception:
@@ -454,10 +454,10 @@ class MetastatsDriver(ParentDriver):
             old_links.append(item['p'].nodes[1].get('name'))
         for item in old2:
             old_links.append(item['p'].nodes[1].get('name'))
-        tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge)--(:Network {name: '" + network +
+        tx.run(("MATCH p=(a)-[r:PARTICIPATES_IN]-(:Edge)--(:Network {name: '" + network +
                 "'}) WHERE a.name = '" +
                 path.nodes[1].get('name') + "' DELETE r"))
-        tx.run(("MATCH p=(a)-[r:WITH_TAXON]-(:Edge)--(:Network {name: '" + network +
+        tx.run(("MATCH p=(a)-[r:PARTICIPATES_IN]-(:Edge)--(:Network {name: '" + network +
                 "'}) WHERE a.name = '" +
                 path.nodes[5].get('name') + "' DELETE r"))
         old_links = list(set(old_links))  # issue with self loops causing deletion issues
@@ -468,7 +468,7 @@ class MetastatsDriver(ParentDriver):
             # first need to check if the old edges are to the same taxa.
             tx.run(("MATCH (a:Taxon),(b:Edge) WHERE a.name = '" +
                     node + "' AND b.name = '" + assoc +
-                    "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)")).data()
+                    "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)")).data()
         for assoc in old_links:
             target = tx.run(("MATCH (a:Taxon)--(b:Edge)--(m) "
                              "WHERE a.name = '" + node +
@@ -484,7 +484,7 @@ class MetastatsDriver(ParentDriver):
                  tx.run(("MATCH (m:Taxon), (b:Edge) "
                          "WHERE m.name = '" + node +
                          "' AND b.name = '" + assoc +
-                         "' CREATE (m)-[r:WITH_TAXON]->(b) RETURN type(r)"))
+                         "' CREATE (m)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
             weight = tx.run(("MATCH (a:Taxon)--(b:Edge) "
                              "WHERE a.name = '" + node +
                              "' AND b.name = '" + assoc +
@@ -564,7 +564,7 @@ class MetastatsDriver(ParentDriver):
         for i in range(7-level_id):
             tx.run(("MATCH (a:Taxon),(b:" + tax_list[i+level_id] + ") "
                     "WHERE a.name = '" + node + "' AND b.name = '" +
-                    tree.nodes[i].get('name') + "' CREATE (a)-[r:BELONGS_TO]->(b) RETURN type(r)"))
+                    tree.nodes[i].get('name') + "' CREATE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"))
 
     @staticmethod
     def _copy_edge(tx, edge, network):
@@ -576,14 +576,14 @@ class MetastatsDriver(ParentDriver):
         :param network: Name of network to connect copy to
         :return:
         """
-        edge_partners = tx.run(("MATCH (a)-[:WITH_TAXON]-(:Edge {name: '" + edge +
-                                "'})-[:WITH_TAXON]-(b) WHERE (a.name <> b.name)"
+        edge_partners = tx.run(("MATCH (a)-[:PARTICIPATES_IN]-(:Edge {name: '" + edge +
+                                "'})-[:PARTICIPATES_IN]-(b) WHERE (a.name <> b.name)"
                                 " RETURN a, b LIMIT 1")).data()
         selfloop = False
         if len(edge_partners) == 0:
-            selfloop = tx.run(("MATCH (a)-[r:WITH_TAXON]-(:Edge {name: '" + edge +
-                                "'})"
-                                " RETURN a, count(r) LIMIT 1")).data()
+            selfloop = tx.run(("MATCH (a)-[r:PARTICIPATES_IN]-(:Edge {name: '" + edge +
+                               "'})"
+                               " RETURN a, count(r) LIMIT 1")).data()
             if selfloop[0]['count(r)'] == 2:
                 edge_partners = selfloop
             else:
@@ -595,14 +595,14 @@ class MetastatsDriver(ParentDriver):
                " RETURN a")
         tx.run("MATCH (a:Edge {name: '" + uid +
                "'}), (b:Network {name: '" + network +
-               "'}) MERGE (a)-[r:IN_NETWORK]->(b) RETURN type(r)")
+               "'}) MERGE (a)-[r:PART_OF]->(b) RETURN type(r)")
         tx.run(("MATCH (a:Edge),(b) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
-                edge_partners[0]['a']['name'] + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
+                edge_partners[0]['a']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
         if not selfloop:
             tx.run(("MATCH (a:Edge),(b) "
                     "WHERE a.name = '" + uid + "' AND b.name = '" +
-                    edge_partners[0]['b']['name'] + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
+                    edge_partners[0]['b']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
 
     @staticmethod
     def _create_edge(tx, agglom_1, agglom_2, network, edge_sign=None):
@@ -627,13 +627,13 @@ class MetastatsDriver(ParentDriver):
                    id=uid)
         tx.run(("MATCH (a:Edge),(b:Taxon) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
-                agglom_1 + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
+                agglom_1 + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
         tx.run(("MATCH (a:Edge),(b:Taxon) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
-                agglom_2 + "' CREATE (a)-[r:WITH_TAXON]->(b) RETURN type(r)"))
+                agglom_2 + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
         tx.run(("MATCH (a:Edge),(b:Network) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
-                network + "' CREATE (a)-[r:IN_NETWORK]->(b) RETURN type(r)"))
+                network + "' CREATE (a)-[r:PART_OF]->(b) RETURN type(r)"))
 
     @staticmethod
     def _get_network(tx, nodes):
@@ -744,7 +744,7 @@ class MetastatsDriver(ParentDriver):
                 sample_names.append(item)
         for sample in sample_names:
             query = "MATCH (:Specimen {name: '" + sample + \
-                    "'})<-[r:FOUND_IN]-(:Taxon {name: '" + taxon + \
+                    "'})<-[r:LOCATED_IN]-(:Taxon {name: '" + taxon + \
                     "'}) RETURN r"
             counts = tx.run(query).data()
             if len(counts) == 0:

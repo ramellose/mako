@@ -508,10 +508,10 @@ class IoDriver(ParentDriver):
         tx.run("MERGE (a:Network {name: '" + network + "'}) "
                "RETURN a")
         if exp_id:
-            tx.run(("MATCH (a:Network), (b:Experiment) "
+            tx.run(("MATCH (a:Network), (b:Computational_Technique) "
                     "WHERE a.name = '" + network +
                     "' AND b.name = '" + exp_id +
-                    "' MERGE (a)-[r:CREATED_FROM]->(b) "
+                    "' MERGE (a)-[r:HAS_SUPPORTING_METHOD]->(b) "
                     "RETURN type(r)"))
         if log:
             for metadata in log:
@@ -604,7 +604,7 @@ class IoDriver(ParentDriver):
                                 "WHERE a.name = '" +
                                 uid +
                                 "' AND b.name = '" + name +
-                                "' MERGE (a)-[r:IN_NETWORK]->(b) "
+                                "' MERGE (a)-[r:PART_OF]->(b) "
                                 "RETURN type(r)"))
                     tx.run(("MATCH (a:Edge) WHERE a.name = '" +
                             uid +
@@ -633,7 +633,7 @@ class IoDriver(ParentDriver):
                                 "WHERE a.name = '" +
                                 uid +
                                 "' AND b.name = '" + taxon1 +
-                                "' MERGE (a)-[r:WITH_TAXON]->(b) "
+                                "' MERGE (a)-[r:PARTICIPATES_IN]->(b) "
                                 "RETURN type(r)")).data()
                 if len(match) == 0:
                     logger.error("Taxon in network not in database. Cancelling network upload.")
@@ -642,7 +642,7 @@ class IoDriver(ParentDriver):
                                 "WHERE a.name = '" +
                                 uid +
                                 "' AND b.name = '" + taxon2 +
-                                "' MERGE (a)-[r:WITH_TAXON]->(b) "
+                                "' MERGE (a)-[r:PARTICIPATES_IN]->(b) "
                                 "RETURN type(r)")).data()
                 if len(match) == 0:
                     logger.error("Taxon in network not in database. Cancelling network upload.")
@@ -651,7 +651,7 @@ class IoDriver(ParentDriver):
                         "WHERE a.name = '" +
                         uid +
                         "' AND b.name = '" + name +
-                        "' MERGE (a)-[r:IN_NETWORK]->(b) "
+                        "' MERGE (a)-[r:PART_OF]->(b) "
                         "RETURN type(r)"))
 
     @staticmethod
@@ -794,7 +794,7 @@ class IoDriver(ParentDriver):
                 "RETURN a")).data()
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
-        matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:HAS_PROPERTY]-(b:Property) "
+        matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:QUALITY_OF]-(b:Property) "
                                "WHERE a.name = '" + source +
                                "' AND b.name = '" + target +
                                "' AND b.type = '" + name +
@@ -808,7 +808,7 @@ class IoDriver(ParentDriver):
                     "WHERE a.name = '" + source +
                     "' AND b.name = '" + target +
                     "' AND b.type = '" + name +
-                    "' MERGE (a)-[r:HAS_PROPERTY" + rel + "]->(b) "
+                    "' MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) "
                     "RETURN type(r)"))
 
     @staticmethod

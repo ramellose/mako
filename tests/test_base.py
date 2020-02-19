@@ -7,6 +7,8 @@ The file first sets up a simple Neo4j database for carrying out the tests.
 
 import unittest
 import os
+import subprocess
+import io
 from psutil import pid_exists, Process
 from signal import CTRL_C_EVENT
 from mako.scripts.base import start_base, BaseDriver
@@ -26,7 +28,7 @@ __license__ = 'Apache 2.0'
 # Accessible on http ports + 1
 # so both local database and this can be run side by side
 loc = os.environ['HOMEDRIVE'] + os.environ['HOMEPATH']
-docker = "docker run \
+docker_command = "docker run \
 --rm \
 -d \
 --publish=7475:7474 --publish=7688:7687 \
@@ -50,7 +52,7 @@ class TestBase(unittest.TestCase):
         :return:
         """
         inputs = {'fp': loc + '/Documents/mako_files',
-                  'neo4j': loc + 'Documents//neo4j',
+                  'neo4j': loc + '//Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7687',
@@ -65,6 +67,127 @@ class TestBase(unittest.TestCase):
         parent = Process(int(config['pid']))
         parent.send_signal(CTRL_C_EVENT)
 
+    def test_stop_base_pid(self):
+        """
+        Checks if an error is returned when the pid is wrong.
+
+        :param inputs: Default arguments
+        :return:
+        """
+        inputs = {'fp': loc + '/Documents/mako_files',
+                  'neo4j': loc + 'Documents//neo4j',
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7687',
+                  'start': True,
+                  'clear': False,
+                  'quit': False,
+                  'store_config': True,
+                  'check': False}
+        start_base(inputs)
+        inputs = {'fp': loc + '/Documents/mako_files',
+                  'neo4j': loc + 'Documents//neo4j',
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7687',
+                  'start': False,
+                  'clear': False,
+                  'quit': True,
+                  'store_config': True,
+                  'check': False}
+        start_base(inputs)
+        config = _read_config(inputs)
+        self.assertFalse(pid_exists(int(config['pid'])))
+
+    def test_clear_database(self):
+        """
+        First writes a single node to the Docker Neo4j database and then clears it.
+        :return:
+        """
+        inputs = {'fp': loc + '/Documents/mako_files',
+                  'neo4j': loc + 'Documents//neo4j',
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'start': False,
+                  'clear': True,
+                  'quit': False,
+                  'store_config': True,
+                  'check': False,
+                  'encryption': False}
+        driver = BaseDriver(user=inputs['username'],
+                            password=inputs['password'],
+                            uri=inputs['address'], filepath=inputs['fp'],
+                            encrypted=False)
+        driver.query("CREATE (n:Test) RETURN n")
+        start_base(inputs)
+        result = driver.query("MATCH (n) RETURN count(n)")
+        self.assertEqual(result[0]['count(n)'], 0)
+
+    def test_check_database_correct(self):
+        """
+        Checks if the check database returns True when there are no wrong connections.
+        :return:
+        """
+        inputs = {'fp': loc + '/Documents/mako_files',
+                  'neo4j': loc + 'Documents//neo4j',
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'start': False,
+                  'clear': True,
+                  'quit': False,
+                  'store_config': True,
+                  'check': False,
+                  'encryption': False}
+        start_base(inputs)
+        driver = BaseDriver(user=inputs['username'],
+                            password=inputs['password'],
+                            uri=inputs['address'], filepath=inputs['fp'],
+                            encrypted=False)
+        driver.query("CREATE (n:Edge {name: 'edge'}) RETURN n")
+        driver.query("CREATE (n:Network {name: 'network'}) RETURN n")
+        driver.query("CREATE (n:Specimen {name: 'specimen'}) RETURN n")
+        driver.query("MATCH (n:Edge {name: 'edge'}), (m:Network {name: 'network'}) "
+                     "CREATE (n)-[r:PART_OF]->(m) return type(r)")
+        outcome = driver.check_domain_range()
+        start_base(inputs)
+        self.assertFalse(outcome)
+
+    def test_check_database_wrong(self):
+        """
+        Checks if the check database returns True when there are no wrong connections.
+        :return:
+        """
+        inputs = {'fp': loc + '/Documents/mako_files',
+                  'neo4j': loc + 'Documents//neo4j',
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'start': False,
+                  'clear': True,
+                  'quit': False,
+                  'store_config': True,
+                  'check': False,
+                  'encryption': False}
+        start_base(inputs)
+        driver = BaseDriver(user=inputs['username'],
+                            password=inputs['password'],
+                            uri=inputs['address'], filepath=inputs['fp'],
+                            encrypted=False)
+        driver.query("CREATE (n:Edge {name: 'edge'}) RETURN n")
+        driver.query("CREATE (n:Network {name: 'network'}) RETURN n")
+        driver.query("CREATE (n:Genus {name: 'genus'}) RETURN n")
+        driver.query("MATCH (n:Genus {name: 'genus'}), (m:Network {name: 'network'}) "
+                     "CREATE (n)-[r:PART_OF]->(m) return type(r)")
+        outcome = driver.check_domain_range()
+        start_base(inputs)
+        self.assertTrue(outcome)
+
+
+
 
 if __name__ == '__main__':
+    os.system(docker_command)
     unittest.main()
+    os.system('docker stop neo4j')

@@ -50,6 +50,10 @@ def start_base(inputs):
     # check if pid exists from previous session
     config = _read_config(inputs)
     pid = config['pid']
+    encrypted = True
+    if 'encryption' in inputs:
+        # setting for Docker container
+        encrypted = False
     if pid != 'None':
         pid = int(pid)
         if not pid_exists(pid):
@@ -87,16 +91,18 @@ def start_base(inputs):
             sleep(12)
             driver = BaseDriver(user=config['username'],
                                 password=config['password'],
-                                uri=config['address'], filepath=inputs['fp'])
+                                uri=config['address'], filepath=inputs['fp'],
+                                encrypted=encrypted)
             driver.add_constraints()
             driver.close()
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
             sys.exit()
-    if inputs['clear'] and pid_exists(pid):
+    if inputs['clear']:
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
-                            uri=config['address'], filepath=inputs['fp'])
+                            uri=config['address'], filepath=inputs['fp'],
+                            encrypted=encrypted)
         try:
             driver.clear_database()
             logger.info('Cleared database.')
@@ -118,10 +124,11 @@ def start_base(inputs):
             logger.info('Safely shut down database.')
         except Exception:
             logger.warning("Failed to close database. ", exc_info=True)
-    if inputs['check'] and pid_exists(pid):
+    if inputs['check']:
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
-                            uri=config['address'], filepath=inputs['fp'])
+                            uri=config['address'], filepath=inputs['fp'],
+                            encrypted=encrypted)
         try:
             driver.check_domain_range()
         except Exception:
@@ -133,8 +140,14 @@ class BaseDriver(ParentDriver):
     """
     Initializes a driver for accessing the Neo4j database.
     This driver constructs the Neo4j database and uploads extra data.
+
+    By default, the connection should be encrypted.
+    However, the SSL certificate of the Docker container
+    used during testing is apparently not correct (see https://github.com/neo4j/neo4j/issues/12351).
+    Therefore, the encrypted param can be changed to enable unsafe connections
+    to the docker instance.
     """
-    def __init__(self, uri, user, password, filepath):
+    def __init__(self, uri, user, password, filepath, encrypted=True):
         """
         Overwrites parent driver to add ontology.
 
@@ -145,7 +158,7 @@ class BaseDriver(ParentDriver):
         """
         _create_logger(filepath)
         try:
-            self._driver = GraphDatabase.driver(uri, auth=(user, password))
+            self._driver = GraphDatabase.driver(uri, auth=(user, password), encrypted=encrypted)
         except Exception:
             logger.error("Unable to start driver. \n", exc_info=True)
             sys.exit()
@@ -191,18 +204,19 @@ class BaseDriver(ParentDriver):
             ranges = [x.label[0] for x in prop.get_range()]
             neighbours = domains + ranges
             if len(neighbours) > 0:
-                query = "MATCH (n)-[r:" + rel + "] WHERE NOT "
+                query = "MATCH (n)-[r:" + rel.upper() + "]-() WHERE NOT "
                 for i in range(len(neighbours)):
                     if i != 0:
-                        query += (" AND NOT ")
+                        query += " AND NOT "
                     query += ("n:" + neighbours[i])
-                query += (" RETURN count(n) as count")
+                query += " RETURN count(n) as count"
             count = self.query(query)
-            if count:
+            if count[0]['count'] != 0:
                 logger.error("Relationship " + rel + " is connected to the wrong nodes!")
                 error = True
         if not error:
             logger.info("No forbidden relationship connections.")
+        return error
 
     def add_constraints(self):
         """

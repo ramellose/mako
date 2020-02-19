@@ -345,10 +345,6 @@ class Biom2Neo(ParentDriver):
             tax_dict = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
             tax_levels = ['Kingdom', 'Phylum', 'Class',
                           'Order', 'Family', 'Genus', 'Species']
-            # rel_list = ['IS_KINGDOM', 'IS_PHYLUM', 'IS_CLASS',
-            #             'IS_ORDER', 'IS_FAMILY', 'IS_GENUS', 'IS_SPECIES']
-            # tree_list = ['PART_OF_KINGDOM', 'PART_OF_PHYLUM', 'PART_OF_CLASS',
-            #             'PART_OF_ORDER', 'PART_OF_FAMILY', 'PART_OF_GENUS']
             if str(taxon) is not 'Bin':
                 # define range for which taxonomy needs to be added
                 j = 0
@@ -370,12 +366,12 @@ class Biom2Neo(ParentDriver):
                                         "), (b:" + tax_levels[i-1] +
                                         ") WHERE a.name = '" + tax_dict[i] +
                                         "' AND b.name = '" + tax_dict[i-1] +
-                                        "' MERGE (a)-[r: PART_OF]->(b) "
+                                        "' MERGE (a)-[r:MEMBER_OF]->(b) "
                                         "RETURN type(r)"))
                             tx.run(("MATCH (a:Taxon), (b:" + tax_levels[i] +
                                     ") WHERE a.name = '" + taxon +
                                     "' AND b.name = '" + tax_dict[i] +
-                                    "' MERGE (a)-[r: BELONGS_TO]->(b) "
+                                    "' MERGE (a)-[r:MEMBER_OF]->(b) "
                                     "RETURN type(r)"))
         else:
             tx.run("MERGE (a:Taxon {name: 'Bin'})")
@@ -393,7 +389,7 @@ class Biom2Neo(ParentDriver):
         tx.run(("MATCH (a:Specimen), (b:Experiment) "
                 "WHERE a.name = '" + sample +
                 "' AND b.name = '" + exp_id +
-                "' MERGE (a)-[r:IN_EXPERIMENT]->(b) "
+                "' MERGE (a)-[r:PART_OF]->(b) "
                 "RETURN type(r)"))
 
     @staticmethod
@@ -414,7 +410,7 @@ class Biom2Neo(ParentDriver):
                 "RETURN a")).data()
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
-        matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:HAS_PROPERTY]-(b:Property) "
+        matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:QUALITY_OF]-(b:Property) "
                                "WHERE a.name = '" + source +
                                "' AND b.name = '" + target +
                                "' AND b.type = '" + name +
@@ -428,7 +424,7 @@ class Biom2Neo(ParentDriver):
                     "WHERE a.name = '" + source +
                     "' AND b.name = '" + target +
                     "' AND b.type = '" + name +
-                    "' MERGE (a)-[r:HAS_PROPERTY" + rel + "]->(b) "
+                    "' MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) "
                     "RETURN type(r)"))
 
     @staticmethod
@@ -444,7 +440,7 @@ class Biom2Neo(ParentDriver):
         tx.run(("MATCH (a:Taxon), (b:Specimen) "
                 "WHERE a.name = '" + taxon +
                 "' AND b.name = '" + sample +
-                "' MERGE (a)-[r:FOUND_IN]->(b) "
+                "' MERGE (a)-[r:LOCATED_IN]->(b) "
                 "SET r.count = '" + str(value) +
                 "' RETURN type(r)"))
 

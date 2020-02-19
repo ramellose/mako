@@ -153,8 +153,8 @@ class NetstatsDriver(ParentDriver):
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
         edges = tx.run(("WITH " + str(networks) +
-                         " as names MATCH (n:Edge)-->(b:Network) "
-                         "WHERE b.name in names RETURN n")).data()
+                        " as names MATCH (n:Edge)-->(b:Network) "
+                        "WHERE b.name in names RETURN n")).data()
         edges = _get_unique(edges, 'n')
         setname = _write_logic(tx, operation='Union', networks=networks, edges=edges)
         return setname
@@ -189,8 +189,8 @@ class NetstatsDriver(ParentDriver):
                 edges.extend(combo_edges)
         edges = list(_get_unique(edges, 'n'))
         if weight:
-            query = ("MATCH (a)-[:WITH_TAXON]-(n:Edge)-[:WITH_TAXON]-(b) "
-                     "MATCH (a)-[:WITH_TAXON]-(m:Edge)-[:WITH_TAXON]-(b) "
+            query = ("MATCH (a)-[:PARTICIPATES_IN]-(n:Edge)-[:PARTICIPATES_IN]-(b) "
+                     "MATCH (a)-[:PARTICIPATES_IN]-(m:Edge)-[:PARTICIPATES_IN]-(b) "
                      "WHERE (n.name <> m.name) RETURN n, m")
             weighted = tx.run(query).data()
             filter_weighted = list()
@@ -235,15 +235,15 @@ class NetstatsDriver(ParentDriver):
         edges = list()
         for network in networks:
             edges.extend(tx.run(("MATCH (n:Edge)-->(:Network {name: '" + network +
-                                  "'}) WITH n MATCH (n)-[r]->(:Network) WITH n, count(r) "
-                                  "as num WHERE num=1 RETURN n")).data())
+                                 "'}) WITH n MATCH (n)-[r]->(:Network) WITH n, count(r) "
+                                 "as num WHERE num=1 RETURN n")).data())
         edges = _get_unique(edges, 'n')
         if weight:
             cleaned = list()
             for edge in edges:
-                query = ("MATCH (a)-[:WITH_TAXON]-(n:Edge {name: '" + edge +
-                         "'})-[:WITH_TAXON]-(b) "
-                         "MATCH (a)-[:WITH_TAXON]-(m:Edge)-[:WITH_TAXON]-(b) "
+                query = ("MATCH (a)-[:PARTICIPATES_IN]-(n:Edge {name: '" + edge +
+                         "'})-[:PARTICIPATES_IN]-(b) "
+                         "MATCH (a)-[:PARTICIPATES_IN]-(m:Edge)-[:PARTICIPATES_IN]-(b) "
                          "WHERE (n.name <> m.name) RETURN n, m")
                 check = tx.run(query).data()
                 if len(check) == 0:

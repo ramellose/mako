@@ -2,6 +2,6 @@
 # If there is no PID specified, the 3rd line should state None.
 pid: None
 address: bolt://localhost:7688
-neo4j: C://Users//u0118219//Documents//neo4j
+neo4j: C:\Users\u0118219Documents//neo4j
 username: neo4j
 password: test
