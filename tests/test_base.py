@@ -41,6 +41,14 @@ class TestBase(unittest.TestCase):
     Warning: most of these functions are to start a local database.
     Therefore, the presence of the necessary local files is a prerequisite.
     """
+    @classmethod
+    def setUpClass(cls):
+        os.system(docker_command)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.system('docker stop neo4j')
+        os.remove(_resource_path('mako.log'))
 
     def test_start_base_pid(self):
         """
@@ -182,7 +190,5 @@ class TestBase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    os.system(docker_command)
     unittest.main()
-    os.system('docker stop neo4j')
-    os.remove(_resource_path('mako.log'))
+

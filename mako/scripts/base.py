@@ -167,7 +167,7 @@ class BaseDriver(ParentDriver):
             sys.exit()
         # load the ontology that defines the schema
         # load the ontology that defines the schema
-        onto = owlready2.get_ontology(os.getcwd() + "\\MAO.owl")
+        onto = owlready2.get_ontology(_resource_path("MAO.owl"))
         onto.load()
 
         # since the MAO file is small, we can load the objects into lists

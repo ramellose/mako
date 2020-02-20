@@ -169,9 +169,6 @@
     <Declaration>
         <AnnotationProperty abbreviatedIRI="rdfs:label"/>
     </Declaration>
-    <Declaration>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-    </Declaration>
     <EquivalentClasses>
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C19157"/>
         <ObjectAllValuesFrom>
@@ -227,55 +224,6 @@
             <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
             <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45292"/>
         </ObjectExactCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45276"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45277"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45280"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45287"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45290"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45292"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45293"/>
-        </ObjectMaxCardinality>
     </EquivalentClasses>
     <EquivalentClasses>
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75923"/>

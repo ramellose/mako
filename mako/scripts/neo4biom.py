@@ -118,11 +118,6 @@ def check_arguments(inputs):
         if len(inputs['count_table']) is not len(inputs['taxon_meta']):
             logger.error("Add a metadata table for every OTU table!", exc_info=True)
             exit()
-    if inputs['biom_file'] is None and inputs['network'] is None:
-        if inputs['count_table'] is None and inputs['network'] is None:
-            logger.error("Please supply either a biom file"
-                         ", a tab-delimited OTU table or a network!", exc_info=True)
-            exit()
 
 
 def read_bioms(files, filepath, driver):
@@ -293,15 +288,15 @@ class Biom2Neo(ParentDriver):
             samples = session.read_transaction(self._samples_to_delete, exp_id)
         with self._driver.session() as session:
             for sample in samples:
-                session.write_transaction(self._delete_sample, sample)
+                session.write_transaction(self._delete_sample, sample['a.name'])
         logger.info('Detached samples...')
         with self._driver.session() as session:
             taxa = session.read_transaction(self._taxa_to_delete)
         with self._driver.session() as session:
             for tax in taxa:
-                session.write_transaction(self._delete_taxon, tax)
+                session.write_transaction(self._delete_taxon, tax['a.name'])
         logger.info('Removed disconnected taxa...')
-        self.query(("MATCH a:Experiment WHERE a.name = '" + exp_id + "' DETACH DELETE a"))
+        self.query(("MATCH (a:Experiment {name: '" + exp_id + "'}) DETACH DELETE a"))
         logger.info('Finished deleting ' + exp_id + '.')
 
     @staticmethod
@@ -393,7 +388,7 @@ class Biom2Neo(ParentDriver):
         :return:
         """
         tx.run(("MERGE (a:Property {name: '" + target + "'})"
-                "' SET a.type = '" + name + "' "
+                " SET a.type = '" + name + "' "
                 "RETURN a")).data()
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
@@ -439,9 +434,9 @@ class Biom2Neo(ParentDriver):
         :param exp_id: ID of experiment node
         :return:
         """
-        names = tx.run(("MATCH (a:Sample)--(b:Experiment) "
+        names = tx.run(("MATCH (a:Specimen)--(b:Experiment) "
                         "WHERE b.name = '" + exp_id +
-                        "' RETURN a.name"))
+                        "' RETURN a.name")).data()
         return names
 
     @staticmethod
@@ -453,7 +448,7 @@ class Biom2Neo(ParentDriver):
         :param tx:
         :return:
         """
-        names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Sample) RETURN a.name")
+        names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Specimen) RETURN a.name").data()
         return names
 
     @staticmethod
@@ -464,7 +459,7 @@ class Biom2Neo(ParentDriver):
         :param sample: Sample ID
         :return:
         """
-        tx.run(("MATCH (a:Sample) "
+        tx.run(("MATCH (a:Specimen) "
                 "WHERE a.name = '" + sample +
                 "' DETACH DELETE a"))
 
@@ -476,7 +471,7 @@ class Biom2Neo(ParentDriver):
         :param taxon: Taxon ID
         :return:
         """
-        tx.run(("MATCH (a:Taxon)--(b:Association) "
+        tx.run(("MATCH (a:Taxon)--(b:Edge) "
                 "WHERE a.name = '" + taxon +
                 "' DETACH DELETE b"))
         tx.run(("MATCH (a:Taxon) "

@@ -59,9 +59,6 @@
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75923"/>
     </Declaration>
     <Declaration>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-    </Declaration>
-    <Declaration>
         <ObjectProperty IRI="http://purl.obolibrary.org/obo/BFO_0000050"/>
     </Declaration>
     <Declaration>
@@ -229,55 +226,6 @@
         </ObjectExactCardinality>
     </EquivalentClasses>
     <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45276"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45277"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45280"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45287"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45290"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45292"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-        <ObjectMaxCardinality cardinality="1">
-            <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-            <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45293"/>
-        </ObjectMaxCardinality>
-    </EquivalentClasses>
-    <EquivalentClasses>
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75923"/>
         <ObjectAllValuesFrom>
             <ObjectProperty IRI="http://purl.obolibrary.org/obo/BFO_0000050"/>
@@ -330,10 +278,6 @@
         <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
     </TransitiveObjectProperty>
     <ObjectPropertyDomain>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
-    </ObjectPropertyDomain>
-    <ObjectPropertyDomain>
         <ObjectProperty IRI="http://purl.obolibrary.org/obo/BFO_0000050"/>
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C19157"/>
     </ObjectPropertyDomain>
@@ -381,34 +325,10 @@
         <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45293"/>
     </ObjectPropertyDomain>
-    <ObjectPropertyRange>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45276"/>
-    </ObjectPropertyRange>
-    <ObjectPropertyRange>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45277"/>
-    </ObjectPropertyRange>
-    <ObjectPropertyRange>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45280"/>
-    </ObjectPropertyRange>
-    <ObjectPropertyRange>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45287"/>
-    </ObjectPropertyRange>
-    <ObjectPropertyRange>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45290"/>
-    </ObjectPropertyRange>
-    <ObjectPropertyRange>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45292"/>
-    </ObjectPropertyRange>
-    <ObjectPropertyRange>
-        <ObjectProperty IRI="http://purl.obolibrary.org/obo/BCO_0000087"/>
-        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45293"/>
-    </ObjectPropertyRange>
+    <ObjectPropertyDomain>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C75907"/>
+    </ObjectPropertyDomain>
     <ObjectPropertyRange>
         <ObjectProperty IRI="http://purl.obolibrary.org/obo/BFO_0000050"/>
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C42790"/>
@@ -461,16 +381,10 @@
         <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
         <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45292"/>
     </ObjectPropertyRange>
-    <AnnotationAssertion>
-        <AnnotationProperty abbreviatedIRI="rdfs:comment"/>
-        <IRI>http://purl.obolibrary.org/obo/BCO_0000087</IRI>
-        <Literal>A shortcut relation to an organsimal entity to a taxon or taxa.</Literal>
-    </AnnotationAssertion>
-    <AnnotationAssertion>
-        <AnnotationProperty abbreviatedIRI="rdfs:label"/>
-        <IRI>http://purl.obolibrary.org/obo/BCO_0000087</IRI>
-        <Literal xml:lang="en">member of taxon</Literal>
-    </AnnotationAssertion>
+    <ObjectPropertyRange>
+        <ObjectProperty IRI="http://purl.obolibrary.org/obo/omp#member_of"/>
+        <Class IRI="http://purl.obolibrary.org/obo/NCIT_C45293"/>
+    </ObjectPropertyRange>
     <AnnotationAssertion>
         <AnnotationProperty IRI="http://purl.obolibrary.org/obo/IAO_0000111"/>
         <IRI>http://purl.obolibrary.org/obo/BFO_0000050</IRI>

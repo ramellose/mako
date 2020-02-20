@@ -6,6 +6,7 @@ The file first sets up a simple Neo4j database for carrying out the tests.
 """
 
 import unittest
+import time
 import os
 import biom
 from biom.cli.util import write_biom_table
@@ -145,6 +146,23 @@ class TestNeo4Biom(unittest.TestCase):
     Warning: most of these functions are to start a local database.
     Therefore, the presence of the necessary local files is a prerequisite.
     """
+    @classmethod
+    def setUpClass(cls):
+        os.system(docker_command)
+        write_biom_table(testbiom, filepath=_resource_path('test.hdf5'), fmt='hdf5')
+        data = testbiom.to_dataframe()
+        data.to_csv(_resource_path('test.tsv'), sep='\t')
+        with open(_resource_path('test.tsv'), 'r') as original:
+            data = original.read()
+        with open(_resource_path('test.tsv'), 'w') as modified:
+            modified.write("#" + data)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.system('docker stop neo4j')
+        os.remove(_resource_path('test.hdf5'))
+        os.remove(_resource_path('test.tsv'))
+        os.remove(_resource_path('mako.log'))
 
     def test_start_biom(self):
         """
@@ -161,16 +179,16 @@ class TestNeo4Biom(unittest.TestCase):
                   'password': 'test',
                   'address': 'bolt://localhost:7688',
                   'store_config': False,
-                  'delete': None}
+                  'delete': None,
+                  'encryption': False}
         start_biom(inputs)
         driver = Biom2Neo(user=inputs['username'],
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
-        driver.query("MATCH (n:Experiment) RETURN n")
-        outcome = driver.check_domain_range()
-        start_base(inputs)
-        self.assertTrue(outcome)
+        test = driver.query("MATCH (n:Experiment) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['n']['name'], 'test')
 
     def test_start_biom_tabs(self):
         """
@@ -178,36 +196,54 @@ class TestNeo4Biom(unittest.TestCase):
         is correctly uploaded to the database.
         :return:
         """
-        inputs = {'fp': loc + '/Documents/mako_files',
-                  'neo4j': loc + 'Documents//neo4j',
+        inputs = {'biom_file': None,
+                  'fp': _resource_path(''),
+                  'count_table': [_resource_path('test.tsv')],
+                  'tax_table': None,
+                  'sample_meta': None,
+                  'taxon_meta': None,
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7688',
-                  'start': False,
-                  'clear': True,
-                  'quit': False,
-                  'store_config': True,
-                  'check': False,
+                  'store_config': False,
+                  'delete': None,
                   'encryption': False}
-        start_base(inputs)
-        driver = BaseDriver(user=inputs['username'],
-                            password=inputs['password'],
-                            uri=inputs['address'], filepath=inputs['fp'],
-                            encrypted=False)
-        driver.query("CREATE (n:Edge {name: 'edge'}) RETURN n")
-        driver.query("CREATE (n:Network {name: 'network'}) RETURN n")
-        driver.query("CREATE (n:Genus {name: 'genus'}) RETURN n")
-        driver.query("MATCH (n:Genus {name: 'genus'}), (m:Network {name: 'network'}) "
-                     "CREATE (n)-[r:PART_OF]->(m) return type(r)")
-        outcome = driver.check_domain_range()
-        start_base(inputs)
-        self.assertTrue(outcome)
+        start_biom(inputs)
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        test = driver.query("MATCH (n:Experiment) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['n']['name'], 'test')
 
-    def test_delete_biom(self):
+    def test_delete_correct_biom(self):
         """
         Checks if only the correct BIOM file is deleted.
         :return:
         """
+        inputs = {'biom_file': None,
+                  'fp': _resource_path(''),
+                  'count_table': None,
+                  'tax_table': None,
+                  'sample_meta': None,
+                  'taxon_meta': None,
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'delete': ['test1'],
+                  'encryption': False}
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_biom(testbiom, 'test1')
+        driver.convert_biom(testbiom, 'test2')
+        start_biom(inputs)
+        test = driver.query("MATCH (n:Experiment {name: 'test2'}) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(len(test), 1)
 
     def test_convert_biom(self):
         """
@@ -215,6 +251,26 @@ class TestNeo4Biom(unittest.TestCase):
         and checks if the correct number of samples is in the database.
         :return:
         """
+        inputs = {'biom_file': None,
+                  'fp': _resource_path(''),
+                  'count_table': None,
+                  'tax_table': None,
+                  'sample_meta': None,
+                  'taxon_meta': None,
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'delete': ['test1'],
+                  'encryption': False}
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_biom(testbiom, 'test')
+        test = driver.query("MATCH (n:Specimen) RETURN count(n) as count")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['count'], 6)
 
     def test_delete_biom(self):
         """
@@ -222,23 +278,57 @@ class TestNeo4Biom(unittest.TestCase):
         and checks if the Experiment is deleted.
         :return:
         """
+        inputs = {'biom_file': None,
+                  'fp': _resource_path(''),
+                  'count_table': None,
+                  'tax_table': None,
+                  'sample_meta': None,
+                  'taxon_meta': None,
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'delete': ['test1'],
+                  'encryption': False}
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_biom(testbiom, 'test1')
+        driver.convert_biom(testbiom, 'test2')
+        driver.delete_biom(exp_id='test1')
+        test = driver.query("MATCH (n:Experiment {name: 'test1'}) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(len(test), 0)
 
     def test_biom_property(self):
         """
         Uploads the BIOM data and checks if the metadata is also added.
         :return:
         """
+        inputs = {'biom_file': None,
+                  'fp': _resource_path(''),
+                  'count_table': None,
+                  'tax_table': None,
+                  'sample_meta': None,
+                  'taxon_meta': None,
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'delete': ['test1'],
+                  'encryption': False}
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_biom(testbiom, 'test')
+        test = driver.query("MATCH (n:Property {type: 'Description'}) RETURN count(n) as count")
+        driver.query("MATCH (n:) DETACH DELETE n")
+        self.assertEqual(test[0]['count'], 2)
 
 
 if __name__ == '__main__':
-    os.system(docker_command)
-    write_biom_table(testbiom, filepath=_resource_path('test.hdf5'), fmt='hdf5')
-    data = testbiom.to_dataframe()
-    data.to_csv(_resource_path('test.tsv'), sep='\t')
-    testbiom.to_tsv(_resource_path('test.tsv'))
     unittest.main()
-    os.system('docker stop neo4j')
-    os.remove(_resource_path('test.hdf5'))
-    os.remove(_resource_path('test.tsv'))
-    os.remove(_resource_path('mako.log'))
+
 
