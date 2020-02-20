@@ -133,7 +133,7 @@ def _get_path(path, default):
 
 
 class ParentDriver:
-    def __init__(self, uri, user, password, filepath):
+    def __init__(self, uri, user, password, filepath, encrypted=True):
         """
         Initializes a driver for accessing the Neo4j database.
 
@@ -141,10 +141,11 @@ class ParentDriver:
         :param user: Username for Neo4j database
         :param password: Password for Neo4j database
         :param filepath: Filepath where logs will be written.
+        :param encrypted: Can be set to False to interact with Docker during testing
         """
         _create_logger(filepath)
         try:
-            self._driver = GraphDatabase.driver(uri, auth=(user, password))
+            self._driver = GraphDatabase.driver(uri, auth=(user, password), encrypted=encrypted)
         except Exception:
             logger.error("Unable to start driver. \n", exc_info=True)
             sys.exit()
