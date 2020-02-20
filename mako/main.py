@@ -158,12 +158,6 @@ parse_neo4biom.add_argument('-cf', '--config',
                             help='If true, store config files to reload Neo4j settings. ',
                             required=False,
                             default=None)
-parse_neo4biom.add_argument('-n', '--neo4j',
-                            dest='neo4j',
-                            help='Filepath to neo4j folder. ',
-                            required=False,
-                            type=str,
-                            default=None)
 parse_neo4biom.add_argument('-u', '--username',
                             dest='username',
                             required=False,
@@ -233,12 +227,6 @@ parse_io.add_argument('-cf', '--config',
                       action='store_true',
                       help='If true, store config files to reload Neo4j settings. ',
                       required=False,
-                      default=None)
-parse_io.add_argument('-n', '--neo4j',
-                      dest='neo4j',
-                      help='Filepath to neo4j folder. ',
-                      required=False,
-                      type=str,
                       default=None)
 parse_io.add_argument('-u', '--username',
                       dest='username',
@@ -314,12 +302,6 @@ parse_netstats.add_argument('-cf', '--config',
                             help='If true, store config files to reload Neo4j settings. ',
                             required=False,
                             default=None)
-parse_netstats.add_argument('-n', '--neo4j',
-                            dest='neo4j',
-                            help='Filepath to neo4j folder. ',
-                            required=False,
-                            type=str,
-                            default=None)
 parse_netstats.add_argument('-u', '--username',
                             dest='username',
                             required=False,
@@ -361,6 +343,45 @@ parse_netstats.add_argument('-frac', '--fraction',
                             help='List of fractions to use for partial intersections. ',
                             type=list,
                             default=[1])
+
+parse_metastats = subparsers.add_parser('metastats', description='Carry out analysis on the networks in the database.',
+                                       help='The metastats module contains functions that carry out some '
+                                            'form of analysis'
+                                            ' on the networks that involve node metadata. '
+                                            'For example, metadata assocations can be calculated with this module. ')
+parse_metastats.add_argument('-fp', '--output_filepath',
+                             dest='fp',
+                             help='File path for importing and / or exporting files. ',
+                             default=None)
+parse_metastats.add_argument('-cf', '--config',
+                             dest='config',
+                             action='store_true',
+                             help='If true, store config files to reload Neo4j settings. ',
+                             required=False,
+                             default=None)
+parse_metastats.add_argument('-u', '--username',
+                             dest='username',
+                             required=False,
+                             help='Username for neo4j database access. ',
+                             type=str,
+                             default='neo4j')
+parse_metastats.add_argument('-p', '--password',
+                             dest='password',
+                             required=False,
+                             type=str,
+                             help='Password for neo4j database access. ')
+parse_metastats.add_argument('-a', '--address',
+                             dest='address',
+                             required=False,
+                             help='Address for neo4j database. ',
+                             type=str,
+                             default='bolt://localhost:7687')
+parse_metastats.add_argument('-net', '--networks',
+                             dest='networks',
+                             required=False,
+                             help='If you only want to carry out set operations on specific networks, list them here. ',
+                             type=list,
+                             default=None)
 
 
 def main():

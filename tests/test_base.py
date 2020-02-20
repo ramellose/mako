@@ -7,8 +7,6 @@ The file first sets up a simple Neo4j database for carrying out the tests.
 
 import unittest
 import os
-import subprocess
-import io
 from psutil import pid_exists, Process
 from signal import CTRL_C_EVENT
 from mako.scripts.base import start_base, BaseDriver
@@ -48,7 +46,6 @@ class TestBase(unittest.TestCase):
         """
         Checks if an error is returned when the pid is wrong.
 
-        :param inputs: Default arguments
         :return:
         """
         inputs = {'fp': loc + '/Documents/mako_files',
@@ -71,7 +68,6 @@ class TestBase(unittest.TestCase):
         """
         Checks if an error is returned when the pid is wrong.
 
-        :param inputs: Default arguments
         :return:
         """
         inputs = {'fp': loc + '/Documents/mako_files',
@@ -183,8 +179,6 @@ class TestBase(unittest.TestCase):
         outcome = driver.check_domain_range()
         start_base(inputs)
         self.assertTrue(outcome)
-
-
 
 
 if __name__ == '__main__':
