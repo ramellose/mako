@@ -41,8 +41,8 @@ def _create_logger(filepath):
     :param filepath: Filepath where logs will be written.
     :return:
     """
-    logpath = filepath + '/massoc.log'
-    # filelog path is one folder above massoc
+    logpath = filepath + '/mako.log'
+    # filelog path is one folder above mako
     # pyinstaller creates a temporary folder, so log would be deleted
     fh = logging.handlers.RotatingFileHandler(maxBytes=500,
                                               filename=logpath, mode='a')

@@ -8,7 +8,9 @@ The file first sets up a simple Neo4j database for carrying out the tests.
 import unittest
 import os
 import biom
+from biom.cli.util import write_biom_table
 from mako.scripts.neo4biom import start_biom, Biom2Neo
+from mako.scripts.utils import _resource_path
 
 __author__ = 'Lisa Rottjers'
 __maintainer__ = 'Lisa Rottjers'
@@ -57,7 +59,7 @@ sample_ids = ['S%d' % i for i in range(1, 6)]
 observ_ids = ['O%d' % i for i in range(1, 5)]
 
 testraw = """{
-     "id":null,
+     "id":  "test",
      "format": "Biological Observation Matrix 1.0.0-dev",
      "format_url": "http://biom-format.org",
      "type": "OTU table",
@@ -135,7 +137,7 @@ ae", "g__Escherichia", "s__"]}}
 """
 
 testbiom = biom.parse.parse_biom_table(testraw)
-testbiom.to_hdf5()
+
 
 class TestNeo4Biom(unittest.TestCase):
     """
@@ -149,26 +151,23 @@ class TestNeo4Biom(unittest.TestCase):
         Checks if the BIOM file is correctly uploaded to the database.
         :return:
         """
-        inputs = {'fp': loc + '/Documents/mako_files',
+        inputs = {'biom_file': [_resource_path('test.hdf5')],
+                  'fp': _resource_path(''),
+                  'count_table': None,
+                  'tax_table': None,
+                  'sample_meta': None,
+                  'taxon_meta': None,
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7688',
-                  'start': False,
-                  'clear': True,
-                  'quit': False,
-                  'store_config': True,
-                  'check': False,
-                  'encryption': False}
-        start_base(inputs)
-        driver = BaseDriver(user=inputs['username'],
-                            password=inputs['password'],
-                            uri=inputs['address'], filepath=inputs['fp'],
-                            encrypted=False)
-        driver.query("CREATE (n:Edge {name: 'edge'}) RETURN n")
-        driver.query("CREATE (n:Network {name: 'network'}) RETURN n")
-        driver.query("CREATE (n:Genus {name: 'genus'}) RETURN n")
-        driver.query("MATCH (n:Genus {name: 'genus'}), (m:Network {name: 'network'}) "
-                     "CREATE (n)-[r:PART_OF]->(m) return type(r)")
+                  'store_config': False,
+                  'delete': None}
+        start_biom(inputs)
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.query("MATCH (n:Experiment) RETURN n")
         outcome = driver.check_domain_range()
         start_base(inputs)
         self.assertTrue(outcome)
@@ -233,5 +232,13 @@ class TestNeo4Biom(unittest.TestCase):
 
 if __name__ == '__main__':
     os.system(docker_command)
+    write_biom_table(testbiom, filepath=_resource_path('test.hdf5'), fmt='hdf5')
+    data = testbiom.to_dataframe()
+    data.to_csv(_resource_path('test.tsv'), sep='\t')
+    testbiom.to_tsv(_resource_path('test.tsv'))
     unittest.main()
     os.system('docker stop neo4j')
+    os.remove(_resource_path('test.hdf5'))
+    os.remove(_resource_path('test.tsv'))
+    os.remove(_resource_path('mako.log'))
+

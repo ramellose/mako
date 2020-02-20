@@ -10,7 +10,7 @@ import os
 from psutil import pid_exists, Process
 from signal import CTRL_C_EVENT
 from mako.scripts.base import start_base, BaseDriver
-from mako.scripts.utils import _read_config
+from mako.scripts.utils import _read_config, _resource_path
 
 __author__ = 'Lisa Rottjers'
 __maintainer__ = 'Lisa Rottjers'
@@ -48,7 +48,7 @@ class TestBase(unittest.TestCase):
 
         :return:
         """
-        inputs = {'fp': loc + '/Documents/mako_files',
+        inputs = {'fp': _resource_path(''),
                   'neo4j': loc + '//Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
@@ -70,7 +70,7 @@ class TestBase(unittest.TestCase):
 
         :return:
         """
-        inputs = {'fp': loc + '/Documents/mako_files',
+        inputs = {'fp': _resource_path(''),
                   'neo4j': loc + 'Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
@@ -78,10 +78,10 @@ class TestBase(unittest.TestCase):
                   'start': True,
                   'clear': False,
                   'quit': False,
-                  'store_config': True,
+                  'store_config': False,
                   'check': False}
         start_base(inputs)
-        inputs = {'fp': loc + '/Documents/mako_files',
+        inputs = {'fp': _resource_path(''),
                   'neo4j': loc + 'Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
@@ -89,7 +89,7 @@ class TestBase(unittest.TestCase):
                   'start': False,
                   'clear': False,
                   'quit': True,
-                  'store_config': True,
+                  'store_config': False,
                   'check': False}
         start_base(inputs)
         config = _read_config(inputs)
@@ -100,7 +100,7 @@ class TestBase(unittest.TestCase):
         First writes a single node to the Docker Neo4j database and then clears it.
         :return:
         """
-        inputs = {'fp': loc + '/Documents/mako_files',
+        inputs = {'fp': _resource_path(''),
                   'neo4j': loc + 'Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
@@ -108,7 +108,7 @@ class TestBase(unittest.TestCase):
                   'start': False,
                   'clear': True,
                   'quit': False,
-                  'store_config': True,
+                  'store_config': False,
                   'check': False,
                   'encryption': False}
         driver = BaseDriver(user=inputs['username'],
@@ -125,7 +125,7 @@ class TestBase(unittest.TestCase):
         Checks if the check database returns True when there are no wrong connections.
         :return:
         """
-        inputs = {'fp': loc + '/Documents/mako_files',
+        inputs = {'fp': _resource_path(''),
                   'neo4j': loc + 'Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
@@ -133,7 +133,7 @@ class TestBase(unittest.TestCase):
                   'start': False,
                   'clear': True,
                   'quit': False,
-                  'store_config': True,
+                  'store_config': False,
                   'check': False,
                   'encryption': False}
         start_base(inputs)
@@ -155,7 +155,7 @@ class TestBase(unittest.TestCase):
         Checks if the check database returns True when there are no wrong connections.
         :return:
         """
-        inputs = {'fp': loc + '/Documents/mako_files',
+        inputs = {'fp': _resource_path(''),
                   'neo4j': loc + 'Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
@@ -163,7 +163,7 @@ class TestBase(unittest.TestCase):
                   'start': False,
                   'clear': True,
                   'quit': False,
-                  'store_config': True,
+                  'store_config': False,
                   'check': False,
                   'encryption': False}
         start_base(inputs)
@@ -185,3 +185,4 @@ if __name__ == '__main__':
     os.system(docker_command)
     unittest.main()
     os.system('docker stop neo4j')
+    os.remove(_resource_path('mako.log'))
