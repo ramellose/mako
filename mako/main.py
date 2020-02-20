@@ -22,8 +22,8 @@ import multiprocessing as mp
 from mako.scripts.base import start_base
 from mako.scripts.neo4biom import start_biom
 from mako.scripts.io import start_io
-#from mako.scripts.netstats import start_netstats
-#from mako.scripts.metastats import start_metastats
+from mako.scripts.netstats import start_netstats
+from mako.scripts.metastats import start_metastats
 import logging.handlers
 
 logger = logging.getLogger(__name__)
@@ -57,12 +57,12 @@ def mako(mako_args):
     if 'io' in mako_args:
         logger.info('Running IO module. ')
         start_io(mako_args)
-    #if 'netstats' in mako_args:
-    #    logger.info('Performing network analysis on Neo4j database. ')
-    #    run_netstats(mako_args)
-    #if 'metastats' in mako_args:
-    #    logger.info('Performing metadata analysis on Neo4j database. ')
-    #    run_metastats(mako_args)
+    if 'netstats' in mako_args:
+        logger.info('Performing network analysis on Neo4j database. ')
+        start_netstats(mako_args)
+    if 'metastats' in mako_args:
+        logger.info('Performing metadata analysis on Neo4j database. ')
+        start_metastats(mako_args)
     logger.info('Completed tasks! ')
 
 
@@ -376,10 +376,19 @@ parse_metastats.add_argument('-a', '--address',
                              help='Address for neo4j database. ',
                              type=str,
                              default='bolt://localhost:7687')
-parse_metastats.add_argument('-net', '--networks',
-                             dest='networks',
+parse_metastats.add_argument('-agglom', '--agglomeration',
+                             dest='agglom',
                              required=False,
-                             help='If you only want to carry out set operations on specific networks, list them here. ',
+                             help='Merges edges if edge taxa are identical at the specified level.',
+                             type=str,
+                             choices=['species', 'genus', 'family',
+                                      'order', 'class', 'phylum'],
+                             default=None)
+parse_metastats.add_argument('-var', '--variable',
+                             dest='variable',
+                             required=False,
+                             help='Spearman and hypergeometric test on sample-linked metadata to taxa. \n'
+                                  'Specify "all" or one or more specific variable names.',
                              type=list,
                              default=None)
 
