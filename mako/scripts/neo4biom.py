@@ -57,11 +57,16 @@ def start_biom(inputs):
     # construct logger after filepath is provided
     _create_logger(inputs['fp'])
     config = _read_config(inputs)
+    encrypted = True
+    if 'encryption' in inputs:
+        # setting for Docker container
+        encrypted = False
     try:
         driver = Biom2Neo(uri=config['address'],
                           user=config['username'],
                           password=config['password'],
-                          filepath=inputs['fp'])
+                          filepath=inputs['fp'],
+                          encrypted=encrypted)
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
         exit()
@@ -82,28 +87,10 @@ def start_biom(inputs):
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
     if inputs['delete']:
-        delete_biom(inputs)
+        for name in inputs['delete']:
+            driver.delete_biom(name)
+    driver.close()
     logger.info('Completed neo4biom operations!  ')
-
-
-def delete_biom(inputs):
-    """
-    Removes all  values in the Neo4j database linked to the supplied experiment name.
-
-    :param inputs: Dictionary of inputs.
-    :return:
-    """
-    _create_logger(inputs['fp'])
-    config = _read_config(inputs)
-    try:
-        driver = Biom2Neo(uri=config['address'],
-                          user=config['username'],
-                          password=config['password'],
-                          filepath=inputs['fp'])
-    except KeyError:
-        logger.error("Login information not specified in arguments.", exc_info=True)
-    for name in inputs['delete']:
-        driver.delete_biom(name)
 
 
 def check_arguments(inputs):

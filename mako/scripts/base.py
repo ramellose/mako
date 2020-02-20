@@ -51,6 +51,7 @@ def start_base(inputs):
     config = _read_config(inputs)
     pid = config['pid']
     encrypted = True
+    driver = None
     if 'encryption' in inputs:
         # setting for Docker container
         encrypted = False
@@ -133,6 +134,8 @@ def start_base(inputs):
             driver.check_domain_range()
         except Exception:
             logger.warning("Failed to check database.  ", exc_info=True)
+    if driver:
+        driver.close()
     logger.info('Completed database operations!  ')
 
 
