@@ -7,6 +7,7 @@ The file first sets up a simple Neo4j database for carrying out the tests.
 
 import unittest
 import os
+import time
 from psutil import pid_exists, Process
 from signal import CTRL_C_EVENT
 from mako.scripts.base import start_base, BaseDriver
@@ -44,11 +45,11 @@ class TestBase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         os.system(docker_command)
+        time.sleep(20)
 
     @classmethod
     def tearDownClass(cls):
         os.system('docker stop neo4j')
-        os.remove(_resource_path('mako.log'))
 
     def test_start_base_pid(self):
         """

@@ -51,11 +51,17 @@ def start_io(inputs):
     # construct logger after filepath is provided
     _create_logger(inputs['fp'])
     config = _read_config(inputs)
+    encrypted = True
+    driver = None
+    if 'encryption' in inputs:
+        # setting for Docker container
+        encrypted = False
     try:
         driver = IoDriver(uri=config['address'],
                           user=config['username'],
                           password=config['password'],
-                          filepath=inputs['fp'])
+                          filepath=inputs['fp'],
+                          encrypted=encrypted)
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
         sys.exit()
@@ -70,7 +76,13 @@ def start_io(inputs):
         except Exception:
             logger.error("Failed to import network files.", exc_info=True)
     if inputs['delete']:
-        delete_network(inputs)
+        names = inputs['networks']
+        if not names:
+            names = [x['a']['name'] for x in driver.query("MATCH (a:Network) RETURN a")]
+        for name in names:
+            logger.info("Deleting " + name + "...")
+            driver.delete_network(name)
+        driver.query("MATCH (a:Set) DETACH DELETE a")
     if inputs['write']:
         try:
             driver.export_network(path=inputs['fp'], networks=inputs['networks'])
@@ -94,31 +106,6 @@ def start_io(inputs):
         except Exception:
             logger.error("Failed to add metadata file.", exc_info=True)
     logger.info('Completed io operations!  ')
-
-
-def delete_network(inputs):
-    """
-    Removes all  values in the Neo4j database linked to the supplied experiment name.
-
-    :param inputs: Dictionary of inputs.
-    :return:
-    """
-    _create_logger(inputs['fp'])
-    config = _read_config(inputs)
-    try:
-        driver = IoDriver(uri=config['address'],
-                          user=config['username'],
-                          password=config['password'],
-                          filepath=inputs['fp'])
-    except KeyError:
-        logger.error("Login information not specified in arguments.", exc_info=True)
-    names = inputs['networks']
-    if not names:
-        names = [x['a']['name'] for x in driver.query("MATCH (a:Network) RETURN a")]
-    for name in names:
-        logger.info("Deleting " + name + "...")
-        driver.delete_network(name)
-    driver.query("MATCH (a:Set) DETACH DELETE a")
 
 
 def read_networks(files, filepath, driver):

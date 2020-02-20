@@ -156,13 +156,13 @@ class TestNeo4Biom(unittest.TestCase):
             data = original.read()
         with open(_resource_path('test.tsv'), 'w') as modified:
             modified.write("#" + data)
+        time.sleep(20)
 
     @classmethod
     def tearDownClass(cls):
         os.system('docker stop neo4j')
         os.remove(_resource_path('test.hdf5'))
         os.remove(_resource_path('test.tsv'))
-        os.remove(_resource_path('mako.log'))
 
     def test_start_biom(self):
         """
