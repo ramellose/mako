@@ -307,7 +307,7 @@ class TestNeo4Biom(unittest.TestCase):
         test = driver.query("MATCH (n:Network)-[:AGGLOMERATED]->() RETURN n")
         for id in test:
             driver.delete_network(network_id=id['n']['name'])
-        self.assertEqual(test, 4)
+        self.assertEqual(len(test), 4)
 
     def test_agglomerate_weight(self):
         """
