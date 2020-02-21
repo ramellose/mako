@@ -51,12 +51,11 @@ eae", "g__Escherichia", "s__"]}},
         {"id":"GG_OTU_2", "metadata":{"taxonomy":["k__Bacteria", "p__Cyanobact\
 eria", "c__Nostocophycideae", "o__Nostocales", "f__Nostocaceae", "g__Dolichosp\
 ermum", "s__"]}},
-        {"id":"GG_OTU_3", "metadata":{"taxonomy":["k__Archaea", "p__Euryarchae\
-ota", "c__Methanomicrobia", "o__Methanosarcinales", "f__Methanosarcinaceae", "\
-g__Methanosarcina", "s__"]}},
+        {"id":"GG_OTU_3", "metadata":{"taxonomy":["k__Bacteria", "p__Firmicute\
+s", "c__Clostridia", "o__Halanaerobiales", "f__Punk", "\
+g_Anthrax", "s__"]}},
         {"id":"GG_OTU_4", "metadata":{"taxonomy":["k__Bacteria", "p__Firmicute\
-s", "c__Clostridia", "o__Halanaerobiales", "f__Halanaerobiaceae", "g__Halanaer\
-obium", "s__Halanaerobiumsaccharolyticum"]}},
+s", "c__Clostridia", "o__Halanaerobiales", "f__Punk", "g__NOFX", "s__"]}},
         {"id":"GG_OTU_5", "metadata":{"taxonomy":["k__Bacteria", "p__Proteobac\
 teria", "c__Gammaproteobacteria", "o__Enterobacteriales", "f__Enterobacteriace\
 ae", "g__Escherichia", "s__"]}}
@@ -307,7 +306,7 @@ class TestNeo4Biom(unittest.TestCase):
         test = driver.query("MATCH (n:Network)-[:AGGLOMERATED]->() RETURN n")
         for id in test:
             driver.delete_network(network_id=id['n']['name'])
-        self.assertEqual(len(test), 4)
+        self.assertEqual(len(test), 2)
 
     def test_agglomerate_weight(self):
         """
@@ -356,7 +355,7 @@ class TestNeo4Biom(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        genus = driver.query("MATCH (n:Network {name: 'Genus_g'})--(a)--(b:Taxon) RETURN a")
+        genus = driver.query("MATCH (n:Network {name: 'g'})--(a)--(b:Taxon) RETURN a")
         genus = [x['a']['name'] for x in genus]
         family = driver.query("MATCH (n:Network {name: 'Family_g'})--(a)--(b:Taxon) RETURN a")
         family = [x['a']['name'] for x in family]
