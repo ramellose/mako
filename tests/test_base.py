@@ -71,7 +71,7 @@ class TestBase(unittest.TestCase):
         config = _read_config(inputs)
         self.assertTrue(pid_exists(int(config['pid'])))
         parent = Process(int(config['pid']))
-        parent.send_signal(CTRL_C_EVENT)
+        parent.kill()
 
     def test_stop_base_pid(self):
         """

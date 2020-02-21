@@ -12,7 +12,7 @@ import biom
 import networkx as nx
 from mako.scripts.neo4biom import Biom2Neo
 from mako.scripts.io import IoDriver
-from mako.scripts.utils import _resource_path
+from mako.scripts.utils import _resource_path, _get_unique, _read_config, _get_path, ParentDriver
 
 __author__ = 'Lisa Rottjers'
 __maintainer__ = 'Lisa Rottjers'
@@ -36,29 +36,6 @@ docker_command = "docker run \
 --env NEO4J_AUTH=neo4j/test \
 neo4j:latest"
 
-
-tabotu = '[[ 243  567  112   45   2]\n ' \
-         '[ 235   56  788  232    1]\n ' \
-         '[4545   22    0    1    0]\n ' \
-         '[  41   20    2    4    0]]'
-
-tabtax = "[['k__Bacteria' 'p__Firmicutes' 'c__Clostridia' 'o__Clostridiales'\n  " \
-         "'f__Clostridiaceae' 'g__Anaerococcus' 's__']\n " \
-         "['k__Bacteria' 'p__Bacteroidetes' 'c__Bacteroidia' 'o__Bacteroidales'\n  " \
-         "'f__Prevotellaceae' 'g__Prevotella' 's__']\n " \
-         "['k__Bacteria' 'p__Proteobacteria' 'c__Alphaproteobacteria'\n  " \
-         "'o__Sphingomonadales' 'f__Sphingomonadaceae' 'g__Sphingomonas' 's__']\n " \
-         "['k__Bacteria' 'p__Verrucomicrobia' 'c__Verrucomicrobiae'\n  " \
-         "'o__Verrucomicrobiales' 'f__Verrucomicrobiaceae' 'g__Luteolibacter' 's__']]"
-
-tabmeta = "[['Australia' 'Hot']\n " \
-          "['Antarctica' 'Cold']\n " \
-          "['Netherlands' 'Rainy']\n " \
-          "['Belgium' 'Rainy']\n " \
-          "['Iceland' 'Cold']]"
-
-sample_ids = ['S%d' % i for i in range(1, 6)]
-observ_ids = ['O%d' % i for i in range(1, 5)]
 
 testraw = """{
      "id":  "test",
@@ -150,10 +127,6 @@ g["GG_OTU_1"]["GG_OTU_2"]['weight'] = 1.0
 g["GG_OTU_2"]["GG_OTU_5"]['weight'] = 1.0
 g["GG_OTU_3"]["GG_OTU_4"]['weight'] = -1.0
 
-f = g.copy(as_view=False)
-f.remove_edge('GG_OTU_3', 'GG_OTU_4')
-f.add_edge('GG_OTU_1', 'GG_OTU_5', weight=-1.0)
-
 
 class TestNeo4Biom(unittest.TestCase):
     """
@@ -175,7 +148,6 @@ class TestNeo4Biom(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='g')
-        driver.convert_networkx(network=f, network_id='f')
 
     @classmethod
     def tearDownClass(cls):
@@ -188,89 +160,54 @@ class TestNeo4Biom(unittest.TestCase):
 
     def test_get_unique(self):
         """
-        Checks if all set nodes are added to the database.
+        Checks if unique nodes are extracted from the Neo4j query.
         :return:
         """
-        driver = MetastatsDriver(user='neo4j',
-                                 password='test',
-                                 uri='bolt://localhost:7688', filepath=_resource_path(''),
-                                 encrypted=False)
-        test = driver.query("MATCH (n:Set) RETURN count(n) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 4)
-
-    def test_intersection(self):
-        """
-        Checks if the correct number of edges is in the intersection.
-        is deleted.
-        :return:
-        """
-        driver = NetstatsDriver(user='neo4j',
-                                password='test',
-                                uri='bolt://localhost:7688', filepath=_resource_path(''),
-                                encrypted=False)
-        driver.graph_intersection(networks=['f', 'g'], weight=True, fraction=1)
-        driver = Biom2Neo(user='neo4j',
+        driver = IoDriver(user='neo4j',
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 2)
+        test = driver.query("MATCH (n:Network)--() RETURN n")
+        outcome = _get_unique(test, key='n')
+        self.assertGreater(len(test), len(outcome))
 
-    def test_difference(self):
+    def test_read_config(self):
         """
-        Checks if the correct number of edges is in the difference.
+        Checks if the config in the test location contains 5 keys.
         :return:
         """
-        driver = NetstatsDriver(user='neo4j',
-                                password='test',
-                                uri='bolt://localhost:7688', filepath=_resource_path(''),
-                                encrypted=False)
-        driver.graph_difference(networks=['f', 'g'], weight=True)
-        driver = Biom2Neo(user='neo4j',
-                          password='test',
-                          uri='bolt://localhost:7688', filepath=_resource_path(''),
-                          encrypted=False)
-        test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 2)
+        config = _read_config({'store_config': True})
+        self.assertEqual(len(config), 5)
 
-    def test_union(self):
+    def test_get_path(self):
         """
-        Checks if the correct number of edges is in the difference.
+        Checks if the path function returns the complete file path.
         :return:
         """
-        driver = NetstatsDriver(user='neo4j',
-                                password='test',
-                                uri='bolt://localhost:7688', filepath=_resource_path(''),
-                                encrypted=False)
-        driver.graph_union(networks=['f', 'g'])
-        driver = Biom2Neo(user='neo4j',
-                          password='test',
-                          uri='bolt://localhost:7688', filepath=_resource_path(''),
-                          encrypted=False)
-        test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 4)
+        path = _get_path('test_utils.py', default=_resource_path(''))
+        self.assertTrue(os.path.isfile(path))
 
-    def test_set_name(self):
+    def test_get_path_false(self):
         """
-        Checks if the intersection name is added correctly.
+        Checks if the path function returns False if the file does not exist
+        in any of the specified locations (cwd, default).
         :return:
         """
-        driver = NetstatsDriver(user='neo4j',
-                                password='test',
-                                uri='bolt://localhost:7688', filepath=_resource_path(''),
-                                encrypted=False)
-        driver.graph_intersection(networks=['f', 'g'], weight=True, fraction=1)
-        driver = Biom2Neo(user='neo4j',
-                          password='test',
-                          uri='bolt://localhost:7688', filepath=_resource_path(''),
-                          encrypted=False)
-        test = driver.query("MATCH (a:Set) RETURN a")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['a']['name'], 'Intersection_weight_2')
+        path = _get_path('netstats.py', default=_resource_path(''))
+        self.assertFalse(os.path.isfile(path))
+
+    def test_ParentDriver(self):
+        """
+        Checks if the ParentDriver can process a query.
+        :return:
+        """
+        driver = ParentDriver(user='neo4j',
+                              password='test',
+                              uri='bolt://localhost:7688', filepath=_resource_path(''),
+                              encrypted=False)
+        driver.query("CREATE (n:Node {name: 'Test'}) RETURN n")
+        test = driver.query("MATCH (n:Node {name: 'Test'}) RETURN n")
+        self.assertEqual(len(test), 1)
 
 
 if __name__ == '__main__':

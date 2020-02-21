@@ -355,10 +355,10 @@ class TestNeo4Biom(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        genus = driver.query("MATCH (n:Network {name: 'g'})--(a)--(b:Taxon) RETURN a")
-        genus = [x['a']['name'] for x in genus]
-        family = driver.query("MATCH (n:Network {name: 'Family_g'})--(a)--(b:Taxon) RETURN a")
-        family = [x['a']['name'] for x in family]
+        genus = driver.query("MATCH (n:Network {name: 'g'})--(a)--(b:Taxon) RETURN b")
+        genus = [x['b']['name'] for x in genus]
+        family = driver.query("MATCH (n:Network {name: 'Family_g'})--(a)--(b:Taxon) RETURN b")
+        family = [x['b']['name'] for x in family]
         driver.delete_network(network_id='Genus_g')
         driver.delete_network(network_id='Family_g')
         self.assertGreater(len(set(genus)), len(set(family)))
