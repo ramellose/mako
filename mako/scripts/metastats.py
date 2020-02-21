@@ -69,6 +69,7 @@ def start_metastats(inputs):
             variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.type") for y in x])
         for var in variables:
             driver.associate_samples(label=var)
+    driver.close()
     logger.info('Completed metastats operations!  ')
 
 
@@ -111,11 +112,18 @@ class MetastatsDriver(ParentDriver):
             # first check if lower-level network exists
             # if there were no pairs, it might not have been copied
             hit = self.query("MATCH (n:Network {name: '" + network + "'}) RETURN n")
-            if len(hit) == 0:
+            i = tax_list.index(level)
+            while len(hit) == 0:
                 previous_network = '_'.join(network.split('_')[1:])
+                if i > 0:
+                    previous_network = tax_list[i] + '_' + previous_network
+                    i -= 1
+                hit = self.query("MATCH (n:Network {name: '" + previous_network + "'}) RETURN n")
             # if there are no pairs at all, no need to copy network
             # possible with nodes that do not have large taxonomy
             testpair = self.get_pairlist(level, weight, previous_network)
+            if len(testpair) == 0:
+                testpair = self.get_taxlist(level, previous_network)
             if not len(testpair) == 0:
                 logger.info("Copying " + previous_network + "...")
                 self.copy_network(previous_network, new_name)
@@ -142,7 +150,7 @@ class MetastatsDriver(ParentDriver):
                         tax_nodes = self.get_taxlist(level=level, network=network)
                         if tax_nodes:
                             tax_nodes = tax_nodes[0]['p']
-                            self.agglomerate_taxa(tax_nodes, level=level)
+                            self.agglomerate_taxa(tax_nodes, level=level, weight=weight)
                         else:
                             stop_condition = True
                     num = self.query("MATCH (n:Network {name: '" + network + "'})-"
@@ -166,7 +174,7 @@ class MetastatsDriver(ParentDriver):
         self.query("MERGE (a:Network {name: '" + new_network + "'}) RETURN a")
         self.query("MATCH (a:Network {name: '" + new_network +
                    "'}), (b:Network {name: '" + source_network +
-                   "'}) MERGE (a)-[r:FROM_NETWORK]->(b) RETURN r")
+                   "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r")
         edges = self.query("MATCH (a:Edge)--(:Network {name: '" + source_network +
                            "'}) RETURN a")
         edges = _get_unique(edges, key='a')
@@ -317,7 +325,7 @@ class MetastatsDriver(ParentDriver):
             logger.error("Could not obtain list of matching taxa. \n", exc_info=True)
         return pairs
 
-    def agglomerate_taxa(self, pair, level):
+    def agglomerate_taxa(self, pair, level, weight):
         """
         For one pair, as returned by get_taxlist,
         this function merges nodes with similar taxonomy
@@ -327,13 +335,14 @@ class MetastatsDriver(ParentDriver):
         links to the ancestral nodes are generated.
         :param pair: Pair as returned by the pair list functions
         :param level: Taxonomic level
+        :param weight: If false, merges edges with different weights
         :return:
         """
         try:
             with self._driver.session() as session:
                 agglom_1 = session.write_transaction(self._create_agglom)
                 session.write_transaction(self._taxonomy, agglom_1, pair.nodes[0], level)
-                session.write_transaction(self._rewire_edges, agglom_1, pair)
+                session.write_transaction(self._rewire_edges, agglom_1, pair, weight)
                 session.write_transaction(self._delete_old_agglomerations, ([pair.nodes[1]] + [pair.nodes[5]]))
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
@@ -365,7 +374,7 @@ class MetastatsDriver(ParentDriver):
                              "WITH a, b "
                              "MATCH p=(a:Edge)--()--(x:" + level +
                              ")--()--(b:Edge)--()--(y:" + level +
-                             ")--()--(a:Edge)"
+                             ")--()--(a:Edge) "
                              "RETURN p LIMIT 1"))
         return result.data()
 
@@ -429,16 +438,12 @@ class MetastatsDriver(ParentDriver):
                                 node + "' AND b.name = '" + hit['g'].get('name') +
                                 "' CREATE (a)-[r:AGGLOMERATED]->(b) RETURN type(r)"))
             else:
-                old_link = tx.run(("MATCH p=(a:Taxon)-->(b:Taxon) WHERE a.name = '" +
-                                   node + "' AND b.name ='" + name +
-                                   "' RETURN p")).data()
-                if len(old_link) == 0:
-                    tx.run(("MATCH (a:Taxon),(b:Taxon) WHERE a.name = '" +
-                            node + "' AND b.name = '" + name +
-                            "' CREATE (a)-[r:AGGLOMERATED]->(b) RETURN type(r)"))
+                tx.run(("MATCH (a:Taxon),(b:Taxon) WHERE a.name = '" +
+                        node + "' AND b.name = '" + name +
+                        "' CREATE (a)-[r:AGGLOMERATED]->(b) RETURN type(r)"))
 
     @staticmethod
-    def _rewire_edges(tx, node, path):
+    def _rewire_edges(tx, node, path, weight):
         """
         Each aglommerated Taxon node is linked to the Taxon node
         it originated from. If it was generated from an agglomerated Taxon node,
@@ -446,6 +451,7 @@ class MetastatsDriver(ParentDriver):
         :param tx: Neo4j transaction
         :param node: UID of agglomerated taxon
         :param path: Path containing two nodes to be merged
+        :param weight: If false, merges edges with different weights
         :return:
         """
         network = path.nodes[3]['name']
@@ -468,7 +474,8 @@ class MetastatsDriver(ParentDriver):
                 path.nodes[5].get('name') + "' DELETE r"))
         old_links = list(set(old_links))  # issue with self loops causing deletion issues
         targets = list()
-        weights = list()
+        if weight:
+            weights = list()
         selfloops = list()
         for assoc in old_links:
             # first need to check if the old edges are to the same taxa.
@@ -491,12 +498,13 @@ class MetastatsDriver(ParentDriver):
                          "WHERE m.name = '" + node +
                          "' AND b.name = '" + assoc +
                          "' CREATE (m)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
-            weight = tx.run(("MATCH (a:Taxon)--(b:Edge) "
-                             "WHERE a.name = '" + node +
-                             "' AND b.name = '" + assoc +
-                             "' RETURN b.sign")).data()
             targets.append(target[0]['m'].get('name'))
-            weights.append(weight[0]['b.sign'])
+            if weight:
+                edge_weight = tx.run(("MATCH (a:Taxon)--(b:Edge) "
+                                 "WHERE a.name = '" + node +
+                                 "' AND b.name = '" + assoc +
+                                 "' RETURN b.sign")).data()
+                weights.append(edge_weight[0]['b.sign'])
         while len(targets) > 1:
             item = targets[0]
             # write function for finding edges that have both matching
@@ -505,13 +513,17 @@ class MetastatsDriver(ParentDriver):
             if len(indices) > 1:
                 matches = list()
                 for i in range(1, len(indices)):
-                    if weights[indices[0]] == weights[indices[i]]:
+                    if weight:
+                        if weights[indices[0]] == weights[indices[i]]:
+                            matches.append(indices[i])
+                    else:
                         matches.append(indices[i])
                 if len(matches) == 0:
                     # this happens if there are matching targets, but not matching weights
                     del old_links[0]
                     del targets[0]
-                    del weights[0]
+                    if weight:
+                        del weights[0]
                 else:
                     # pick one edge to keep
                     edge = tx.run(("MATCH (a:Edge)--(:Network {name: '" + network +
@@ -527,13 +539,15 @@ class MetastatsDriver(ParentDriver):
                             "') DETACH DELETE a"))
                     del old_links[0]
                     del targets[0]
-                    del weights[0]
+                    if weight:
+                        del weights[0]
             else:
                 # if the weights do not match, the edge is not changed,
                 # but the edge is removed from old_links, weights and targets
                 del old_links[0]
                 del targets[0]
-                del weights[0]
+                if weight:
+                    del weights[0]
 
     @staticmethod
     def _taxonomy(tx, node, tax, level):
@@ -609,6 +623,10 @@ class MetastatsDriver(ParentDriver):
             tx.run(("MATCH (a:Edge),(b) "
                     "WHERE a.name = '" + uid + "' AND b.name = '" +
                     edge_partners[0]['b']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
+        else:
+            tx.run(("MATCH (a:Edge),(b) "
+                    "WHERE a.name = '" + uid + "' AND b.name = '" +
+                    edge_partners[0]['a']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
 
     @staticmethod
     def _create_edge(tx, agglom_1, agglom_2, network, edge_sign=None):

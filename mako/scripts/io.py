@@ -105,6 +105,7 @@ def start_io(inputs):
                 add_metadata(filepath=inputs['fp'], location=location, driver=driver)
         except Exception:
             logger.error("Failed to add metadata file.", exc_info=True)
+    driver.close()
     logger.info('Completed io operations!  ')
 
 
@@ -189,11 +190,15 @@ def add_metadata(filepath, location, driver):
         logger.info("Found " + str(len(os.listdir(location))) + " files.")
         for y in os.listdir(location):
             for filename in os.listdir(location):
-                _convert_table(data=filename, driver=driver)
+                source, target, value_dict = _convert_table(filename)
+                logger.info("Uploading " + str(len(value_dict)) + " values.")
+                driver.include_nodes(nodes=value_dict, name=target, label=source)
     else:
         checked_path = _get_path(path=location, default=filepath)
     if checked_path:
-        _convert_table(data=checked_path, driver=driver)
+        source, target, value_dict = _convert_table(checked_path)
+        logger.info("Uploading " + str(len(value_dict)) + " values.")
+        driver.include_nodes(nodes=value_dict, name=target, label=source)
 
 
 def _convert_fasta(filename):
@@ -214,7 +219,7 @@ def _convert_fasta(filename):
     return sequence_dict
 
 
-def _convert_table(data, driver):
+def _convert_table(data):
     """
     Reads a tab-delimited table and converts this into a dictionary that can
     be used by the IO driver include_nodes function.
@@ -233,8 +238,7 @@ def _convert_table(data, driver):
         else:
             value_dict[key] = [data_dict[data.columns[1]][key], None]
     value_dict = {k: {'target': v[0], 'weight': v[1]} for k, v in value_dict.items()}
-    logger.info("Uploading " + str(len(value_dict)) + " values.")
-    driver.include_nodes(nodes=value_dict, name=target, label=source)
+    return source, target, value_dict
 
 
 def _read_network_extension(filename):
@@ -301,7 +305,7 @@ class IoDriver(ParentDriver):
         logger.info('Detached edges...')
         self.query(("MATCH (a:Network) WHERE a.name = '" + network_id + "' DETACH DELETE a"))
         with self._driver.session() as session:
-            session.write_transaction(self._delete_method)
+            session.write_transaction(self._delete_disconnected_taxon)
         logger.info('Finished deleting ' + network_id + '.')
 
     def return_networks(self, networks):
@@ -368,6 +372,7 @@ class IoDriver(ParentDriver):
                 for network in results:
                     name = path + '/' + network + '.graphml'
                     nx.write_graphml(results[network], name)
+                    logger.info('Written network to ' + name + '.')
         except Exception:
             logger.error("Could not write database graph to GraphML file. \n", exc_info=True)
         return results
@@ -830,26 +835,29 @@ class IoDriver(ParentDriver):
     @staticmethod
     def _delete_assoc(tx, edge):
         """
-        Deletes a sample node and all the observations linked to the sample.
+        Deletes an edge node.
         :param tx: Neo4j transaction
         :param assoc: Edge ID
         :return:
         """
-        tx.run(("MATCH (a:Edge)--(b:Network) "
-                "WHERE a.name = '" + edge +
-                "' DETACH DELETE a"))
+        result = tx.run(("MATCH p=(a:Network)--(:Edge {name: '" + edge +
+                         "'})--(b:Network) "
+                         "WHERE a.name <> b.name RETURN p")).data()
+        if len(result) == 0:
+                tx.run(("MATCH (a:Edge {name: '" + edge +
+                        "'}) DETACH DELETE a"))
 
     @staticmethod
-    def _delete_method(tx):
+    def _delete_disconnected_taxon(tx):
         """
-        After deleting a network, some methods may not be represented in the database.
+        After deleting a network, some agglomerated nodes may not be represented in the database.
         These disconnected nodes are deleted.
         :param tx:
         :return:
         """
-        names = tx.run("MATCH (a:Method) WHERE NOT (a)--(:Edge) RETURN a.name")
+        names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Edge) RETURN a").data()
         for name in names:
-            tx.run(("MATCH (a:Method) "
-                    "WHERE a.name = '" + name['a'] +
+            tx.run(("MATCH (a:Taxon) "
+                    "WHERE a.name = '" + name['a']['name'] +
                     "' DETACH DELETE a"))
 

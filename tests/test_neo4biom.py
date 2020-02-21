@@ -35,30 +35,6 @@ docker_command = "docker run \
 --env NEO4J_AUTH=neo4j/test \
 neo4j:latest"
 
-
-tabotu = '[[ 243  567  112   45   2]\n ' \
-         '[ 235   56  788  232    1]\n ' \
-         '[4545   22    0    1    0]\n ' \
-         '[  41   20    2    4    0]]'
-
-tabtax = "[['k__Bacteria' 'p__Firmicutes' 'c__Clostridia' 'o__Clostridiales'\n  " \
-         "'f__Clostridiaceae' 'g__Anaerococcus' 's__']\n " \
-         "['k__Bacteria' 'p__Bacteroidetes' 'c__Bacteroidia' 'o__Bacteroidales'\n  " \
-         "'f__Prevotellaceae' 'g__Prevotella' 's__']\n " \
-         "['k__Bacteria' 'p__Proteobacteria' 'c__Alphaproteobacteria'\n  " \
-         "'o__Sphingomonadales' 'f__Sphingomonadaceae' 'g__Sphingomonas' 's__']\n " \
-         "['k__Bacteria' 'p__Verrucomicrobia' 'c__Verrucomicrobiae'\n  " \
-         "'o__Verrucomicrobiales' 'f__Verrucomicrobiaceae' 'g__Luteolibacter' 's__']]"
-
-tabmeta = "[['Australia' 'Hot']\n " \
-          "['Antarctica' 'Cold']\n " \
-          "['Netherlands' 'Rainy']\n " \
-          "['Belgium' 'Rainy']\n " \
-          "['Iceland' 'Cold']]"
-
-sample_ids = ['S%d' % i for i in range(1, 6)]
-observ_ids = ['O%d' % i for i in range(1, 5)]
-
 testraw = """{
      "id":  "test",
      "format": "Biological Observation Matrix 1.0.0-dev",

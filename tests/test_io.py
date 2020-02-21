@@ -1,15 +1,19 @@
 """
-While users can set up their own (secure) Neo4j database, _mako_ can also set up  a local instance.
-This file contains all functions necessary to start this instance,
-as well as utility functions for interacting with the Neo4j database.
+This file contains functions for testing functions in the neo4biom.py script.
 
-The database model for biological data is arguably the core component of _mako_.
-This file contains functions for validating the database model;
-any violations are reported to the user.
+The file first sets up a simple Neo4j database for carrying out the tests.
 
-The data model is defined as a set of checks for the Neo4j graph.
-Neo4j does not support structural constraints, so instead, we use these to check.
 """
+
+import unittest
+import time
+import os
+import biom
+import networkx as nx
+import pandas as pd
+from mako.scripts.neo4biom import Biom2Neo
+from mako.scripts.io import start_io, IoDriver
+from mako.scripts.utils import _resource_path
 
 __author__ = 'Lisa Rottjers'
 __maintainer__ = 'Lisa Rottjers'
@@ -17,264 +21,379 @@ __email__ = 'lisa.rottjers@kuleuven.be'
 __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
-import owlready2
-from neo4j.v1 import GraphDatabase
-from mako.scripts.utils import ParentDriver, _create_logger, _resource_path, _read_config
-import logging
-import sys
-import os
-from platform import system
-from subprocess import Popen
-from psutil import Process, pid_exists
-from signal import CTRL_C_EVENT
-from time import sleep
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+# since we do not want to overwrite the local Neo4j instance,
+# we can run a container with Neo4j
+# the command below starts a container named Neo4j
+# that runs the latest version of Neo4j
+# Accessible on http ports + 1
+# so both local database and this can be run side by side
+loc = os.environ['HOMEDRIVE'] + os.environ['HOMEPATH']
+docker_command = "docker run \
+--rm \
+-d \
+--publish=7475:7474 --publish=7688:7687 \
+--name=neo4j \
+--env NEO4J_AUTH=neo4j/test \
+neo4j:latest"
 
-# handler to sys.stdout
-sh = logging.StreamHandler(sys.stdout)
-sh.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-sh.setFormatter(formatter)
-logger.addHandler(sh)
+testraw = """{
+     "id":  "test",
+     "format": "Biological Observation Matrix 1.0.0-dev",
+     "format_url": "http://biom-format.org",
+     "type": "OTU table",
+     "generated_by": "QIIME revision XYZ",
+     "date": "2011-12-19T19:00:00",
+     "rows":[
+        {"id":"GG_OTU_1", "metadata":{"taxonomy":["k__Bacteria", "p__Proteoba\
+cteria", "c__Gammaproteobacteria", "o__Enterobacteriales", "f__Enterobacteriac\
+eae", "g__Escherichia", "s__"]}},
+        {"id":"GG_OTU_2", "metadata":{"taxonomy":["k__Bacteria", "p__Cyanobact\
+eria", "c__Nostocophycideae", "o__Nostocales", "f__Nostocaceae", "g__Dolichosp\
+ermum", "s__"]}},
+        {"id":"GG_OTU_3", "metadata":{"taxonomy":["k__Archaea", "p__Euryarchae\
+ota", "c__Methanomicrobia", "o__Methanosarcinales", "f__Methanosarcinaceae", "\
+g__Methanosarcina", "s__"]}},
+        {"id":"GG_OTU_4", "metadata":{"taxonomy":["k__Bacteria", "p__Firmicute\
+s", "c__Clostridia", "o__Halanaerobiales", "f__Halanaerobiaceae", "g__Halanaer\
+obium", "s__Halanaerobiumsaccharolyticum"]}},
+        {"id":"GG_OTU_5", "metadata":{"taxonomy":["k__Bacteria", "p__Proteobac\
+teria", "c__Gammaproteobacteria", "o__Enterobacteriales", "f__Enterobacteriace\
+ae", "g__Escherichia", "s__"]}}
+        ],
+     "columns":[
+        {"id":"Sample1", "metadata":{
+                                "BarcodeSequence":"CGCTTATCGAGA",
+                                "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                "BODY_SITE":"gut",
+                                "Description":"human gut"}},
+        {"id":"Sample2", "metadata":{
+                                "BarcodeSequence":"CATACCAGTAGC",
+                                "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                "BODY_SITE":"gut",
+                                "Description":"human gut"}},
+        {"id":"Sample3", "metadata":{
+                                "BarcodeSequence":"CTCTCTACCTGT",
+                                "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                "BODY_SITE":"gut",
+                                "Description":"human gut"}},
+        {"id":"Sample4", "metadata":{
+                                "BarcodeSequence":"CTCTCGGCCTGT",
+                                "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                "BODY_SITE":"skin",
+                                "Description":"human skin"}},
+        {"id":"Sample5", "metadata":{
+                                "BarcodeSequence":"CTCTCTACCAAT",
+                                "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                "BODY_SITE":"skin",
+                                "Description":"human skin"}},
+        {"id":"Sample6", "metadata":{
+                                "BarcodeSequence":"CTAACTACCAAT",
+                                "LinkerPrimerSequence":"CATGCTGCCTCCCGTAGGAGT",
+                                "BODY_SITE":"skin",
+                                "Description":"human skin"}}
+        ],
+     "matrix_type": "sparse",
+     "matrix_element_type": "int",
+     "shape": [5, 6],
+     "data":[[0,2,1],
+             [1,0,5],
+             [1,1,1],
+             [1,3,2],
+             [1,4,3],
+             [1,5,1],
+             [2,2,1],
+             [2,3,4],
+             [2,5,2],
+             [3,0,2],
+             [3,1,1],
+             [3,2,1],
+             [3,5,1],
+             [4,1,1],
+             [4,2,1]
+            ]
+    }
+"""
+
+testbiom = biom.parse.parse_biom_table(testraw)
+testdict = dict.fromkeys(testbiom._observation_ids)
+testdict = {x: {'target': 'banana', 'weight': None} for x in testdict}
+
+# make toy network
+g = nx.Graph()
+nodes = ["GG_OTU_1", "GG_OTU_2", "GG_OTU_3", "GG_OTU_4", "GG_OTU_5"]
+g.add_nodes_from(nodes)
+g.add_edges_from([("GG_OTU_1", "GG_OTU_2"),
+                  ("GG_OTU_2", "GG_OTU_5"), ("GG_OTU_3", "GG_OTU_4")])
+g["GG_OTU_1"]["GG_OTU_2"]['weight'] = 1.0
+g["GG_OTU_2"]["GG_OTU_5"]['weight'] = 1.0
+g["GG_OTU_3"]["GG_OTU_4"]['weight'] = -1.0
 
 
-def start_base(inputs):
+class TestNeo4Biom(unittest.TestCase):
     """
-
-    :param inputs: Dictionary of arguments.
-    :return:
+    Tests Base methods.
+    Warning: most of these functions are to start a local database.
+    Therefore, the presence of the necessary local files is a prerequisite.
     """
-    _create_logger(inputs['fp'])
-    # check if pid exists from previous session
-    config = _read_config(inputs)
-    pid = config['pid']
-    encrypted = True
-    driver = None
-    if 'encryption' in inputs:
-        # setting for Docker container
-        encrypted = False
-    if pid != 'None':
-        pid = int(pid)
-        if not pid_exists(pid):
-            logger.warning('The PID file is incorrect. Resetting PID file. \n'
-                           'This is usually the result of a forced shutdown. \n'
-                           'Please use "mako base quit" to shut down safely. \n')
-            with open(_resource_path('config'), 'r') as file:
-                # read a list of lines into data
-                data = file.readlines()
-            with open(_resource_path('config'), 'w') as file:
-                data[2] = 'pid: None' + '\n'
-                file.writelines(data)
-            pid = 'None'
-    if inputs['start'] and pid == 'None':
-        try:
-            if system() == 'Windows':
-                filepath = inputs['neo4j'] + '/bin/neo4j.bat console'
-            else:
-                filepath = inputs['neo4j'] + '/bin/neo4j console'
-            filepath = filepath.replace("\\", "/")
-            if system() == 'Windows' or system() == 'Darwin':
-                p = Popen(filepath, shell=False)
-            else:
-                # note: old version used gnome-terminal, worked with Ubuntu
-                # new version uses xterm to work with macOS
-                # check if this conflicts!
-                p = Popen(["gnome-terminal", "-e", filepath])  # x-term compatible alternative terminal
-            with open(_resource_path('config'), 'r') as file:
-                # read a list of lines into data
-                data = file.readlines()
-            with open(_resource_path('config'), 'w') as file:
-                data[2] = 'pid: ' + str(p.pid) + '\n'
-                pid = p.pid
-                file.writelines(data)
-            sleep(12)
-            driver = BaseDriver(user=config['username'],
-                                password=config['password'],
-                                uri=config['address'], filepath=inputs['fp'],
-                                encrypted=encrypted)
-            driver.add_constraints()
-            driver.close()
-        except Exception:
-            logger.warning("Failed to start database.  ", exc_info=True)
-            sys.exit()
-    if inputs['clear']:
-        driver = BaseDriver(user=config['username'],
-                            password=config['password'],
-                            uri=config['address'], filepath=inputs['fp'],
-                            encrypted=encrypted)
-        try:
-            driver.clear_database()
-            logger.info('Cleared database.')
-        except Exception:
-            logger.warning("Failed to clear database.  ", exc_info=True)
-    if inputs['quit'] and pid_exists(pid):
-        try:
-            with open(_resource_path('config'), 'r') as file:
-                # read a list of lines into data
-                data = file.readlines()
-            with open(_resource_path('config'), 'w') as file:
-                data[2] = 'pid: None'+ '\n'
-                file.writelines(data)
-            parent = Process(pid)
-            parent.send_signal(CTRL_C_EVENT)
-            # kills the powershell started to run the Neo4j console
-            for child in parent.children():
-                child.kill()
-            logger.info('Safely shut down database.')
-        except Exception:
-            logger.warning("Failed to close database. ", exc_info=True)
-    if inputs['check']:
-        driver = BaseDriver(user=config['username'],
-                            password=config['password'],
-                            uri=config['address'], filepath=inputs['fp'],
-                            encrypted=encrypted)
-        try:
-            driver.check_domain_range()
-        except Exception:
-            logger.warning("Failed to check database.  ", exc_info=True)
-    if driver:
-        driver.close()
-    logger.info('Completed database operations!  ')
+    @classmethod
+    def setUpClass(cls):
+        os.system(docker_command)
+        time.sleep(20)
+        nx.write_graphml(g, _resource_path('test.graphml'))
+        data = pd.DataFrame()
+        data['Taxon'] = testdict.keys()
+        data['Fruit'] = 'banana'
+        data.to_csv(_resource_path('test.tsv'), sep='\t', index=False)
 
+    @classmethod
+    def tearDownClass(cls):
+        os.system('docker stop neo4j')
+        os.remove(_resource_path('test.graphml'))
+        os.remove(_resource_path('test.tsv'))
 
-class BaseDriver(ParentDriver):
-    """
-    Initializes a driver for accessing the Neo4j database.
-    This driver constructs the Neo4j database and uploads extra data.
-
-    By default, the connection should be encrypted.
-    However, the SSL certificate of the Docker container
-    used during testing is apparently not correct (see https://github.com/neo4j/neo4j/issues/12351).
-    Therefore, the encrypted param can be changed to enable unsafe connections
-    to the docker instance.
-    """
-    def __init__(self, uri, user, password, filepath, encrypted=True):
+    def test_start_io(self):
         """
-        Overwrites parent driver to add ontology.
-
-        :param uri: Adress of Neo4j database
-        :param user: Username for Neo4j database
-        :param password: Password for Neo4j database
-        :param filepath: Filepath where logs will be written.
-        """
-        _create_logger(filepath)
-        try:
-            self._driver = GraphDatabase.driver(uri, auth=(user, password), encrypted=encrypted)
-        except Exception:
-            logger.error("Unable to start driver. \n", exc_info=True)
-            sys.exit()
-        # load the ontology that defines the schema
-        # load the ontology that defines the schema
-        onto = owlready2.get_ontology(_resource_path("MAO.owl"))
-        onto.load()
-
-        # since the MAO file is small, we can load the objects into lists
-        self.objects = list(onto.classes())
-        self.properties = list(onto.object_properties())
-
-        # replace all label spaces with underscores
-        for val in self.objects:
-            val.label = [x.replace(" ", "_") for x in val.label]
-        for val in self.properties:
-            val.label = [x.replace(" ", "_") for x in val.label]
-
-    def clear_database(self):
-        """
-        Clears the entire database.
+        Checks if the network file is uploaded to the database.
         :return:
         """
-        try:
-            with self._driver.session() as session:
-                session.write_transaction(self._delete_all)
-        except Exception:
-            logger.error("Could not clear database. \n", exc_info=True)
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': ['test.graphml'],
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': None,
+                  'encryption': True}
+        start_io(inputs)
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        test = driver.query("MATCH (n:Network) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['n']['name'], 'test')
 
-    def check_domain_range(self):
+    def test_start_delete_network(self):
         """
-        This function uses the Neo4j driver and the ontology to check whether there
-        are properties in the database that violate the domains
-        and ranges specified in the ontology.
-
-        :param neo4jdriver: A database driver as instantiated by base.py.
-        :return: Success message or log of ontology violations
-        """
-        error = False
-        for prop in self.properties:
-            rel = prop.label[0]
-            domains = [x.label[0] for x in prop.get_domain()]
-            ranges = [x.label[0] for x in prop.get_range()]
-            neighbours = domains + ranges
-            if len(neighbours) > 0:
-                query = "MATCH (n)-[r:" + rel.upper() + "]-() WHERE NOT "
-                for i in range(len(neighbours)):
-                    if i != 0:
-                        query += " AND NOT "
-                    query += ("n:" + neighbours[i])
-                query += " RETURN count(n) as count"
-            count = self.query(query)
-            if count[0]['count'] != 0:
-                logger.error("Relationship " + rel + " is connected to the wrong nodes!")
-                error = True
-        if not error:
-            logger.info("No forbidden relationship connections.")
-        return error
-
-    def add_constraints(self):
-        """
-        This function adds some constraints for unique node names.
-
+        Checks if the network file
+        is deleted.
         :return:
         """
-        unique_names = ['Edge', 'Class', 'Experiment', 'Family', 'Genus',
-                        'Kingdom', 'Network', 'Order', 'Phylum',
-                        'Property', 'Sample', 'Taxon']
-        for name in unique_names:
-            constraintname = 'Unique ' + name
-            constraint = "CREATE CONSTRAINT ON (n:" + name + ")" \
-                         " ASSERT (n.name) IS UNIQUE"
-            with self._driver.session() as session:
-                output = session.read_transaction(self._query, constraint)
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': ['test.graphml'],
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': None,
+                  'encryption': True}
+        start_io(inputs)
+        inputs = {'networks': None,
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': ['test'],
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': None,
+                  'encryption': True}
+        start_io(inputs)
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        test = driver.query("MATCH (n:Network) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(len(test), 0)
 
-    def check_only(self):
+    def test_delete_correct_network(self):
         """
-        This function uses the Neo4j driver and the ontology to check whether there
-        are properties in the database that violate the 'only' axiom.
-
-        :param neo4jdriver: A database driver as instantiated by base.py.
-        :return: Success message or log of ontology violations
-        """
-        pass
-        # error = False
-        # for prop in properties:
-        # rel = prop.label[0]
-        # if len(neighbours) > 0:
-        #    query = "MATCH (n)-[r:" + rel + "] WHERE NOT "
-        #    for i in range(len(neighbours)):
-        #        if i != 0:
-        #            query += (" AND NOT ")
-        #        query += ("n:" + neighbours[i])
-        #    query += (" RETURN count(n) as count")
-        # count = neo4jdriver.query(query)
-        # if count:
-        #    logger.error("Relationship " + rel + " is connected to the wrong nodes!")
-        #    error = True
-        # if not error:
-        # logger.info("No forbidden relationship connections.")
-
-    @staticmethod
-    def _delete_all(tx):
-        """
-        Deletes all nodes and their relationships from the database.
-        :param tx: Neo4j transaction
+        Checks if only the correct network file is deleted.
         :return:
         """
-        tx.run("MATCH (n) DETACH DELETE n")
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': ['test.graphml'],
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': None,
+                  'encryption': True}
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_networkx(network=g, network_id='test1')
+        driver.convert_networkx(network=g, network_id='test2')
+        before_deletion = driver.query("MATCH (:Edge)-[r]-(:Network) RETURN count(r) as count")
+        driver.delete_network(network_id='test2')
+        after_deletion = driver.query("MATCH (:Edge)-[r]-(:Network) RETURN count(r) as count")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertGreater(before_deletion[0]['count'], after_deletion[0]['count'])
+
+    def test_add_metadata_from_file(self):
+        """
+        Starts the Io driver
+        and checks if the metadata is uploaded correctly.
+        :return:
+        """
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': None,
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': ['test.tsv'],
+                  'write': None,
+                  'encryption': False}
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_networkx(network=g, network_id='test')
+        start_io(inputs)
+        test = driver.query("MATCH (:Taxon)-[r]-(:Property {type: 'Fruit'}) RETURN count(r) as count")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['count'], 5)
+
+    def test_add_metadata(self):
+        """
+        Starts the Io driver
+        and checks if the metadata is uploaded correctly.
+        :return:
+        """
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': ['test.graphml'],
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': None,
+                  'encryption': True}
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_networkx(network=g, network_id='test')
+        driver.include_nodes(nodes=testdict, name='Fruit', label='Taxon')
+        test = driver.query("MATCH (:Taxon)-[r]-(:Property {type: 'Fruit'}) RETURN count(r) as count")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['count'], 5)
+
+    def test_export_network(self):
+        """
+        Starts the Io driver
+        and checks if the network is exported as a dictionary.
+        :return:
+        """
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': ['test.graphml'],
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': None,
+                  'encryption': True}
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_networkx(network=g, network_id='test')
+        result = driver.export_network(_resource_path(''), networks=['test'])
+        self.assertTrue('test' in result)
+
+    def test_write_network(self):
+        """
+        Checks if the network is written to disk.
+        :return:
+        """
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': ['test'],
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': True,
+                  'encryption': True}
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_networkx(network=g, network_id='test')
+        driver.query("MATCH (n:Taxon {name: 'GG_OTU_1'}) DETACH DELETE n")
+        start_io(inputs)
+        network = nx.read_graphml(_resource_path('test.graphml'))
+        nx.write_graphml(g, _resource_path('test.graphml'))
+        self.assertFalse('GG_OTU_1' in network.nodes)
 
 
-
-
-
+if __name__ == '__main__':
+    unittest.main()
 
 

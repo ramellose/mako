@@ -434,7 +434,7 @@ class Biom2Neo(ParentDriver):
         :param exp_id: ID of experiment node
         :return:
         """
-        names = tx.run(("MATCH (a:Specimen)--(b:Experiment) "
+        names = tx.run(("MATCH (a:Specimen)-[r]-(b:Experiment) "
                         "WHERE b.name = '" + exp_id +
                         "' RETURN a.name")).data()
         return names
@@ -455,13 +455,17 @@ class Biom2Neo(ParentDriver):
     def _delete_sample(tx, sample):
         """
         Deletes a sample node and all the observations linked to the sample.
+        Only samples present in a single experiment are deleted.
         :param tx:
         :param sample: Sample ID
         :return:
         """
-        tx.run(("MATCH (a:Specimen) "
-                "WHERE a.name = '" + sample +
-                "' DETACH DELETE a"))
+        result = tx.run(("MATCH p=(a:Experiment)--(:Specimen {name: '" + sample +
+                         "'})--(b:Experiment) "
+                         "WHERE a.name <> b.name RETURN p")).data()
+        if len(result) == 0:
+                tx.run(("MATCH (a:Specimen {name: '" + sample +
+                        "'}) DETACH DELETE a"))
 
     @staticmethod
     def _delete_taxon(tx, taxon):
