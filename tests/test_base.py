@@ -80,25 +80,25 @@ class TestBase(unittest.TestCase):
         :return:
         """
         inputs = {'fp': _resource_path(''),
-                  'neo4j': loc + 'Documents//neo4j',
+                  'neo4j': loc + '//Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7687',
                   'start': True,
                   'clear': False,
                   'quit': False,
-                  'store_config': False,
+                  'store_config': True,
                   'check': False}
         start_base(inputs)
         inputs = {'fp': _resource_path(''),
-                  'neo4j': loc + 'Documents//neo4j',
+                  'neo4j': loc + '//Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7687',
                   'start': False,
                   'clear': False,
                   'quit': True,
-                  'store_config': False,
+                  'store_config': True,
                   'check': False}
         start_base(inputs)
         config = _read_config(inputs)
@@ -110,7 +110,7 @@ class TestBase(unittest.TestCase):
         :return:
         """
         inputs = {'fp': _resource_path(''),
-                  'neo4j': loc + 'Documents//neo4j',
+                  'neo4j': loc + '//Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7688',
@@ -135,7 +135,7 @@ class TestBase(unittest.TestCase):
         :return:
         """
         inputs = {'fp': _resource_path(''),
-                  'neo4j': loc + 'Documents//neo4j',
+                  'neo4j': loc + '//Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7688',
@@ -165,7 +165,7 @@ class TestBase(unittest.TestCase):
         :return:
         """
         inputs = {'fp': _resource_path(''),
-                  'neo4j': loc + 'Documents//neo4j',
+                  'neo4j': loc + '//Documents//neo4j',
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7688',
