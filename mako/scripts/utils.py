@@ -64,6 +64,11 @@ def _resource_path(relative_path):
         base_path = sys._MEIPASS
     except Exception:
         base_path = os.path.abspath(".")
+    # if running the GUI, we need to set the path one dir higher
+    splitpath = base_path.split(sep='\\')
+    if splitpath[-1] == splitpath[-2]:
+        base_path = os.path.abspath("..")
+
     return os.path.join(base_path, relative_path)
 
 
@@ -75,7 +80,6 @@ def _read_config(args):
     no value should be zero.
 
     :param args: User-supplied arguments
-    :param store_config: If True, Neo4j credentials are stored.
     :return: Neo4j credentials
     """
     config = dict()
@@ -105,6 +109,22 @@ def _read_config(args):
                 newlines.append(newline)
         file.writelines(newlines)
     return config
+
+
+def query(args, query):
+    """
+    Exports Neo4j query as logger info.
+
+    :param args: User-supplied arguments as dict
+    :param query: Cypher query as string
+    :return: None
+    """
+    driver = ParentDriver(uri=args['address'],
+                          user=args['username'],
+                          password=args['passwors'],
+                          filepath=_resource_path(''))
+    logger.info(driver.query(query))
+    driver.close()
 
 
 def _get_path(path, default):
