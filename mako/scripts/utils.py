@@ -11,10 +11,13 @@ __license__ = 'Apache 2.0'
 import sys
 import os
 import wx
+import wx.lib.newevent
 import logging
 import logging.handlers
 from neo4j.v1 import GraphDatabase
 logger = logging.getLogger(__name__)
+
+wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
 
 def _get_unique(node_list, key, mode=None):
@@ -121,7 +124,7 @@ def query(args, query):
     """
     driver = ParentDriver(uri=args['address'],
                           user=args['username'],
-                          password=args['passwors'],
+                          password=args['password'],
                           filepath=_resource_path(''))
     logger.info(driver.query(query))
     driver.close()
@@ -201,15 +204,3 @@ class ParentDriver:
         """
         results = tx.run(query).data()
         return results
-
-
-class WxTextCtrlHandler(logging.Handler):
-    def __init__(self, ctrl):
-        logging.Handler.__init__(self)
-        self.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-        self.setLevel(logging.INFO)
-        self.ctrl = ctrl
-
-    def emit(self, record):
-        s = self.format(record) + '\n'
-        wx.CallAfter(self.ctrl.WriteText, s)

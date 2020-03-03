@@ -11,12 +11,13 @@ from threading import Thread
 import wx
 from wx.lib.pubsub import pub
 from mako.scripts.base import start_base
-from mako.scripts.utils import WxTextCtrlHandler, _resource_path, query
+from mako.scripts.utils import _resource_path, query
 import webbrowser
 
 import logging.handlers
 
 logger = logging.getLogger()
+wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
 
 class BasePanel(wx.Panel):
@@ -104,12 +105,13 @@ class BasePanel(wx.Panel):
 
         # Logger
         self.logtxt = wx.StaticText(self, label='Logging panel')
-        self.logbox = wx.TextCtrl(self, value='', size=boxsize)
+        self.logbox = wx.TextCtrl(self, value='', size=boxsize, style=wx.TE_MULTILINE)
         self.logbox.Bind(wx.EVT_MOTION, self.update_help)
+        self.logbox.Bind(EVT_WX_LOG_EVENT, self.log_event)
+        handler = LogHandler(ctrl=self.logbox)
+        logger.addHandler(handler)
         self.logbox.SetForegroundColour(wx.WHITE)
         self.logbox.SetBackgroundColour(wx.BLACK)
-        handler = WxTextCtrlHandler(self.logbox)
-        logger.addHandler(handler)
 
         self.leftsizer.AddSpacer(50)
         self.leftsizer.Add(self.local_txt, flag=wx.ALIGN_CENTER)
@@ -133,7 +135,6 @@ class BasePanel(wx.Panel):
         self.rightsizer.Add(self.clear_button, flag=wx.ALIGN_LEFT)
         self.rightsizer.Add(self.data_browser, flag=wx.ALIGN_LEFT)
         self.rightsizer.Add(self.check_button, flag=wx.ALIGN_LEFT)
-
 
         self.bottomsizer.AddSpacer(50)
         self.bottomsizer.Add(self.logtxt, flag=wx.ALIGN_LEFT)
@@ -167,7 +168,8 @@ class BasePanel(wx.Panel):
                         self.neo_btn: 'Location of your Neo4j folder.',
                         self.data_browser: 'Open Neo4j Browser and explore your data.',
                         self.logbox: 'Logging information for mako.',
-                        self.test_button: 'Test connection through a Cypher Query. ',
+                        self.test_button: 'Test connection through a Cypher Query. '
+                                          'The returned number is the number of nodes.',
                         self.clear_button: 'Clear all nodes from the database. ',
                         self.check_button: 'Checks whether database conforms to the data scheme. '
                         }
@@ -177,6 +179,11 @@ class BasePanel(wx.Panel):
         if btn in self.buttons:
             status = self.buttons[btn]
             pub.sendMessage('change_statusbar', msg=status)
+
+    def log_event(self, event):
+        msg = event.message.strip("\r") + "\n"
+        self.logbox.AppendText(msg)
+        event.Skip()
 
     def open_neo(self, event):
         dlg = wx.DirDialog(self, "Select Neo4j directory", style=wx.DD_DEFAULT_STYLE)
@@ -221,7 +228,7 @@ class BasePanel(wx.Panel):
         self.settings['quit'] = False
 
     def test(self, event):
-        eg = Thread(target=query, args=(self.settings, 'MATCH (n) RETURN (count(n)'))
+        eg = Thread(target=query, args=(self.settings, 'MATCH (n) RETURN count(n)'))
         eg.start()
         eg.join()
 
@@ -236,6 +243,13 @@ class BasePanel(wx.Panel):
         url = "http://localhost:7474/browser/"
         webbrowser.open(url)
 
+    def check_database(self, event):
+        self.settings['check'] = True
+        eg = Thread(target=start_base, args=(self.settings,))
+        eg.start()
+        eg.join()
+        self.settings['check'] = False
+
     def send_config(self):
         """
         Publisher function for settings
@@ -246,12 +260,25 @@ class BasePanel(wx.Panel):
                   'neo4j': self.settings['neo4j']}
         pub.sendMessage('config', msg=config)
 
-    def check_database(self):
-        self.settings['check'] = True
-        eg = Thread(target=start_base, args=(self.settings,))
-        eg.start()
-        eg.join()
-        self.settings['check'] = False
+
+class LogHandler(logging.Handler):
+    def __init__(self, ctrl):
+        logging.Handler.__init__(self)
+        self.ctrl = ctrl
+        self.level = logging.INFO
+
+    def flush(self):
+        pass
+
+    def emit(self, record):
+        try:
+            s = self.format(record) + '\n'
+            evt = wxLogEvent(message=s, levelname=record.levelname)
+            wx.PostEvent(self.ctrl, evt)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(s)
 
 
 if __name__ == "__main__":

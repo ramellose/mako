@@ -22,7 +22,6 @@ from neo4j.v1 import GraphDatabase
 from mako.scripts.utils import ParentDriver, _create_logger, _resource_path, _read_config
 import logging
 import sys
-import os
 from platform import system
 from subprocess import Popen
 from psutil import Process, pid_exists
@@ -70,6 +69,7 @@ def start_base(inputs):
             pid = 'None'
     if inputs['start'] and pid == 'None':
         try:
+            logger.info("Starting database, this can take some time...")
             if system() == 'Windows':
                 filepath = inputs['neo4j'] + '/bin/neo4j.bat console'
             else:
@@ -96,6 +96,7 @@ def start_base(inputs):
                                 encrypted=encrypted)
             driver.add_constraints()
             driver.close()
+            logger.info('Started database.  ')
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
             sys.exit()
@@ -109,22 +110,25 @@ def start_base(inputs):
             logger.info('Cleared database.')
         except Exception:
             logger.warning("Failed to clear database.  ", exc_info=True)
-    if inputs['quit'] and pid_exists(pid):
-        try:
-            with open(_resource_path('config'), 'r') as file:
-                # read a list of lines into data
-                data = file.readlines()
-            with open(_resource_path('config'), 'w') as file:
-                data[2] = 'pid: None'+ '\n'
-                file.writelines(data)
-            parent = Process(pid)
-            parent.send_signal(CTRL_C_EVENT)
-            # kills the powershell started to run the Neo4j console
-            for child in parent.children():
-                child.kill()
-            logger.info('Safely shut down database.')
-        except Exception:
-            logger.warning("Failed to close database. ", exc_info=True)
+    if inputs['quit'] and pid:
+        if pid_exists(pid):
+            try:
+                with open(_resource_path('config'), 'r') as file:
+                    # read a list of lines into data
+                    data = file.readlines()
+                with open(_resource_path('config'), 'w') as file:
+                    data[2] = 'pid: None'+ '\n'
+                    file.writelines(data)
+                parent = Process(pid)
+                parent.send_signal(CTRL_C_EVENT)
+                # kills the powershell started to run the Neo4j console
+                for child in parent.children():
+                    child.kill()
+                logger.info('Safely shut down database.')
+            except Exception:
+                logger.warning("Failed to close database. ", exc_info=True)
+        else:
+            logger.warning("PID does not exist so database could not be shut down.")
     if inputs['check']:
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
