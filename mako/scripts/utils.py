@@ -10,7 +10,7 @@ __license__ = 'Apache 2.0'
 
 import sys
 import os
-import numpy as np
+import wx
 import logging
 import logging.handlers
 from neo4j.v1 import GraphDatabase
@@ -203,3 +203,13 @@ class ParentDriver:
         return results
 
 
+class WxTextCtrlHandler(logging.Handler):
+    def __init__(self, ctrl):
+        logging.Handler.__init__(self)
+        self.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        self.setLevel(logging.INFO)
+        self.ctrl = ctrl
+
+    def emit(self, record):
+        s = self.format(record) + '\n'
+        wx.CallAfter(self.ctrl.WriteText, s)
