@@ -24,6 +24,7 @@ class BasePanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         # subscribe to inputs from tabwindow
+
         self.frame = parent
 
         btnsize = (300, -1)
@@ -38,7 +39,7 @@ class BasePanel(wx.Panel):
                          'start': False,
                          'clear': False,
                          'quit': False,
-                         'store_config': True,
+                         'store_config': False,
                          'check': False}
 
         # defines columns
@@ -214,6 +215,7 @@ class BasePanel(wx.Panel):
         self.settings['pid'] = msg
 
     def start_database(self, event):
+        self.logbox.AppendText("Starting operation...\n")
         self.settings['start'] = True
         eg = Thread(target=start_base, args=(self.settings,))
         eg.start()
@@ -221,6 +223,7 @@ class BasePanel(wx.Panel):
         self.settings['start'] = False
 
     def close_database(self, event):
+        self.logbox.AppendText("Starting operation...\n")
         self.settings['quit'] = True
         eg = Thread(target=start_base, args=(self.settings,))
         eg.start()
@@ -228,11 +231,13 @@ class BasePanel(wx.Panel):
         self.settings['quit'] = False
 
     def test(self, event):
+        self.logbox.AppendText("Starting operation...\n")
         eg = Thread(target=query, args=(self.settings, 'MATCH (n) RETURN count(n)'))
         eg.start()
         eg.join()
 
     def clear(self, event):
+        self.logbox.AppendText("Starting operation...\n")
         self.settings['clear'] = True
         eg = Thread(target=start_base, args=(self.settings,))
         eg.start()
@@ -244,6 +249,7 @@ class BasePanel(wx.Panel):
         webbrowser.open(url)
 
     def check_database(self, event):
+        self.logbox.AppendText("Starting operation...\n")
         self.settings['check'] = True
         eg = Thread(target=start_base, args=(self.settings,))
         eg.start()
