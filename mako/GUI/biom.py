@@ -38,7 +38,7 @@ class BiomPanel(wx.Panel):
                          'username': 'neo4j',
                          'password': 'neo4j',
                          'address': 'bolt://localhost:7687',
-                         'store_config': False,
+                         'store_config': True,
                          'delete': None}
 
         btnsize = (300, -1)

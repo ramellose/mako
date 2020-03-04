@@ -12,8 +12,7 @@ import sys
 import os
 import wx
 import wx.lib.newevent
-from pubsub import pub
-import functools
+import mako
 import logging
 import logging.handlers
 from neo4j.v1 import GraphDatabase
@@ -66,13 +65,13 @@ def _resource_path(relative_path):
     """
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
+        base_path = list(mako.__path__)[0]
     except Exception:
-        base_path = os.path.abspath(".")
+        base_path = sys._MEIPASS
     # if running the GUI, we need to set the path one dir higher
     splitpath = base_path.split(sep='\\')
     if splitpath[-1] == splitpath[-2]:
-        base_path = os.path.abspath("..")
+        base_path = os.path.abspath(base_path + "\\..")
     return os.path.join(base_path, relative_path)
 
 
@@ -87,6 +86,7 @@ def _read_config(args):
     :return: Neo4j credentials
     """
     config = dict()
+    print(_resource_path('config'))
     try:
         with open(_resource_path('config'), 'r') as file:
             # read a list of lines into data
@@ -114,10 +114,10 @@ def _read_config(args):
                     newlines.append(newline)
             file.writelines(newlines)
     except FileNotFoundError:
-        config = {'pid': None,
-                  'address': None,
-                  'password': None,
-                  'username': None}
+        config = {'pid': 'None',
+                  'address': 'None',
+                  'password': 'None',
+                  'username': 'None'}
     return config
 
 

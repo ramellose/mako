@@ -50,7 +50,10 @@ def start_io(inputs):
     # handler to file
     # construct logger after filepath is provided
     _create_logger(inputs['fp'])
-    config = _read_config(inputs)
+    if inputs['store_config']:
+        config = _read_config(inputs)
+    else:
+        config = inputs
     encrypted = True
     driver = None
     if 'encryption' in inputs:

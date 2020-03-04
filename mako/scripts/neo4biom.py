@@ -56,8 +56,12 @@ def start_biom(inputs):
     # handler to file
     # construct logger after filepath is provided
     _create_logger(inputs['fp'])
-    config = _read_config(inputs)
+    if inputs['store_config']:
+        config = _read_config(inputs)
+    else:
+        config = inputs
     encrypted = True
+    print(config)
     if 'encryption' in inputs:
         # setting for Docker container
         encrypted = False

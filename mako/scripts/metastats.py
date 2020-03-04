@@ -37,7 +37,10 @@ def start_metastats(inputs):
     :return:
     """
     _create_logger(inputs['fp'])
-    config = _read_config(inputs)
+    if inputs['store_config']:
+        config = _read_config(inputs)
+    else:
+        config = inputs
     encrypted = True
     driver = None
     if 'encryption' in inputs:

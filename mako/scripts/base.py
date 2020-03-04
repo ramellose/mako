@@ -47,13 +47,17 @@ def start_base(inputs):
     """
     _create_logger(inputs['fp'])
     # check if pid exists from previous session
-    config = _read_config(inputs)
+    if inputs['store_config']:
+        config = _read_config(inputs)
+    else:
+        config = inputs
     pid = config['pid']
     encrypted = True
     driver = None
     if 'encryption' in inputs:
         # setting for Docker container
         encrypted = False
+    print(config)
     if pid != 'None':
         pid = int(pid)
         if not pid_exists(pid):
@@ -100,6 +104,8 @@ def start_base(inputs):
         except Exception:
             logger.warning("Failed to start database.  ", exc_info=True)
             sys.exit()
+    elif inputs['start'] and pid != 'None':
+        logger.warning('Database PID exists, could not start new database.')
     if inputs['clear']:
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
@@ -110,7 +116,7 @@ def start_base(inputs):
             logger.info('Cleared database.')
         except Exception:
             logger.warning("Failed to clear database.  ", exc_info=True)
-    if inputs['quit'] and pid:
+    if inputs['quit'] and pid != 'None':
         if pid_exists(pid):
             try:
                 with open(_resource_path('config'), 'r') as file:
@@ -129,6 +135,8 @@ def start_base(inputs):
                 logger.warning("Failed to close database. ", exc_info=True)
         else:
             logger.warning("PID does not exist so database could not be shut down.")
+    elif inputs['quit'] and pid == 'None':
+        logger.warning('Could not shut down database, PID not available.')
     if inputs['check']:
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
