@@ -61,7 +61,6 @@ def start_biom(inputs):
     else:
         config = inputs
     encrypted = True
-    print(config)
     if 'encryption' in inputs:
         # setting for Docker container
         encrypted = False

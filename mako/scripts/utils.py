@@ -86,7 +86,6 @@ def _read_config(args):
     :return: Neo4j credentials
     """
     config = dict()
-    print(_resource_path('config'))
     try:
         with open(_resource_path('config'), 'r') as file:
             # read a list of lines into data
@@ -127,14 +126,17 @@ def query(args, query):
 
     :param args: User-supplied arguments as dict
     :param query: Cypher query as string
+    :param result: Empty result query
     :return: None
     """
     driver = ParentDriver(uri=args['address'],
                           user=args['username'],
                           password=args['password'],
                           filepath=_resource_path(''))
-    logger.info(driver.query(query))
+    result = driver.query(query)
+    logger.info(result)
     driver.close()
+    return result
 
 
 def _get_path(path, default):

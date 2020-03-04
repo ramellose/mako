@@ -51,13 +51,13 @@ def start_base(inputs):
         config = _read_config(inputs)
     else:
         config = inputs
+        config['pid'] = 'None'
     pid = config['pid']
     encrypted = True
     driver = None
     if 'encryption' in inputs:
         # setting for Docker container
         encrypted = False
-    print(config)
     if pid != 'None':
         pid = int(pid)
         if not pid_exists(pid):

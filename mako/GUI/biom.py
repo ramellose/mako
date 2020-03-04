@@ -10,10 +10,11 @@ __license__ = 'Apache 2.0'
 
 import wx
 from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 from wx.lib.pubsub import pub
-
+import os
 from mako.scripts.neo4biom import start_biom
-from mako.scripts.utils import _resource_path
+from mako.scripts.utils import _resource_path, query, _get_unique
 import logging
 import logging.handlers
 
@@ -84,8 +85,18 @@ class BiomPanel(wx.Panel):
         self.tab_btn.Bind(wx.EVT_BUTTON, self.import_files)
         self.tab_btn.Bind(wx.EVT_MOTION, self.update_help)
 
-        self.file_txt = wx.TextCtrl(self, size=(300, 200), style=wx.TE_MULTILINE)
+        self.file_txt = wx.TextCtrl(self, size=(150, 200), style=wx.TE_MULTILINE)
         self.file_txt.Bind(wx.EVT_MOTION, self.update_help)
+        self.file_txt.AppendText('Uploaded files \n')
+
+        self.get_btn = wx.Button(self, label='Get list of files in database', size=btnsize)
+        self.get_btn.Bind(wx.EVT_BUTTON, self.get_files)
+        self.get_btn.Bind(wx.EVT_MOTION, self.update_help)
+        self.delete_btn = wx.Button(self, label='Delete selected files', size=btnsize)
+        self.delete_btn.Bind(wx.EVT_BUTTON, self.delete_files)
+        self.delete_btn.Bind(wx.EVT_MOTION, self.update_help)
+        self.file_list = wx.ListBox(self, size=(150, 200), style=wx.LB_MULTIPLE)
+        self.file_list.Bind(wx.EVT_MOTION, self.update_help)
 
         # Logger
         self.logtxt = wx.StaticText(self, label='Logging panel')
@@ -115,6 +126,9 @@ class BiomPanel(wx.Panel):
         self.rightsizer.AddSpacer(20)
         self.rightsizer.Add(self.file_txt, 1, wx.ALIGN_LEFT | wx.EXPAND | wx.ALL, 10)
         self.rightsizer.AddSpacer(20)
+        self.rightsizer.Add(self.get_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.rightsizer.Add(self.delete_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.rightsizer.Add(self.file_list, flag=wx.ALIGN_CENTER_HORIZONTAL)
 
         self.bottomsizer.AddSpacer(50)
         self.bottomsizer.Add(self.logtxt, flag=wx.ALIGN_LEFT)
@@ -144,8 +158,9 @@ class BiomPanel(wx.Panel):
                         self.tax_btn: 'Add filenames for taxonomy tables.',
                         self.samplemeta_btn: 'Add filenames for sample metadata.',
                         self.taxmeta_btn: 'Add filenames for taxon metadata.',
-                        self.file_txt: 'Overview of selected filenames.',
-                        self.logbox: 'Logging information for mako.'
+                        self.file_txt: 'Overview of selected files.',
+                        self.logbox: 'Logging information for mako.',
+                        self.delete_btn: 'Delete selected files from database.'
                         }
 
     def update_help(self, event):
@@ -188,7 +203,8 @@ class BiomPanel(wx.Panel):
             paths = [x.replace('\\', '/') for x in paths]
             self.settings['biom_file'] = paths
             if len(paths) > 0:
-                self.file_txt.AppendText("\n".join(paths))
+                for file in paths:
+                    self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
 
     def open_count(self, event):
@@ -206,7 +222,8 @@ class BiomPanel(wx.Panel):
             paths = [x.replace('\\', '/') for x in paths]
             self.settings['count_table'] = paths
             if len(paths) > 0:
-                self.file_txt.AppendText("\n".join(paths))
+                for file in paths:
+                    self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
 
     def open_tax(self, event):
@@ -224,7 +241,8 @@ class BiomPanel(wx.Panel):
             paths = [x.replace('\\', '/') for x in paths]
             self.settings['tax_table'] = paths
             if len(paths) > 0:
-                self.file_txt.AppendText("\n.".join(paths))
+                for file in paths:
+                    self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
 
     def open_samplemeta(self, event):
@@ -242,7 +260,8 @@ class BiomPanel(wx.Panel):
             paths = [x.replace('\\', '/') for x in paths]
             self.settings['sample_meta'] = paths
             if len(paths) > 0:
-                self.file_txt.AppendText("\n".join(paths))
+                for file in paths:
+                    self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
 
     def open_taxmeta(self, event):
@@ -260,8 +279,31 @@ class BiomPanel(wx.Panel):
             paths = [x.replace('\\', '/') for x in paths]
             self.settings['taxon_meta'] = paths
             if len(paths) > 0:
-                self.file_txt.AppendText("\n".join(paths))
+                for file in paths:
+                    self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
+
+    def get_files(self, event):
+        """
+        Create file dialog and show it.
+        """
+        self.logbox.AppendText("Starting operation...\n")
+        eg = ThreadPoolExecutor()
+        worker = eg.submit(query, self.settings, 'MATCH (n:Experiment) RETURN n')
+        del_values = _get_unique(worker.result(), key='n')
+        self.settings['delete'] = list(del_values)
+
+    def delete_files(self, event):
+        """
+        Create file dialog and show it.
+        """
+        self.logbox.AppendText("Starting operation...\n")
+        self.settings['delete'] = [self.file_txt.GetString(i)
+                                   for i in range(self.file_txt.GetCount())]
+        eg = Thread(target=start_biom, args=(self.settings,))
+        eg.start()
+        eg.join()
+        self.settings['delete'] = None
 
     def import_files(self, event):
         """
@@ -290,6 +332,8 @@ class BiomPanel(wx.Panel):
                 eg = Thread(target=start_biom, args=(subsettings,))
                 eg.start()
                 eg.join()
+        for var in ['biom_file', 'count_table', 'sample_meta', 'taxon_meta', 'tax_table']:
+            self.settings[var] = None
 
 
 class LogHandler(logging.Handler):
