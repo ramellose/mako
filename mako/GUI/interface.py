@@ -1,5 +1,5 @@
 """
-The database panel allows users to start up a previously configured Neo4j database.
+The interface panel allows users to upload and interact with networks.
 """
 
 __author__ = 'Lisa Rottjers'
@@ -22,6 +22,9 @@ wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
 
 class InterfacePanel(wx.Panel):
+    """
+    Panel for uploading and interacting with networks.
+    """
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         # subscribe to inputs from tabwindow
@@ -189,6 +192,11 @@ class InterfacePanel(wx.Panel):
         self.settings['fp'] = msg
 
     def open_networks(self, event):
+        """
+        FileDialog for selecting and uploading networks.
+        :param event: Button event.
+        :return:
+        """
         dlg = wx.FileDialog(
             self, message="Select network files",
             defaultDir=self.settings['fp'],
@@ -210,6 +218,11 @@ class InterfacePanel(wx.Panel):
         self.settings['networks'] = None
 
     def open_fasta(self, event):
+        """
+        FileDialog for selecting and uploading FASTA files.
+        :param event: Button event.
+        :return:
+        """
         dlg = wx.FileDialog(
             self, message="Select FASTA files",
             defaultDir=self.settings['fp'],
@@ -231,6 +244,11 @@ class InterfacePanel(wx.Panel):
         self.settings['fasta'] = None
 
     def open_meta(self, event):
+        """
+        FileDialog for selecting and uploading metadata files.
+        :param event: Button event.
+        :return:
+        """
         dlg = wx.FileDialog(
             self, message="Select metadata files",
             defaultDir=self.settings['fp'],
@@ -253,19 +271,64 @@ class InterfacePanel(wx.Panel):
 
     def get_networks(self, event):
         """
-        Create file dialog and show it.
+        Get list of Network nodes from database.
+        :param event: Button event
+        :return:
         """
         self.logbox.AppendText("Starting operation...\n")
         eg = ThreadPoolExecutor()
-        worker = eg.submit(query, self.settings, 'MATCH (n:Experiment) RETURN n')
+        worker = eg.submit(query, self.settings, 'MATCH (n:Network) RETURN n')
         del_values = _get_unique(worker.result(), key='n')
         self.file_list.Set(list(del_values))
 
     def delete_networks(self, event):
+        """
+        Deletes selected Network nodes.
+        :param event: Button event.
+        :return:
+        """
+        self.logbox.AppendText("Starting operation...\n")
+        self.settings['networks'] = [self.file_list.GetString(i)
+                                   for i in self.file_list.GetSelections()]
+        self.settings['delete'] = True
+        eg = Thread(target=start_io, args=(self.settings,))
+        eg.start()
+        eg.join()
+        self.settings['delete'] = None
+        self.settings['networks'] = None
 
     def write_networks(self, event):
+        """
+        Writes selected networks to graphml files.
+        :param event: Button event.
+        :return:
+        """
+        self.logbox.AppendText("Starting operation...\n")
+        self.settings['networks'] = [self.file_list.GetString(i)
+                                   for i in self.file_list.GetSelections()]
+        self.settings['write'] = True
+        eg = Thread(target=start_io, args=(self.settings,))
+        eg.start()
+        eg.join()
+        self.settings['write'] = None
+        self.settings['networks'] = None
 
     def export_cyto(self, event):
+        """
+        Exports selected networks to Cytoscape.
+        :param event: Button event.
+        :return:
+        """
+        self.logbox.AppendText("Starting operation...\n")
+        self.settings['networks'] = [self.file_list.GetString(i)
+                                   for i in self.file_list.GetSelections()]
+        self.settings['cyto'] = True
+        eg = Thread(target=start_io, args=(self.settings,))
+        eg.start()
+        eg.join()
+        self.settings['cyto'] = None
+        self.settings['networks'] = None
+
 
 class LogHandler(logging.Handler):
     """

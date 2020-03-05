@@ -394,41 +394,44 @@ class IoDriver(ParentDriver):
         port_number = 1234
         base = 'http://localhost:' + str(port_number) + '/v1/'
         headers = {'Content-Type': 'application/json'}
-        for network in results:
-            # Define dictionary from networkx
-            network_dict = {'data':
-                            {"node_default": {}, "edge_default": {}, 'name': network},
-                            'elements': {'nodes': [], 'edges': []}}
-            i = 1
-            id_dict = {}
-            for node in results[network].nodes:
-                id_dict[node] = i
-                data = {'data': {'name': node, 'id': str(i),
-                                 'SUID': int(i), 'selected': False,  'shared_name': node}}
-                for item in results[network].nodes[node]:
-                    data['data'][item] = results[network].nodes[node][item]
-                network_dict['elements']['nodes'].append(data)
-                i += 1
-            i = 1
-            for edge in results[network].edges:
-                data = {'data': {'shared_name': edge[0] + '->' + edge[1],
-                                 'name': edge[0] + '->' + edge[1],
-                                 'source': str(id_dict[edge[0]]), 'target': str(id_dict[edge[1]]),
-                                 'id': str(i), 'SUID': int(i), 'selected': False},
-                        'selected': False}
-                for item in results[network].edges[edge]:
-                    if item == 'source':
-                        # source is source node in Cytoscape
-                        # but network source in Neo4j
-                        data['data']['networks'] = results[network].edges[edge][item]
-                    else:
-                        data['data'][item] = results[network].edges[edge][item]
-                network_dict['elements']['edges'].append(data)
-                i += 1
-            res = requests.post(base + 'networks?collection=Neo4jexport', data=json.dumps(network_dict),
-                                headers=headers)
-            new_network_id = res.json()['networkSUID']
-            print('Network created for ' + network + ': SUID = ' + str(new_network_id))
+        try:
+            for network in results:
+                # Define dictionary from networkx
+                network_dict = {'data':
+                                {"node_default": {}, "edge_default": {}, 'name': network},
+                                'elements': {'nodes': [], 'edges': []}}
+                i = 1
+                id_dict = {}
+                for node in results[network].nodes:
+                    id_dict[node] = i
+                    data = {'data': {'name': node, 'id': str(i),
+                                     'SUID': int(i), 'selected': False,  'shared_name': node}}
+                    for item in results[network].nodes[node]:
+                        data['data'][item] = results[network].nodes[node][item]
+                    network_dict['elements']['nodes'].append(data)
+                    i += 1
+                i = 1
+                for edge in results[network].edges:
+                    data = {'data': {'shared_name': edge[0] + '->' + edge[1],
+                                     'name': edge[0] + '->' + edge[1],
+                                     'source': str(id_dict[edge[0]]), 'target': str(id_dict[edge[1]]),
+                                     'id': str(i), 'SUID': int(i), 'selected': False},
+                            'selected': False}
+                    for item in results[network].edges[edge]:
+                        if item == 'source':
+                            # source is source node in Cytoscape
+                            # but network source in Neo4j
+                            data['data']['networks'] = results[network].edges[edge][item]
+                        else:
+                            data['data'][item] = results[network].edges[edge][item]
+                    network_dict['elements']['edges'].append(data)
+                    i += 1
+                res = requests.post(base + 'networks?collection=Neo4jexport', data=json.dumps(network_dict),
+                                    headers=headers)
+                new_network_id = res.json()['networkSUID']
+                print('Network created for ' + network + ': SUID = ' + str(new_network_id))
+        except ConnectionError:
+            logger.warning("Could not export networks to Cytoscape. Is Cytoscape running?", exc_info=True)
 
     def include_nodes(self, nodes, name, label):
         """
