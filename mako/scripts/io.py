@@ -69,7 +69,7 @@ def start_io(inputs):
         logger.error("Login information not specified in arguments.", exc_info=True)
         sys.exit()
     # Only process network files if present
-    if inputs['networks'] and not inputs['delete'] and not inputs['write']:
+    if inputs['networks'] and not inputs['delete'] and not inputs['write'] and not inputs['cyto']:
         try:
             for x in inputs['networks']:
                 logger.info('Working on ' + x + '...')
@@ -318,13 +318,6 @@ class IoDriver(ParentDriver):
         :return: Dictionary of networks
         """
         results = dict()
-        with self._driver.session() as session:
-            tax_dict = session.read_transaction(self._tax_dict)
-        with self._driver.session() as session:
-            tax_properties = session.read_transaction(self._tax_properties)
-        for item in tax_properties:
-            for taxon in tax_properties[item]:
-                tax_properties[item][taxon] = str(tax_properties[item][taxon])
         if not networks:
             with self._driver.session() as session:
                 networks = session.read_transaction(self._query,
@@ -344,6 +337,20 @@ class IoDriver(ParentDriver):
                 g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
                            weight=weight)
             # necessary for networkx indexing
+            tax_dict = {}
+            tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
+            for item in tax_levels:
+                tax_dict[item] = dict()
+            tax_properties = {}
+            with self._driver.session() as session:
+                tax_properties = session.read_transaction(self._tax_properties_dict)
+            for node in g.nodes:
+                with self._driver.session() as session:
+                    tax_dict = session.read_transaction(self._tax_dict, node, tax_dict)
+                    tax_properties = session.read_transaction(self._tax_properties, node, tax_properties)
+            for node in g.nodes:
+                with self._driver.session() as session:
+                    tax_properties = session.read_transaction(self._tax_properties, node, tax_properties)
             for item in tax_dict:
                 nx.set_node_attributes(g, tax_dict[item], item)
             for item in tax_properties:
@@ -387,9 +394,10 @@ class IoDriver(ParentDriver):
         :return:
         """
         if not networks:
+            networks = _get_unique(self.query("MATCH (n:Network) RETURN n"), 'n')
             results = self.return_networks(networks)
         else:
-            results = networks
+            results = self.return_networks(networks)
         # Basic Setup
         port_number = 1234
         base = 'http://localhost:' + str(port_number) + '/v1/'
@@ -653,35 +661,29 @@ class IoDriver(ParentDriver):
                         "RETURN type(r)"))
 
     @staticmethod
-    def _tax_dict(tx):
+    def _tax_dict(tx, node, tax_dict):
         """
         Returns a dictionary of taxonomic values for each node.
         :param tx: Neo4j transaction
+        :param node: Node name
         :return: Dictionary of taxonomy separated by taxon
         """
-        taxa = tx.run("MATCH (n)--(:Edge) WHERE n:Taxon OR n:Agglom_Taxon RETURN n").data()
-        taxa = _get_unique(taxa, 'n')
-        tax_dict = dict()
-        tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
-        for item in tax_levels:
-            tax_dict[item] = dict()
-        for item in taxa:
-            for level in tax_levels:
-                tax = None
-                level_name = tx.run("MATCH (b {name: '" + item +
-                                    "'})--(n:"+ level + ") RETURN n").data()
-                if len(level_name) != 0:
-                    tax = level_name[0]['n'].get('name')
-                if tax:
-                    tax_dict[level][item] = tax
+        for level in tax_dict:
+            tax = None
+            level_name = tx.run("MATCH (b {name: '" + node +
+                                "'})--(n:"+ level + ") RETURN n").data()
+            if len(level_name) != 0:
+                tax = level_name[0]['n'].get('name')
+            if tax:
+                tax_dict[level][node] = tax
         return tax_dict
 
     @staticmethod
-    def _tax_properties(tx):
+    def _tax_properties_dict(tx):
         """
-        Returns a dictionary of taxon / sample properties, to be included as taxon metadata.
+        Constructs a dictionary with property types as keys.
         :param tx: Neo4j transaction
-        :return: Dictionary of dictionary of taxon properties
+        :return: Dictionary with only keys
         """
         nodes = tx.run("MATCH (n)--(m:Property) WHERE n:Taxon OR n:Agglom_Taxon RETURN m").data()
         nodes = _get_unique(nodes, 'm')
@@ -690,19 +692,27 @@ class IoDriver(ParentDriver):
             property = tx.run("MATCH (m:Property) RETURN m").data()
             property_key = property[0]['m']['type']
             properties[property_key] = dict()
-            hits = tx.run("MATCH (b)--(n {name: '" + node +
-                          "'}) WHERE b:Taxon OR b:Agglom_Taxon RETURN b").data()
-            if hits:
-                for hit in hits:
-                    properties[property_key][hit['b'].get('name')] = property[0]['m']['name']
-            for taxon in properties[property_key]:
-                if len(properties[property_key][taxon]) == 1:
-                    # tries exporting property as float instead of list
-                    try:
-                        properties[property_key][taxon] = np.round(float(properties[property_key][property]), 4)
-                    except ValueError:
-                        pass
         return properties
+
+    @staticmethod
+    def _tax_properties(tx, node, tax_properties):
+        """
+        Returns a dictionary of taxon / sample properties, to be included as taxon metadata.
+        :param tx: Neo4j transaction
+        :param node: Taxon node label
+        :param tax_properties: Dictionary with taxon property types
+        :return: Dictionary of dictionary of taxon properties
+        """
+        hits = tx.run("MATCH (:Taxon {name: '" + node + "'})--(b:Property) RETURN b").data()
+        if hits:
+            for hit in hits:
+                value = hit['b'].get('name')
+                try:
+                    value = np.round(float(value), 4)
+                except ValueError:
+                    pass
+                tax_properties[hit['b'].get('type')][node] = value
+        return tax_properties
 
     @staticmethod
     def _association_list(tx, network):
