@@ -23,6 +23,9 @@ wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
 
 class BiomPanel(wx.Panel):
+    """
+    Panel for uploading biom files.
+    """
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         # subscribe to inputs from tabwindow
@@ -81,7 +84,7 @@ class BiomPanel(wx.Panel):
         self.taxmeta_btn.Bind(wx.EVT_BUTTON, self.open_taxmeta)
         self.taxmeta_btn.Bind(wx.EVT_MOTION, self.update_help)
 
-        self.tab_btn = wx.Button(self, label="Import files to Neo4j")
+        self.tab_btn = wx.Button(self, label="Import files to Neo4j", size=btnsize)
         self.tab_btn.Bind(wx.EVT_BUTTON, self.import_files)
         self.tab_btn.Bind(wx.EVT_MOTION, self.update_help)
 
@@ -160,14 +163,19 @@ class BiomPanel(wx.Panel):
                         self.tax_btn: 'Add filenames for taxonomy tables.',
                         self.samplemeta_btn: 'Add filenames for sample metadata.',
                         self.taxmeta_btn: 'Add filenames for taxon metadata.',
-                        self.file_txt: 'Overview of selected files.',
+                        self.file_txt: 'Overview of imported files.',
                         self.logbox: 'Logging information for mako.',
-                        self.delete_btn: 'Delete selected files from database.'
+                        self.delete_btn: 'Delete selected files from database.',
+                        self.file_list: 'Select files.',
+                        self.get_btn: 'Get list of files in database.'
                         }
 
     def update_help(self, event):
         """
         Publishes help message for statusbar at the bottom of the notebook.
+
+        :param event: UI event
+        :return:
         """
         btn = event.GetEventObject()
         if btn in self.buttons:
@@ -175,15 +183,30 @@ class BiomPanel(wx.Panel):
             pub.sendMessage('change_statusbar', msg=status)
 
     def set_config(self, msg):
+        """
+        Sets parameters for accessing Neo4j database
+        :param msg: pubsub message
+        :return:
+        """
         for key in msg:
             self.settings[key] = msg[key]
 
     def log_event(self, event):
+        """
+        Listerer for logging handler that generates a wxPython event
+        :param event: custom event
+        :return:
+        """
         msg = event.message.strip("\r") + "\n"
         self.logbox.AppendText(msg)
         event.Skip()
 
     def open_dir(self, event):
+        """
+        DirDialog for choosing default directory
+        :param event: Button event
+        :return:
+        """
         dlg = wx.DirDialog(self, "Choose default directory", style=wx.DD_DEFAULT_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
             self.settings['fp'] = dlg.GetPath()
@@ -192,7 +215,9 @@ class BiomPanel(wx.Panel):
 
     def open_biom(self, event):
         """
-        Create file dialog and show it.
+        FileDialog for selecting BIOM files.
+        :param event: Button event.
+        :return:
         """
         dlg = wx.FileDialog(
             self, message="Select BIOM files",
@@ -211,7 +236,9 @@ class BiomPanel(wx.Panel):
 
     def open_count(self, event):
         """
-        Create file dialog and show it.
+        FileDialog for selecting count files.
+        :param event: Button event.
+        :return:
         """
         dlg = wx.FileDialog(
             self, message="Select count tables",
@@ -230,7 +257,9 @@ class BiomPanel(wx.Panel):
 
     def open_tax(self, event):
         """
-        Create file dialog and show it.
+        FileDialog for selecting taxonomy files.
+        :param event: Button event.
+        :return:
         """
         dlg = wx.FileDialog(
             self, message="Select taxonomy tables",
@@ -249,7 +278,9 @@ class BiomPanel(wx.Panel):
 
     def open_samplemeta(self, event):
         """
-        Create file dialog and show it.
+        FileDialog for selecting sample metadata files.
+        :param event: Button event.
+        :return:
         """
         dlg = wx.FileDialog(
             self, message="Select sample metadata",
@@ -268,7 +299,9 @@ class BiomPanel(wx.Panel):
 
     def open_taxmeta(self, event):
         """
-        Create file dialog and show it.
+        FileDialog for selecting taxon metadata files.
+        :param event: Button event.
+        :return:
         """
         dlg = wx.FileDialog(
             self, message="Select taxon metadata",
@@ -287,7 +320,9 @@ class BiomPanel(wx.Panel):
 
     def get_files(self, event):
         """
-        Create file dialog and show it.
+        Queries database to get a list of existing Experiment nodes.
+        :param event: Button event.
+        :return:
         """
         self.logbox.AppendText("Starting operation...\n")
         eg = ThreadPoolExecutor()
@@ -297,7 +332,9 @@ class BiomPanel(wx.Panel):
 
     def delete_files(self, event):
         """
-        Create file dialog and show it.
+        Deletes selected Experiment nodes.
+        :param event: Button event.
+        :return:
         """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['delete'] = [self.file_list.GetString(i)
@@ -309,7 +346,9 @@ class BiomPanel(wx.Panel):
 
     def import_files(self, event):
         """
-        Reads the arguments and uploads data to Neo4j.
+        Takes all previously selected files and uploads them to
+        the Neo4j database.
+        :param event: Button event.
         :return:
         """
         self.logbox.AppendText("Starting operation...\n")
@@ -339,20 +378,30 @@ class BiomPanel(wx.Panel):
 
 
 class LogHandler(logging.Handler):
+    """
+    Object defining custom handler for logger.
+    """
     def __init__(self, ctrl):
         logging.Handler.__init__(self)
         self.ctrl = ctrl
         self.level = logging.INFO
 
     def flush(self):
+        """
+        Overwrites default flush
+        :return:
+        """
         pass
 
     def emit(self, record):
+        """
+        Handler triggers custom wx Event and sends a message.
+        :param record: Logger record
+        :return:
+        """
         try:
             s = self.format(record) + '\n'
             evt = wxLogEvent(message=s, levelname=record.levelname)
             wx.PostEvent(self.ctrl, evt)
         except (KeyboardInterrupt, SystemExit):
             raise
-        except:
-            self.handleError(s)

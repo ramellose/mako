@@ -22,6 +22,9 @@ wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
 
 class BasePanel(wx.Panel):
+    """
+    Panel for running and connecting to the Neo4j database.
+    """
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         # subscribe to inputs from tabwindow
@@ -176,20 +179,33 @@ class BasePanel(wx.Panel):
                         }
 
     def update_help(self, event):
+        """
+        Publishes help message for statusbar at the bottom of the notebook.
+
+        :param event: UI event
+        :return:
+        """
         btn = event.GetEventObject()
         if btn in self.buttons:
             status = self.buttons[btn]
             pub.sendMessage('change_statusbar', msg=status)
 
-    def get_pid(self, msg):
-        self.settings['pid'] = msg
-
     def log_event(self, event):
+        """
+        Listerer for logging handler that generates a wxPython event
+        :param event: custom event
+        :return:
+        """
         msg = event.message.strip("\r") + "\n"
         self.logbox.AppendText(msg)
         event.Skip()
 
     def open_neo(self, event):
+        """
+        DirDialog for selecting Neo4j directory.
+        :param event: Button click
+        :return:
+        """
         dlg = wx.DirDialog(self, "Select Neo4j directory", style=wx.DD_DEFAULT_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
             neo4j = dlg.GetPath()
@@ -199,25 +215,41 @@ class BasePanel(wx.Panel):
         self.send_config()
 
     def update_address(self, event):
+        """
+        Registers text input in address field
+        :param event: Text input
+        :return:
+        """
         text = self.address_box.GetValue()
         self.settings['address'] = text
         self.send_config()
 
     def update_username(self, event):
+        """
+        Registers text input in username field
+        :param event: Text input
+        :return:
+        """
         text = self.username_box.GetValue()
         self.settings['username'] = text
         self.send_config()
 
     def update_pass(self, event):
+        """
+        Registers text input in password field
+        :param event: Text input
+        :return:
+        """
         text = self.pass_box.GetValue()
         self.settings['password'] = text
         self.send_config()
 
-    def update_pid(self, msg):
-        """Listener for Neo4j PID."""
-        self.settings['pid'] = msg
-
     def start_database(self, event):
+        """
+        Starts the Neo4j database with supplied credentials
+        :param event: Button event
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['start'] = True
         eg = ThreadPoolExecutor()
@@ -226,6 +258,11 @@ class BasePanel(wx.Panel):
         self.settings['start'] = False
 
     def close_database(self, event):
+        """
+        Closes the Neo4j database with supplied credentials
+        :param event: Button event
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['quit'] = True
         eg = Thread(target=start_base, args=(self.settings,))
@@ -234,12 +271,22 @@ class BasePanel(wx.Panel):
         self.settings['quit'] = False
 
     def test(self, event):
+        """
+        Tests the Neo4j database with supplied credentials
+        :param event: Button event
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         eg = Thread(target=query, args=(self.settings, 'MATCH (n) RETURN count(n)'))
         eg.start()
         eg.join()
 
     def clear(self, event):
+        """
+        Clears the Neo4j database with supplied credentials
+        :param event: Button event
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['clear'] = True
         eg = Thread(target=start_base, args=(self.settings,))
@@ -248,10 +295,20 @@ class BasePanel(wx.Panel):
         self.settings['check'] = False
 
     def open_browser(self, event):
+        """
+        Opens browser at default url.
+        :param event: Button event
+        :return:
+        """
         url = "http://localhost:7474/browser/"
         webbrowser.open(url)
 
     def check_database(self, event):
+        """
+        Checks the Neo4j database with supplied credentials
+        :param event: Button event
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['check'] = True
         eg = Thread(target=start_base, args=(self.settings,))
@@ -271,23 +328,33 @@ class BasePanel(wx.Panel):
 
 
 class LogHandler(logging.Handler):
+    """
+    Object defining custom handler for logger.
+    """
     def __init__(self, ctrl):
         logging.Handler.__init__(self)
         self.ctrl = ctrl
         self.level = logging.INFO
 
     def flush(self):
+        """
+        Overwrites default flush
+        :return:
+        """
         pass
 
     def emit(self, record):
+        """
+        Handler triggers custom wx Event and sends a message.
+        :param record: Logger record
+        :return:
+        """
         try:
             s = self.format(record) + '\n'
             evt = wxLogEvent(message=s, levelname=record.levelname)
             wx.PostEvent(self.ctrl, evt)
         except (KeyboardInterrupt, SystemExit):
             raise
-        except:
-            self.handleError(s)
 
 
 if __name__ == "__main__":
