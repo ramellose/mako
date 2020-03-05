@@ -151,7 +151,6 @@ class BiomPanel(wx.Panel):
         self.SetSizerAndFit(self.paddingsizer)
         self.Fit()
 
-
         # help strings for buttons
         self.buttons = {self.dir_btn: 'Make sure all sample names and taxa names match '
                         'in the different files!',
@@ -212,6 +211,7 @@ class BiomPanel(wx.Panel):
             self.settings['fp'] = dlg.GetPath()
         self.dir_txt.SetValue(self.settings['fp'])
         dlg.Destroy()
+        pub.sendMessage('fp', self.settings['fp'])
 
     def open_biom(self, event):
         """
