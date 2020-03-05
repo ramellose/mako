@@ -27,6 +27,7 @@ from subprocess import Popen
 from psutil import Process, pid_exists
 from signal import CTRL_C_EVENT
 from time import sleep
+from pubsub import pub
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -51,7 +52,8 @@ def start_base(inputs):
         config = _read_config(inputs)
     else:
         config = inputs
-        config['pid'] = 'None'
+        if not 'pid' in config:
+            config['pid'] = 'None'
     pid = config['pid']
     encrypted = True
     driver = None
@@ -64,13 +66,13 @@ def start_base(inputs):
             logger.warning('The PID file is incorrect. Resetting PID file. \n'
                            'This is usually the result of a forced shutdown. \n'
                            'Please use "mako base quit" to shut down safely. \n')
-            with open(_resource_path('config'), 'r') as file:
-                # read a list of lines into data
-                data = file.readlines()
-            with open(_resource_path('config'), 'w') as file:
-                data[2] = 'pid: None' + '\n'
-                file.writelines(data)
-            pid = 'None'
+            if inputs['store_config']:
+                with open(_resource_path('config'), 'r') as file:
+                    # read a list of lines into data
+                    data = file.readlines()
+                with open(_resource_path('config'), 'w') as file:
+                    data[2] = 'pid: None' + '\n'
+                    file.writelines(data)
     if inputs['start'] and pid == 'None':
         try:
             logger.info("Starting database, this can take some time...")
@@ -86,13 +88,14 @@ def start_base(inputs):
                 # new version uses xterm to work with macOS
                 # check if this conflicts!
                 p = Popen(["gnome-terminal", "-e", filepath])  # x-term compatible alternative terminal
-            with open(_resource_path('config'), 'r') as file:
-                # read a list of lines into data
-                data = file.readlines()
-            with open(_resource_path('config'), 'w') as file:
-                data[2] = 'pid: ' + str(p.pid) + '\n'
-                pid = p.pid
-                file.writelines(data)
+            pid = p.pid
+            if inputs['store_config']:
+                with open(_resource_path('config'), 'r') as file:
+                    # read a list of lines into data
+                    data = file.readlines()
+                with open(_resource_path('config'), 'w') as file:
+                    data[2] = 'pid: ' + str(p.pid) + '\n'
+                    file.writelines(data)
             sleep(12)
             driver = BaseDriver(user=config['username'],
                                 password=config['password'],
@@ -149,6 +152,7 @@ def start_base(inputs):
     if driver:
         driver.close()
     logger.info('Completed database operations!  ')
+    return pid
 
 
 class BaseDriver(ParentDriver):

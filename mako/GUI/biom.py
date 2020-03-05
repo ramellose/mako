@@ -85,7 +85,7 @@ class BiomPanel(wx.Panel):
         self.tab_btn.Bind(wx.EVT_BUTTON, self.import_files)
         self.tab_btn.Bind(wx.EVT_MOTION, self.update_help)
 
-        self.file_txt = wx.TextCtrl(self, size=(150, 200), style=wx.TE_MULTILINE)
+        self.file_txt = wx.TextCtrl(self, size=(300, 80), style=wx.TE_MULTILINE)
         self.file_txt.Bind(wx.EVT_MOTION, self.update_help)
         self.file_txt.AppendText('Uploaded files \n')
 
@@ -95,7 +95,7 @@ class BiomPanel(wx.Panel):
         self.delete_btn = wx.Button(self, label='Delete selected files', size=btnsize)
         self.delete_btn.Bind(wx.EVT_BUTTON, self.delete_files)
         self.delete_btn.Bind(wx.EVT_MOTION, self.update_help)
-        self.file_list = wx.ListBox(self, size=(150, 200), style=wx.LB_MULTIPLE)
+        self.file_list = wx.ListBox(self, size=(300, 80), style=wx.LB_MULTIPLE)
         self.file_list.Bind(wx.EVT_MOTION, self.update_help)
 
         # Logger
@@ -124,11 +124,13 @@ class BiomPanel(wx.Panel):
         self.leftsizer.AddSpacer(20)
 
         self.rightsizer.AddSpacer(20)
-        self.rightsizer.Add(self.file_txt, 1, wx.ALIGN_LEFT | wx.EXPAND | wx.ALL, 10)
+        self.rightsizer.Add(self.file_txt, 1, wx.ALIGN_LEFT | wx.ALL, 10)
         self.rightsizer.AddSpacer(20)
         self.rightsizer.Add(self.get_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.rightsizer.AddSpacer(20)
+        self.rightsizer.Add(self.file_list, 1, wx.ALIGN_LEFT | wx.ALL, 10)
+        self.rightsizer.AddSpacer(20)
         self.rightsizer.Add(self.delete_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
-        self.rightsizer.Add(self.file_list, flag=wx.ALIGN_CENTER_HORIZONTAL)
 
         self.bottomsizer.AddSpacer(50)
         self.bottomsizer.Add(self.logtxt, flag=wx.ALIGN_LEFT)
@@ -291,15 +293,15 @@ class BiomPanel(wx.Panel):
         eg = ThreadPoolExecutor()
         worker = eg.submit(query, self.settings, 'MATCH (n:Experiment) RETURN n')
         del_values = _get_unique(worker.result(), key='n')
-        self.settings['delete'] = list(del_values)
+        self.file_list.Set(list(del_values))
 
     def delete_files(self, event):
         """
         Create file dialog and show it.
         """
         self.logbox.AppendText("Starting operation...\n")
-        self.settings['delete'] = [self.file_txt.GetString(i)
-                                   for i in range(self.file_txt.GetCount())]
+        self.settings['delete'] = [self.file_list.GetString(i)
+                                   for i in self.file_list.GetSelections()]
         eg = Thread(target=start_biom, args=(self.settings,))
         eg.start()
         eg.join()

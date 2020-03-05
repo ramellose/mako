@@ -13,6 +13,7 @@ from wx.lib.pubsub import pub
 from mako.scripts.base import start_base
 from mako.scripts.utils import _resource_path, query
 import webbrowser
+from concurrent.futures import ThreadPoolExecutor
 
 import logging.handlers
 
@@ -24,7 +25,6 @@ class BasePanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         # subscribe to inputs from tabwindow
-
         self.frame = parent
 
         btnsize = (300, -1)
@@ -181,6 +181,9 @@ class BasePanel(wx.Panel):
             status = self.buttons[btn]
             pub.sendMessage('change_statusbar', msg=status)
 
+    def get_pid(self, msg):
+        self.settings['pid'] = msg
+
     def log_event(self, event):
         msg = event.message.strip("\r") + "\n"
         self.logbox.AppendText(msg)
@@ -217,9 +220,9 @@ class BasePanel(wx.Panel):
     def start_database(self, event):
         self.logbox.AppendText("Starting operation...\n")
         self.settings['start'] = True
-        eg = Thread(target=start_base, args=(self.settings,))
-        eg.start()
-        eg.join()
+        eg = ThreadPoolExecutor()
+        worker = eg.submit(start_base, self.settings)
+        self.settings['pid'] = worker.result()
         self.settings['start'] = False
 
     def close_database(self, event):
