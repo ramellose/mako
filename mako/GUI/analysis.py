@@ -1,6 +1,6 @@
 """
-The network panel allows users to select network inference tools to run and to adjust the settings of these tools.
-It also provides an overview of current settings, and can execute massoc with these settings.
+The analysis panel allows users to merge networks by taxonomy,
+return intersections and carry out some statistics.
 """
 
 __author__ = 'Lisa Rottjers'
@@ -8,441 +8,270 @@ __email__ = 'lisa.rottjers@kuleuven.be'
 __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
-from threading import Thread
+
 import wx
+from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 from wx.lib.pubsub import pub
+import os
 from mako.scripts.netstats import start_netstats
 from mako.scripts.metastats import start_metastats
-from mako.scripts.utils import _read_config, ParentDriver
-from time import sleep
-from copy import deepcopy
+from mako.scripts.utils import _resource_path, query, _get_unique
 import logging
-import sys
-import os
 import logging.handlers
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
 
 class AnalysisPanel(wx.Panel):
+    """
+    Panel for carrying out analyses on the database.
+    """
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         # subscribe to inputs from tabwindow
+        pub.subscribe(self.set_config, 'config')
+
         self.frame = parent
+        self.settings = {'networks': None,
+                         'fp': _resource_path(''),
+                         'username': 'neo4j',
+                         'password': 'neo4j',
+                         'address': 'bolt://localhost:7687',
+                         'store_config': False,
+                         'variable': None,
+                         'weight': True,
+                         'agglom': None,
+                         'set': None,
+                         'fraction': None}
 
         btnsize = (300, -1)
-        boxsize = (300, 50)
-        # adds columns
-        pub.subscribe(self.enable_tax, 'receive_tax')
-        pub.subscribe(self.network_login, 'data_settings')
-        pub.subscribe(self.set_settings, 'analysis_settings')
-        pub.subscribe(self.set_settings, 'input_settings')
-        pub.subscribe(self.load_settings, 'load_settings')
-        pub.subscribe(self.data_view, 'view')
-
-
-        self.settings = dict()
-        self.agglom = None
-        self.agglom_weight = None
-        self.logic = None
-        self.networks = None
-        self.assoc = None
-        self.checks = str()
-        self.address = 'bolt://localhost:7687'
-        self.username = 'neo4j'
-        self.password = 'neo4j'
-        self.neo4j = None
-        self.output = 'network'
+        boxsize = (700, 400)
 
         # defines columns
-        self.leftsizer = wx.BoxSizer(wx.VERTICAL)
         self.rightsizer = wx.BoxSizer(wx.VERTICAL)
+        self.leftsizer = wx.BoxSizer(wx.VERTICAL)
         self.topsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.bottomsizer = wx.BoxSizer(wx.VERTICAL)
+        self.fullsizer = wx.BoxSizer(wx.VERTICAL)
+        self.paddingsizer = wx.BoxSizer(wx.HORIZONTAL)
 
+        # weight selection
+        self.weight_txt = wx.StaticText(self, label='For agglomerating and intersections:')
+        self.weight_btn = wx.RadioBox(self, style = wx.RA_SPECIFY_ROWS,
+                                      choices=['Include edge weight', 'Ignore edge weight'])
+        self.weight_btn.Bind(wx.EVT_BUTTON, self.weight)
+        self.weight_btn.Bind(wx.EVT_MOTION, self.update_help)
+        self.weight_btn.SetSelection(0)
 
-        # select taxonomic levels
-        self.tax_txt = wx.StaticText(self, label='Agglomerate edges to: ')
-        self.tax_choice = wx.ListBox(self, choices=['Species', 'Genus',
-                                                    'Family', 'Order', 'Class', 'Phylum'],
-                                          size=(boxsize[0], 110), style=wx.LB_MULTIPLE)
-        self.tax_choice.Bind(wx.EVT_MOTION, self.update_help)
-        self.tax_choice.Bind(wx.EVT_LISTBOX, self.get_levels)
-        self.tax_choice.Enable(False)
-        self.tax_txt.Enable(False)
+        # agglomerate
+        self.agglom_txt = wx.StaticText(self, label='Select taxonomic level for network agglomeration:')
+        self.agglom_box = wx.RadioBox(self, style = wx.RA_SPECIFY_ROWS,
+                                      choices=['Species', 'Genus', 'Family', 'Order', 'Class', 'Phylum'])
+        self.agglom_box.Bind(wx.EVT_MOTION, self.update_help)
+        self.agglom_box.SetSelection(0)
+        self.agglom_btn = wx.Button(self, label='Run agglomeration', size=btnsize)
+        self.agglom_btn.Bind(wx.EVT_BUTTON, self.agglomerate)
+        self.agglom_btn.Bind(wx.EVT_MOTION, self.update_help)
 
-        # button for agglomeration
-        self.weight_txt = wx.StaticText(self, label='During network agglomeration:')
-        self.tax_weight = wx.ListBox(self, choices=['Take weight into account', 'Ignore weight'], size=(boxsize[0], 40))
-        self.tax_weight.Bind(wx.EVT_MOTION, self.update_help)
-        self.tax_weight.Bind(wx.EVT_LISTBOX, self.weight_agglomeration)
-        self.tax_weight.Enable(False)
-        self.weight_txt.Enable(False)
+        # get property types
+        self.get_btn = wx.Button(self, label='Get list of properties', size=btnsize)
+        self.get_btn.Bind(wx.EVT_BUTTON, self.get_properties)
+        self.get_btn.Bind(wx.EVT_MOTION, self.update_help)
+        self.property_list = wx.ListBox(self, size=(300, 40), style=wx.LB_MULTIPLE)
+        self.property_list.Bind(wx.EVT_MOTION, self.update_help)
+        self.cor_btn = wx.Button(self, label='Correlate properties', size=btnsize)
+        self.cor_btn.Bind(wx.EVT_BUTTON, self.correlate_properties)
+        self.cor_btn.Bind(wx.EVT_MOTION, self.update_help)
 
-        self.overview = wx.Button(self, label='Get database overview', size=(btnsize[0], 40))
-        self.overview.Bind(wx.EVT_BUTTON, self.overview_database)
+        # get networks
+        self.net_btn = wx.Button(self, label='Get list of networks', size=btnsize)
+        self.net_btn.Bind(wx.EVT_BUTTON, self.get_networks)
+        self.net_btn.Bind(wx.EVT_MOTION, self.update_help)
+        self.network_list = wx.ListBox(self, size=(300, 40), style=wx.LB_MULTIPLE)
+        self.network_list.Bind(wx.EVT_MOTION, self.update_help)
 
-        # button for sample association
-        self.assoc_txt = wx.StaticText(self, label='Associate taxa to: ')
-        self.assoc_box = wx.ListBox(self, choices=['Run database overview first'], size=(300, 95),
-                                    style=wx.LB_MULTIPLE)
-        self.assoc_box.Bind(wx.EVT_MOTION, self.update_help)
-        self.assoc_box.Bind(wx.EVT_LISTBOX, self.run_association)
-        self.assoc_txt.Enable(False)
-        self.assoc_box.Enable(False)
+        # fractions and sets
+        self.fraction_txt = wx.StaticText(self, label='Fractions for intersections')
+        self.fraction_ctrl = wx.TextCtrl(self, value='0.5;1', size=btnsize)
+        self.fraction_ctrl.Bind(wx.EVT_MOTION, self.update_help)
 
-        # logic operations
-        self.logic_txt = wx.StaticText(self, label='Perform operations:')
-        self.logic_choice = wx.ListBox(self, choices=['None', 'Union', 'Intersection', 'Difference'],
-                                       size=(boxsize[0], 70))
-        self.logic_choice.Bind(wx.EVT_MOTION, self.update_help)
-        self.logic_choice.Bind(wx.EVT_LISTBOX, self.get_logic)
-        self.logic_choice.Enable(False)
-        self.logic_txt.Enable(False)
+        # set button
+        self.set_btn = wx.Button(self, label='Construct sets', size=btnsize)
+        self.set_btn.Bind(wx.EVT_BUTTON, self.get_sets)
+        self.set_btn.Bind(wx.EVT_MOTION, self.update_help)
 
-        # network selection
-        self.network_txt = wx.StaticText(self, label="Perform operations on: ")
-        self.network_choice = wx.ListBox(self, choices=['Run database overview first'],
-                                         size=(boxsize[0], 130), style=wx.LB_MULTIPLE)
-        self.network_choice.Bind(wx.EVT_LISTBOX, self.get_network)
-        self.network_txt.Enable(False)
-        self.network_choice.Enable(False)
+        # Logger
+        self.logtxt = wx.StaticText(self, label='Logging panel')
+        self.logbox = wx.TextCtrl(self, value='', size=boxsize, style=wx.TE_MULTILINE)
+        self.logbox.Bind(wx.EVT_MOTION, self.update_help)
+        self.logbox.Bind(EVT_WX_LOG_EVENT, self.log_event)
 
-        # Run button
-        self.go_net = wx.Button(self, label='Run network operations', size=(btnsize[0], 40))
-        self.go_net.Bind(wx.EVT_BUTTON, self.run_netstats)
-        self.go_net.SetFont(wx.Font(16, wx.DECORATIVE, wx.NORMAL, wx.BOLD))
-        self.go_net.SetBackgroundColour(wx.Colour(0, 153, 51))
+        handler = LogHandler(ctrl=self.logbox)
+        logger.addHandler(handler)
+        self.logbox.SetForegroundColour(wx.WHITE)
+        self.logbox.SetBackgroundColour(wx.BLACK)
 
-        # Run button
-        self.go_meta = wx.Button(self, label='Run metadata operations', size=(btnsize[0], 40))
-        self.go_meta.Bind(wx.EVT_BUTTON, self.run_metastats)
-        self.go_meta.SetFont(wx.Font(16, wx.DECORATIVE, wx.NORMAL, wx.BOLD))
-        self.go_meta.SetBackgroundColour(wx.Colour(0, 153, 51))
-
-        self.leftsizer.AddSpacer(20)
-        self.leftsizer.Add(self.tax_txt, flag=wx.ALIGN_CENTER_HORIZONTAL)
-        self.leftsizer.Add(self.tax_choice, flag=wx.ALIGN_LEFT)
         self.leftsizer.AddSpacer(20)
         self.leftsizer.Add(self.weight_txt, flag=wx.ALIGN_CENTER_HORIZONTAL)
-        self.leftsizer.Add(self.tax_weight, flag=wx.ALIGN_LEFT)
+        self.leftsizer.Add(self.weight_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.leftsizer.AddSpacer(20)
-        self.leftsizer.Add(self.assoc_txt, flag=wx.ALIGN_CENTER_HORIZONTAL)
-        self.leftsizer.Add(self.assoc_box, flag=wx.ALIGN_LEFT)
+        self.leftsizer.Add(self.agglom_txt, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.leftsizer.Add(self.agglom_box, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.leftsizer.AddSpacer(20)
-        self.leftsizer.Add(self.go_meta, flag=wx.ALIGN_CENTER)
-        self.rightsizer.AddSpacer(20)
+        self.leftsizer.Add(self.agglom_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.leftsizer.AddSpacer(20)
 
         self.rightsizer.AddSpacer(20)
-        self.rightsizer.Add(self.overview)
+        self.rightsizer.Add(self.net_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.rightsizer.AddSpacer(20)
-        self.rightsizer.Add(self.logic_txt)
-        self.rightsizer.Add(self.logic_choice)
+        self.rightsizer.Add(self.network_list, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.rightsizer.AddSpacer(20)
-        self.rightsizer.Add(self.network_txt)
-        self.rightsizer.Add(self.network_choice)
+        self.rightsizer.Add(self.fraction_txt, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.rightsizer.Add(self.fraction_ctrl, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.rightsizer.AddSpacer(20)
-        self.rightsizer.Add(self.go_net, flag=wx.ALIGN_CENTER)
+        self.rightsizer.Add(self.set_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.rightsizer.AddSpacer(20)
+        self.rightsizer.Add(self.get_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.rightsizer.AddSpacer(20)
+        self.rightsizer.Add(self.property_list, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.rightsizer.AddSpacer(20)
+        self.rightsizer.Add(self.cor_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
 
-        self.topsizer.AddSpacer(20)
+        self.bottomsizer.AddSpacer(50)
+        self.bottomsizer.Add(self.logtxt, flag=wx.ALIGN_LEFT)
+        self.bottomsizer.AddSpacer(10)
+        self.bottomsizer.Add(self.logbox, flag=wx.ALIGN_CENTER)
+
         self.topsizer.Add(self.leftsizer)
         self.topsizer.AddSpacer(40)
         self.topsizer.Add(self.rightsizer)
-
-        self.SetSizerAndFit(self.topsizer)
+        self.fullsizer.Add(self.topsizer, flag=wx.ALIGN_CENTER)
+        self.fullsizer.Add(self.bottomsizer, flag=wx.ALIGN_CENTER)
+        # add padding sizer
+        # add padding sizer
+        self.paddingsizer.Add(self.fullsizer, 0, wx.EXPAND | wx.ALL, 30)
+        self.SetSizerAndFit(self.paddingsizer)
         self.Fit()
 
         # help strings for buttons
-        self.buttons = {self.tax_choice: 'Associations that are taxonomically similar at the specified level are '
-                                         'combined into agglomerated associations. ',
-                        self.tax_weight: 'If selected, only edges with matching weight are agglomerated. ',
-                        self.assoc_box: "Taxa are linked to categorical variables through a hypergeometric test"
-                                        " and to continous variables through Spearman's rank correlation.",
-                        self.logic_choice: 'Find associations that are present in only one or all of your networks.',
-                        self.go_net: 'Run the selected network operations and export a GraphML file.',
-                        self.go_meta: 'Run the selected metadata operations. Export network in the previous tab.',
-                        self.network_choice: "Network(s) to carry out logic operation on.",
-                        self.overview: 'Get summary of networks and metadata in network.'
+        self.buttons = {self.weight_btn: 'Intersections with weight only include edges with matching weights.',
+                        self.agglom_box: 'Specify taxonomic level for agglomeration.',
+                        self.agglom_btn: 'Merges edges if the taxa have the same taxonomic levels.',
+                        self.get_btn: 'Get list of properties in database.',
+                        self.property_list: 'Select properties for correlations. ',
+                        self.cor_btn: 'Correlate taxon abundances to properties.',
+                        self.net_btn: 'Get list of networks in database.',
+                        self.network_list: 'Select networks to include in sets.',
+                        self.fraction_ctrl: 'Fractions for partial intersections.',
+                        self.logbox: 'Logging information for mako.',
+                        self.set_btn: 'Construct set nodes in Neo4j database.',
                         }
 
     def update_help(self, event):
+        """
+        Publishes help message for statusbar at the bottom of the notebook.
+
+        :param event: UI event
+        :return:
+        """
         btn = event.GetEventObject()
         if btn in self.buttons:
             status = self.buttons[btn]
             pub.sendMessage('change_statusbar', msg=status)
 
-    def enable_tax(self, msg):
-        self.tax_choice.Enable(True)
-
-    def get_levels(self, event):
-        text = list()
-        ids = self.tax_choice.GetSelections()
-        for i in ids:
-            text.append(self.tax_choice.GetString(i))
-        text = [x.lower() for x in text]
-        self.agglom = text
-        self.send_settings()
-
-    def weight_agglomeration(self, event):
-        self.agglom_weight = list()
-        name = self.tax_weight.GetSelection()
-        if name == 0:
-            self.agglom_weight = True
-        elif name == 1:
-            self.agglom_weight = False
-        self.send_settings()
-
-    def run_association(self, event):
-        self.assoc = list()
-        text = list()
-        ids = self.assoc_box.GetSelections()
-        ids.sort()
-        for i in ids:
-            text.append(self.assoc_box.GetString(i))
-        self.assoc = text
-        self.send_settings()
-
-    def get_logic(self, event):
-        name = self.logic_choice.GetSelection()
-        text = list()
-        text.append(self.logic_choice.GetString(name))
-        self.logic = list()
-        if 'None' in text:
-            self.logic = None
-        else:
-            for val in text:
-                self.logic.append(val.lower())
-        self.send_settings()
-
-    def get_network(self, event):
-        text = list()
-        name = self.network_choice.GetSelections()
-        for item in name:
-            text.append(self.network_choice.GetString(item))
-        if 'All' in text:
-            self.networks = None
-        else:
-            self.networks = text
-        self.send_settings()
-
-    def send_settings(self):
+    def set_config(self, msg):
         """
-        Publisher function for settings
+        Sets parameters for accessing Neo4j database
+        :param msg: pubsub message
+        :return:
         """
-        settings = {'variable': self.assoc, 'agglom': self.agglom,
-                    'logic': self.logic, 'weight': self.agglom_weight,
-                    'networks': self.networks}
-        pub.sendMessage('analysis_settings', msg=settings)
+        for key in msg:
+            self.settings[key] = msg[key]
 
-    def set_settings(self, msg):
+    def log_event(self, event):
         """
-        Stores settings file as tab property so it can be read by save_settings.
+        Listerer for logging handler that generates a wxPython event
+        :param event: custom event
+        :return:
+        """
+        msg = event.message.strip("\r") + "\n"
+        self.logbox.AppendText(msg)
+        event.Skip()
+
+    def weight(self, event):
+        self.settings['weight'] = self.weight_btn.GetSelection()
+
+    def agglomerate(self, event):
+        self.logbox.AppendText("Starting operation...\n")
+        self.settings['agglom'] = self.agglom_box.GetString(self.agglom_box.GetSelection())
+        eg = Thread(target=start_metastats, args=(self.settings,))
+        eg.start()
+        eg.join()
+
+    def get_properties(self, event):
+        eg = ThreadPoolExecutor()
+        worker = eg.submit(query, self.settings, 'MATCH (n:Property) RETURN n.type')
+        result = worker.result()
+        property_types = set([x[key] for x in result for key in x])
+        self.property_list.Set(list(property_types))
+
+    def correlate_properties(self, event):
+        self.logbox.AppendText("Starting operation...\n")
+        self.settings['variable'] = [self.property_list.GetString(i)
+                                   for i in self.property_list.GetSelections()]
+        eg = Thread(target=start_metastats, args=(self.settings,))
+        eg.start()
+        eg.join()
+        self.settings['variable'] = None
+
+    def get_networks(self, event):
+        eg = ThreadPoolExecutor()
+        worker = eg.submit(query, self.settings, 'MATCH (n) WHERE n:Network OR n:Set RETURN n')
+        del_values = _get_unique(worker.result(), key='n')
+        self.network_list.Set(list(del_values))
+
+    def get_sets(self, event):
+        self.logbox.AppendText("Starting operation...\n")
+        self.settings['set'] = True
+        fracs = self.fraction_ctrl.GetValue()
+        fracs = [float(x) for x in fracs.split(';')]
+        self.settings['fraction'] = fracs
+        self.settings['networks'] = [self.network_list.GetString(i)
+                                     for i in self.network_list.GetSelections()]
+        eg = Thread(target=start_netstats, args=(self.settings,))
+        eg.start()
+        eg.join()
+        self.settings['networks'] = None
+        self.settings['set'] = False
+
+
+class LogHandler(logging.Handler):
+    """
+    Object defining custom handler for logger.
+    """
+    def __init__(self, ctrl):
+        logging.Handler.__init__(self)
+        self.ctrl = ctrl
+        self.level = logging.INFO
+
+    def flush(self):
+        """
+        Overwrites default flush
+        :return:
+        """
+        pass
+
+    def emit(self, record):
+        """
+        Handler triggers custom wx Event and sends a message.
+        :param record: Logger record
+        :return:
         """
         try:
-            for key in msg:
-                self.settings[key] = msg[key]
-        except Exception:\
-            logger.error("Failed to save settings. ", exc_info=True)
-
-    def load_settings(self, msg):
-        """
-        Listener function that changes input values
-        to values specified in settings file.
-        """
-        self.settings = msg
-        if msg['agglom'] is not None:
-            self.agglom = msg['agglom']
-            agglomdict = {'otu': 0, 'species': 1, 'genus': 2,
-                          'family': 3, 'order': 4, 'class': 5,
-                          'phylum': 6}
-            for tax in msg['agglom']:
-                self.tax_choice.SetSelection(agglomdict[tax])
-        else:
-            self.agglom = None
-            choice = self.tax_choice.GetSelections()
-            for selection in choice:
-                self.tax_choice.Deselect(selection)
-            self.tax_choice.Enable(False)
-            self.tax_txt.Enable(False)
-        if msg['weight'] is not None:
-            self.agglom_weight = msg['weight']
-            if self.agglom_weight:
-                self.tax_weight.SetSelection(0)
-            if not self.agglom_weight:
-                self.tax_weight.SetSelection(1)
-        else:
-            self.agglom_weight = None
-            choice = self.tax_weight.GetSelection()
-            self.tax_weight.Deselect(choice)
-            self.tax_weight.Enable(False)
-            self.weight_txt.Enable(False)
-        if 'logic' in msg:
-            logicdict = {'Union': 1, 'Intersection': 2, 'Difference': 3}
-            self.logic = msg['logic']
-            if msg['logic'] is None:
-                self.logic_choice.SetSelection(0)
-            else:
-                for logic in msg['logic']:
-                    self.logic_choice.SetSelection(logicdict[logic])
-        else:
-            self.logic = None
-            choice = self.logic_choice.GetSelections()
-            for selection in choice:
-                self.logic_choice.Deselect(selection)
-            self.logic_choice.Enable(False)
-            self.logic_txt.Enable(False)
-        if msg['networks'] is not None:
-            self.network_choice.Set(msg['networks'])
-            for i in range(len(msg['networks'])):
-                self.network_choice.SetSelection(i)
-            self.networks = msg['networks']
-        else:
-            self.networks = None
-            self.network_choice.Set(['Run database overview first'])
-            self.network_choice.Enable(False)
-            self.network_txt.Enable(False)
-        if msg['variable'] is not None:
-            vars = msg['variable']
-            vars.sort()
-            self.assoc_box.Set(vars)
-            for i in range(len(msg['variable'])):
-                self.assoc_box.SetSelection(i)
-            self.assoc = msg['variable']
-        else:
-            self.assoc = None
-            self.assoc_box.Set(['Run database overview first'])
-            self.assoc_box.Enable(False)
-            self.assoc_txt.Enable(False)
-        self.send_settings()
-
-    def network_login(self, msg):
-        """Gets login info."""
-        self.neo4j = msg['neo4j']
-        self.password = msg['password']
-        self.address = msg['address']
-        self.username = msg['username']
-        self.output = msg['output']
-        self.send_settings()
-
-    def data_view(self, msg):
-        """After getting a view, sets the list boxes."""
-        networks = deepcopy(msg[1])
-        networks.sort()
-        assocs = deepcopy(msg[0])
-        assocs.sort()
-        self.assoc_box.Set(assocs)
-        networks.append('All')
-        self.network_choice.Set(networks)
-
-    def overview_database(self, event):
-        try:
-            eg = Thread(target=data_viewer, args=(self.settings,))
-            eg.start()
-            dlg = LoadingBar()
-            dlg.ShowModal()
-            eg.join()
-            self.assoc_txt.Enable(True)
-            self.assoc_box.Enable(True)
-            self.logic_choice.Enable(True)
-            self.logic_txt.Enable(True)
-            self.network_txt.Enable(True)
-            self.network_choice.Enable(True)
-            self.tax_choice.Enable(True)
-            self.tax_txt.Enable(True)
-            self.tax_weight.Enable(True)
-            self.weight_txt.Enable(True)
-        except Exception:
-            logger.error("Failed to get database content. ", exc_info=True)
-
-    def run_netstats(self, event):
-        try:
-            eg = Thread(target=stats_worker, args=(self.settings,))
-            eg.start()
-            dlg = LoadingBar()
-            dlg.ShowModal()
-            eg.join()
-        except Exception:
-            logger.error("Failed to start database worker. ", exc_info=True)
-        # removed LoadingBar()
-
-    def run_metastats(self, event):
-        try:
-            eg = Thread(target=meta_worker, args=(self.settings,))
-            eg.start()
-            dlg = LoadingBar()
-            dlg.ShowModal()
-            eg.join()
-        except Exception:
-            logger.error("Failed to start database worker. ", exc_info=True)
-        # removed LoadingBar()
-
-
-class LoadingBar(wx.Dialog):
-    def __init__(self):
-        """Constructor"""
-        wx.Dialog.__init__(self, None, title="Progress")
-        self.count = 0
-        self.text = wx.StaticText(self, label="Starting...")
-        self.progress = wx.Gauge(self, range=4)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.text, 0, wx.EXPAND | wx.ALL, 10)
-        sizer.Add(self.progress, 0, wx.EXPAND | wx.ALL, 10)
-        self.SetSizer(sizer)
-        pub.subscribe(self.get_progress, "update")
-
-    def get_progress(self, msg):
-        """This is not working yet! Find a better way to track progress of the thread... """
-        testlist = ["Completed netstats operations!"]
-        if msg in testlist:
-            self.count += 1
-        self.progress.SetValue(self.count)
-        self.text.SetLabel(msg)
-        if msg == 'Completed database operations!':
-            self.progress.SetValue(4)
-            sleep(3)
-            self.Destroy()
-
-
-def stats_worker(inputs):
-    """
-    Carries out operations on database as specified by user.
-    """
-    inputs['settings'] = inputs['fp'] + '/settings.json'
-    start_netstats(inputs)
-    pub.sendMessage('update', msg='Completed database operations!')
-
-
-def meta_worker(inputs):
-    """
-    Carries out operations on database as specified by user.
-    """
-    inputs['settings'] = inputs['fp'] + '/settings.json'
-    start_metastats(inputs)
-    pub.sendMessage('update', msg='Completed database operations!')
-
-
-def data_viewer(inputs):
-    """
-    Gets metadata variables and network names from database.
-    """
-    old_inputs = _read_config(inputs['fp'])
-    old_inputs.update(inputs)
-    inputs = old_inputs
-    netdriver = ParentDriver(user=inputs['username'],
-                             password=inputs['password'],
-                             uri=inputs['address'],
-                             filepath=inputs['fp'])
-    meta = netdriver.query(query="MATCH (n:Property)--(Sample) RETURN n.type")
-    meta = set([x[y] for x in meta for y in x])
-    networks = netdriver.query(query="MATCH (n:Network) RETURN n.name")
-    networks = set([x[y] for x in networks for y in x])
-    netdriver.close()
-    pub.sendMessage('view', msg=(list(meta), list(networks)))
-    pub.sendMessage('update', msg='Completed database operations!')
-    return list(meta), list(networks)
-
-
-if __name__ == "__main__":
-    app = wx.App(False)
-    app.MainLoop()
+            s = self.format(record) + '\n'
+            evt = wxLogEvent(message=s, levelname=record.levelname)
+            wx.PostEvent(self.ctrl, evt)
+        except (KeyboardInterrupt, SystemExit):
+            raise

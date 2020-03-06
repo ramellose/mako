@@ -59,6 +59,8 @@ def start_netstats(inputs):
             hits = driver.query("MATCH (n:Network) RETURN n")
             for hit in hits:
                 networks.append(hit['n'].get('name'))
+        else:
+            networks = inputs['networks']
         driver.graph_union(networks=networks)
         for fraction in inputs['fraction']:
             driver.graph_intersection(networks=networks,
@@ -108,16 +110,19 @@ class NetstatsDriver(ParentDriver):
         """
         intersection = None
         n = round(len(networks) * fraction)
-        try:
-            with self._driver.session() as session:
-                intersection = session.read_transaction(self._get_intersection, networks, weight=weight, n=n)
-                logger.info("The intersection set operation for networks " + str(networks) +
-                            " has been added to "
-                            "the database\nwith name " + intersection + ". ")
-                size = session.read_transaction(self._get_size, intersection)
-                logger.info("This intersection contains " + str(size) + " edges. ")
-        except Exception:
-            logger.error("Could not obtain graph intersection. ", exc_info=True)
+        if n <= 1:
+            logger.warning("Skipping intersection with 1 or fewer networks.")
+        else:
+            try:
+                with self._driver.session() as session:
+                    intersection = session.read_transaction(self._get_intersection, networks, weight=weight, n=n)
+                    logger.info("The intersection set operation for networks " + str(networks) +
+                                " has been added to "
+                                "the database\nwith name " + intersection + ". ")
+                    size = session.read_transaction(self._get_size, intersection)
+                    logger.info("This intersection contains " + str(size) + " edges. ")
+            except Exception:
+                logger.error("Could not obtain graph intersection. ", exc_info=True)
         return intersection
 
     def graph_difference(self, networks=None, weight=True):
@@ -300,6 +305,6 @@ def _write_logic(tx, operation, networks, edges):
         tx.run(("MATCH (a:Edge), (b:Set) WHERE a.name = '" +
                 edge +
                 "' AND b.name = '" + name +
-                "' CREATE (a)-[r:IN_SET]->(b) "
+                "' MERGE (a)-[r:IN_SET]->(b) "
                 "RETURN type(r)"))
     return name

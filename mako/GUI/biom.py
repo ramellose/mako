@@ -42,7 +42,7 @@ class BiomPanel(wx.Panel):
                          'username': 'neo4j',
                          'password': 'neo4j',
                          'address': 'bolt://localhost:7687',
-                         'store_config': True,
+                         'store_config': False,
                          'delete': None}
 
         btnsize = (300, -1)
@@ -140,12 +140,12 @@ class BiomPanel(wx.Panel):
         self.bottomsizer.AddSpacer(10)
         self.bottomsizer.Add(self.logbox, flag=wx.ALIGN_CENTER)
 
-        self.topsizer.AddSpacer(40)
         self.topsizer.Add(self.leftsizer)
         self.topsizer.AddSpacer(40)
         self.topsizer.Add(self.rightsizer)
-        self.fullsizer.Add(self.topsizer)
-        self.fullsizer.Add(self.bottomsizer)
+        self.fullsizer.Add(self.topsizer, flag=wx.ALIGN_CENTER)
+        self.fullsizer.Add(self.bottomsizer, flag=wx.ALIGN_CENTER)
+        # add padding sizer
         # add padding sizer
         self.paddingsizer.Add(self.fullsizer,  0, wx.EXPAND | wx.ALL, 30)
         self.SetSizerAndFit(self.paddingsizer)
@@ -165,7 +165,7 @@ class BiomPanel(wx.Panel):
                         self.file_txt: 'Overview of imported files.',
                         self.logbox: 'Logging information for mako.',
                         self.delete_btn: 'Delete selected files from database.',
-                        self.file_list: 'Select files.',
+                        self.file_list: 'Select files for deleting.',
                         self.get_btn: 'Get list of files in database.'
                         }
 
@@ -211,7 +211,7 @@ class BiomPanel(wx.Panel):
             self.settings['fp'] = dlg.GetPath()
         self.dir_txt.SetValue(self.settings['fp'])
         dlg.Destroy()
-        pub.sendMessage('fp', self.settings['fp'])
+        pub.sendMessage('fp', msg=self.settings['fp'])
 
     def open_biom(self, event):
         """
@@ -324,7 +324,6 @@ class BiomPanel(wx.Panel):
         :param event: Button event.
         :return:
         """
-        self.logbox.AppendText("Starting operation...\n")
         eg = ThreadPoolExecutor()
         worker = eg.submit(query, self.settings, 'MATCH (n:Experiment) RETURN n')
         del_values = _get_unique(worker.result(), key='n')

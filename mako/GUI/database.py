@@ -145,12 +145,12 @@ class BasePanel(wx.Panel):
         self.bottomsizer.AddSpacer(10)
         self.bottomsizer.Add(self.logbox, flag=wx.ALIGN_CENTER)
 
-        self.topsizer.AddSpacer(40)
         self.topsizer.Add(self.leftsizer)
         self.topsizer.AddSpacer(40)
         self.topsizer.Add(self.rightsizer)
-        self.fullsizer.Add(self.topsizer)
-        self.fullsizer.Add(self.bottomsizer)
+        self.fullsizer.Add(self.topsizer, flag=wx.ALIGN_CENTER)
+        self.fullsizer.Add(self.bottomsizer, flag=wx.ALIGN_CENTER)
+        # add padding sizer
         # add padding sizer
         self.paddingsizer.Add(self.fullsizer,  0, wx.EXPAND | wx.ALL, 30)
         self.SetSizerAndFit(self.paddingsizer)
@@ -277,9 +277,10 @@ class BasePanel(wx.Panel):
         :return:
         """
         self.logbox.AppendText("Starting operation...\n")
-        eg = Thread(target=query, args=(self.settings, 'MATCH (n) RETURN count(n)'))
-        eg.start()
-        eg.join()
+        eg = ThreadPoolExecutor()
+        worker = eg.submit(query, self.settings, 'MATCH (n) RETURN count(n)')
+        result = worker.result()
+        self.logbox.AppendText(str(result[0]['count(n)']) + ' nodes in database. \n')
 
     def clear(self, event):
         """
@@ -292,7 +293,7 @@ class BasePanel(wx.Panel):
         eg = Thread(target=start_base, args=(self.settings,))
         eg.start()
         eg.join()
-        self.settings['check'] = False
+        self.settings['clear'] = False
 
     def open_browser(self, event):
         """

@@ -123,17 +123,15 @@ class InterfacePanel(wx.Panel):
         self.rightsizer.Add(self.write_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.rightsizer.Add(self.export_btn, flag=wx.ALIGN_CENTER_HORIZONTAL)
 
-        self.bottomsizer.AddSpacer(50)
         self.bottomsizer.Add(self.logtxt, flag=wx.ALIGN_LEFT)
         self.bottomsizer.AddSpacer(10)
         self.bottomsizer.Add(self.logbox, flag=wx.ALIGN_CENTER)
 
-        self.topsizer.AddSpacer(40)
         self.topsizer.Add(self.leftsizer)
         self.topsizer.AddSpacer(40)
         self.topsizer.Add(self.rightsizer)
-        self.fullsizer.Add(self.topsizer)
-        self.fullsizer.Add(self.bottomsizer)
+        self.fullsizer.Add(self.topsizer, flag=wx.ALIGN_CENTER)
+        self.fullsizer.Add(self.bottomsizer, flag=wx.ALIGN_CENTER)
         # add padding sizer
         self.paddingsizer.Add(self.fullsizer,  0, wx.EXPAND | wx.ALL, 30)
         self.SetSizerAndFit(self.paddingsizer)
@@ -147,7 +145,7 @@ class InterfacePanel(wx.Panel):
                         self.delete_btn: 'Delete selected networks from database.',
                         self.write_btn: 'Write selected networks to graphml files.',
                         self.export_btn: 'Location of your Neo4j folder.',
-                        self.file_list: 'Select files.',
+                        self.file_list: 'Select networks for deleting, writing or exporting.',
                         self.logbox: 'Logging information for mako.',
                         self.get_btn: 'Get list of networks in database.'
                         }
@@ -212,7 +210,7 @@ class InterfacePanel(wx.Panel):
                     self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
         self.logbox.AppendText("Starting operation...\n")
-        eg = Thread(target=start_io(), args=(self.settings,))
+        eg = Thread(target=start_io, args=(self.settings,))
         eg.start()
         eg.join()
         self.settings['networks'] = None
@@ -238,7 +236,7 @@ class InterfacePanel(wx.Panel):
                     self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
         self.logbox.AppendText("Starting operation...\n")
-        eg = Thread(target=start_io(), args=(self.settings,))
+        eg = Thread(target=start_io, args=(self.settings,))
         eg.start()
         eg.join()
         self.settings['fasta'] = None
@@ -264,7 +262,7 @@ class InterfacePanel(wx.Panel):
                     self.file_txt.AppendText(os.path.basename(file) + '\n')
         dlg.Destroy()
         self.logbox.AppendText("Starting operation...\n")
-        eg = Thread(target=start_io(), args=(self.settings,))
+        eg = Thread(target=start_io, args=(self.settings,))
         eg.start()
         eg.join()
         self.settings['meta'] = None
@@ -275,9 +273,8 @@ class InterfacePanel(wx.Panel):
         :param event: Button event
         :return:
         """
-        self.logbox.AppendText("Starting operation...\n")
         eg = ThreadPoolExecutor()
-        worker = eg.submit(query, self.settings, 'MATCH (n:Network) RETURN n')
+        worker = eg.submit(query, self.settings, 'MATCH (n) WHERE n:Network OR n:Set RETURN n')
         del_values = _get_unique(worker.result(), key='n')
         self.file_list.Set(list(del_values))
 
@@ -323,6 +320,7 @@ class InterfacePanel(wx.Panel):
         self.settings['networks'] = [self.file_list.GetString(i)
                                    for i in self.file_list.GetSelections()]
         self.settings['cyto'] = True
+        print(self.settings)
         eg = Thread(target=start_io, args=(self.settings,))
         eg.start()
         eg.join()
