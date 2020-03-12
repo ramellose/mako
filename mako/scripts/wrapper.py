@@ -56,20 +56,13 @@ def start_wrapper(inputs):
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
         exit()
-    # Only process ne
-    if inputs['set']:
-        if not inputs['networks']:
-            networks = list()
-            hits = driver.query("MATCH (n:Network) RETURN n")
-            for hit in hits:
-                networks.append(hit['n'].get('name'))
-        else:
-            networks = inputs['networks']
-        driver.graph_union(networks=networks)
-        for fraction in inputs['fraction']:
-            driver.graph_intersection(networks=networks,
-                                      weight=inputs['weight'], fraction=fraction)
-        driver.graph_difference(networks=networks,
-                                weight=inputs['weight'])
+    # get networks
+
+    # run manta
+
+    # run anuran
+
+    # add properties to database
+
     driver.close()
     logger.info('Completed netstats operations!  ')

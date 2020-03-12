@@ -399,34 +399,113 @@ parse_metastats.add_argument('-var', '--variable',
 parse_manta = subparsers.add_parser('manta', description='Cluster networks in the database.',
                                              help='The wrapper module can run manta and anuran \n '
                                                   'on networks extracted from the Neo4j database.')
-parse_metastats.add_argument('-fp', '--output_filepath',
-                             dest='fp',
-                             help='File path for importing and / or exporting files. ',
-                             default=None)
-parse_metastats.add_argument('-cf', '--config',
-                             dest='config',
-                             action='store_true',
-                             help='If true, store config files to reload Neo4j settings. ',
-                             required=False,
-                             default=None)
-parse_metastats.add_argument('-u', '--username',
-                             dest='username',
-                             required=False,
-                             help='Username for neo4j database access. ',
-                             type=str,
-                             default='neo4j')
-parse_metastats.add_argument('-p', '--password',
-                             dest='password',
-                             required=False,
-                             type=str,
-                             help='Password for neo4j database access. ')
-parse_metastats.add_argument('-a', '--address',
-                             dest='address',
-                             required=False,
-                             help='Address for neo4j database. ',
-                             type=str,
-                             default='bolt://localhost:7687')
-# add manta vars
+parse_manta.add_argument('-fp', '--output_filepath',
+                         dest='fp',
+                         help='File path for importing and / or exporting files. ',
+                         default=None)
+parse_manta.add_argument('-cf', '--config',
+                         dest='config',
+                         action='store_true',
+                         help='If true, store config files to reload Neo4j settings. ',
+                         required=False,
+                         default=None)
+parse_manta.add_argument('-u', '--username',
+                         dest='username',
+                         required=False,
+                         help='Username for neo4j database access. ',
+                         type=str,
+                         default='neo4j')
+parse_manta.add_argument('-p', '--password',
+                         dest='password',
+                         required=False,
+                         type=str,
+                         help='Password for neo4j database access. ')
+parse_manta.add_argument('-a', '--address',
+                         dest='address',
+                         required=False,
+                         help='Address for neo4j database. ',
+                         type=str,
+                         default='bolt://localhost:7687')
+parse_manta.add_argument('-net', '--networks',
+                         dest='networks',
+                         required=False,
+                         help='If you only want to carry out set operations on specific networks, list them here. ',
+                         type=list,
+                         default=None)
+parse_manta.add_argument('-min', '--min_clusters',
+                         dest='min',
+                         required=False,
+                         help='Minimum number of clusters. Default: 2.',
+                         type=int,
+                         default=2)
+parse_manta.add_argument('-ms', '--min_size',
+                         dest='min',
+                         required=False,
+                         help='inimum cluster size as fraction of network size divided by cluster number. Default: 0.2.',
+                         type=float,
+                         default=0.2)
+parse_manta.add_argument('-max', '--max_clusters',
+                         dest='max', type=int,
+                         required=False,
+                         help='Maximum number of clusters. Default: 4.',
+                         default=4)
+parse_manta.add_argument('-limit', '--convergence_limit',
+                         dest='limit', type=float,
+                         required=False,
+                         help='The limit defines the minimum percentage decrease in error per iteration.'
+                              ' If iterations do not decrease the error anymore, the matrix is considered converged. '
+                              'Default: 2.',
+                         default=2)
+parse_manta.add_argument('-iter', '--iterations',
+                         dest='iter', type=int,
+                         required=False,
+                         help='Number of iterations to repeat if convergence is not reached. Default: 20.',
+                         default=20)
+parse_manta.add_argument('-perm', '--permutation',
+                         dest='perm', type=int,
+                         required=False,
+                         help='Number of permutation iterations for '
+                              'network subsetting during partial iterations. Default: number of nodes.',
+                         default=None)
+parse_manta.add_argument('-subset', '--subset_fraction',
+                         dest='subset', type=float,
+                         required=False,
+                         help='Fraction of edges that are used for subsetting'
+                              ' if the input graph is not balanced. Default: 0.8.',
+                         default=0.8)
+parse_manta.add_argument('-ratio', '--stability_ratio',
+                         dest='ratio', type=float,
+                         required=False,
+                         help='Fraction of scores that need to be positive or negative'
+                              'for edge scores to be considered stable. Default: 0.8.',
+                         default=0.8)
+parse_manta.add_argument('-scale', '--edgescale',
+                         dest='edgescale', type=float,
+                         required=False,
+                         help='Edge scale used to separate out weak cluster assignments. '
+                              'The larger the edge scale, the larger the weak cluster. Default: 0.8.',
+                         default=0.8)
+parse_manta.add_argument('-cr, --cluster_reliability', dest='cr',
+                         action='store_true',
+                         default=False,
+                         help='If flagged, reliability of cluster assignment is computed. ', required=False)
+parse_manta.add_argument('-rel', '--reliability_permutations',
+                         dest='rel', type=int,
+                         required=False,
+                         help='Number of permutation iterations for reliability estimates. \n '
+                              'By default, this is 20. \n',
+                         default=20)
+parse_manta.add_argument('-e', '--error',
+                         dest='error', type=int,
+                         required=False,
+                         help='Fraction of edges to rewire for reliability tests. Default: 0.1.',
+                         default=0.1)
+parse_manta.add_argument('-b', '--binary',
+                         dest='bin',
+                         action='store_true',
+                         required=False,
+                         default=False,
+                         help='If flagged, edge weights are converted to 1 and -1. ')
 
 parse_anuran = subparsers.add_parser('anuran', description='Analyse groups of networks in the database.',
                                                help='The wrapper module can run manta and anuran \n '
