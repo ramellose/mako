@@ -537,6 +537,125 @@ parse_anuran.add_argument('-a', '--address',
                           help='Address for neo4j database. ',
                           type=str,
                           default='bolt://localhost:7687')
+parse_anuran.add_argument('-net', '--networks',
+                          dest='networks',
+                          required=False,
+                          help='If you only want to carry out set operations on specific networks, list them here. ',
+                          type=list,
+                          default=None)
+parse_anuran.add_argument('-size', '--intersection_size',
+                          dest='size',
+                          required=False,
+                          nargs='+',
+                          default=[1],
+                          help='If specified, associations only shared by a number of networks '
+                               'times the specified size fraction are included. \n'
+                               'You can specify multiple numbers. By default, the full intersection is calculated.')
+parse_anuran.add_argument('-sign', '--edge_sign',
+                          dest='sign',
+                          required=False,
+                          help='If flagged, signs of edge weights are not taken into account. \n'
+                               'The set difference then includes edges that have a unique edge sign in one network. \n'
+                               'The set intersection then only includes edges that have the same sign across networks.',
+                          default=True,
+                          action='store_false')
+parse_anuran.add_argument('-sample', '--resample',
+                          dest='sample',
+                          required=False,
+                          type=int,
+                          help='Resample your networks to observe the impact of increasing sample number. \n'
+                               'when you increase the network number up until the total. \n'
+                               'Specify an upper limit of resamples, or True if you want all possible resamples. \n'
+                               'By default, the upper limit equal to the binomial coefficient of the input networks. \n'
+                               'If the limit is higher than this coefficient, all possible combinations are resampled.',
+                          default=False)
+parse_anuran.add_argument('-n', '--sample_number',
+                          dest='number',
+                          required=False,
+                          nargs='+',
+                          default=None,
+                          help='If you have a lot of samples, specify the sample numbers to test here. \n'
+                               'For example: -n 4 8 12 will test the effect of acquiring 4, 8, and 12 samples. \n'
+                               'By default, all sample numbers are tested.')
+parse_anuran.add_argument('-cs', '--core_size',
+                          dest='cs',
+                          required=False,
+                          nargs='+',
+                          default=False,
+                          help='If specified, true positive null models '
+                               ' include a set fraction of shared interactions. \n'
+                               'You can specify multiple fractions. '
+                               'By default, null models have no shared interactions and '
+                               'sets are computed for all randomized networks.\n. ')
+parse_anuran.add_argument('-prev', '--core_prevalence',
+                          dest='prev',
+                          required=False,
+                          nargs='+',
+                          help='Specify the prevalence of the core. \n'
+                               'By default, 1; each interaction is present in all models.',
+                          default=[1])
+parse_anuran.add_argument('-perm', '--permutations',
+                          dest='perm',
+                          type=int,
+                          required=False,
+                          help='Number of null models to generate for each input network. \n'
+                               'Default: 10. ',
+                          default=10)
+parse_anuran.add_argument('-nperm', '--permutationsets',
+                          dest='nperm',
+                          required=False,
+                          type=int,
+                          help='Number of sets, centralities and graph values to calculate from the null models. \n'
+                               'The total number of possible sets is equal to \n'
+                               'the number of null models raised to the number of networks.\n '
+                               'This value becomes huge quickly, so a random subset of possible sets is taken.\n '
+                               'Default: 50. ',
+                          default=50)
+parse_anuran.add_argument('-c', '--centrality',
+                          dest='centrality',
+                          required=False,
+                          action='store_true',
+                          help='If true, extracts centrality ranking from networks \n'
+                               'and compares these to rankings extracted from null models. ',
+                          default=False)
+parse_anuran.add_argument('-net', '--network',
+                          dest='network',
+                          required=False,
+                          action='store_true',
+                          help='If true, extracts network-level properties \n'
+                               'and compares these to properties of randomized networks. ',
+                          default=False)
+parse_anuran.add_argument('-compare', '--compare_networks',
+                          dest='comparison',
+                          required=False,
+                          help='If true, networks in the folders specified by the input parameter \n'
+                               'are compared for different emergent properties. ',
+                          default=False)
+parse_anuran.add_argument('-draw', '--draw_figures',
+                          dest='draw',
+                          required=False,
+                          help='If flagged, draws figures showing the set sizes.',
+                          action='store_true',
+                          default=False)
+parse_anuran.add_argument('-stats', '--statistics',
+                          dest='stats',
+                          required=False,
+                          help='Specify True or a multiple testing correction method to \n'
+                               'calculate p-values for comparisons. \n'
+                               'The available methods are listed in the docs for statsmodels.stats.multitest, \n'
+                               'and include bonferroni, sidak, simes-hochberg, fdr_bh and others. ',
+                          choices=['True', 'bonferroni', 'sidak', 'holm-sidak', 'holm',
+                                   'simes-hochberg', 'hommel', 'fdr_bh', 'fdr_by',
+                                   'fdr_tsbh', 'fdr_tsbky'],
+                          default=False)
+parse_anuran.add_argument('-core', '-processor_cores',
+                          dest='core',
+                          type=int,
+                          required=False,
+                          help='Number of processing cores to use. \n '
+                               'By default, CPU count - 2. ',
+                          default=os.cpu_count() - 2)
+
 
 def main():
     mp.freeze_support()
