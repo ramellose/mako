@@ -24,6 +24,7 @@ from mako.scripts.neo4biom import start_biom
 from mako.scripts.io import start_io
 from mako.scripts.netstats import start_netstats
 from mako.scripts.metastats import start_metastats
+from mako.scripts.wrapper import start_wrapper
 import logging.handlers
 
 logger = logging.getLogger(__name__)
@@ -63,6 +64,9 @@ def mako(mako_args):
     if 'metastats' in mako_args:
         logger.info('Performing metadata analysis on Neo4j database. ')
         start_metastats(mako_args)
+    if 'manta' or 'anuran' in mako_args:
+        logger.info('Performing metadata analysis on Neo4j database. ')
+        start_wrapper(mako_args)
     logger.info('Completed tasks! ')
 
 
@@ -392,6 +396,68 @@ parse_metastats.add_argument('-var', '--variable',
                              type=list,
                              default=None)
 
+parse_manta = subparsers.add_parser('manta', description='Cluster networks in the database.',
+                                             help='The wrapper module can run manta and anuran \n '
+                                                  'on networks extracted from the Neo4j database.')
+parse_metastats.add_argument('-fp', '--output_filepath',
+                             dest='fp',
+                             help='File path for importing and / or exporting files. ',
+                             default=None)
+parse_metastats.add_argument('-cf', '--config',
+                             dest='config',
+                             action='store_true',
+                             help='If true, store config files to reload Neo4j settings. ',
+                             required=False,
+                             default=None)
+parse_metastats.add_argument('-u', '--username',
+                             dest='username',
+                             required=False,
+                             help='Username for neo4j database access. ',
+                             type=str,
+                             default='neo4j')
+parse_metastats.add_argument('-p', '--password',
+                             dest='password',
+                             required=False,
+                             type=str,
+                             help='Password for neo4j database access. ')
+parse_metastats.add_argument('-a', '--address',
+                             dest='address',
+                             required=False,
+                             help='Address for neo4j database. ',
+                             type=str,
+                             default='bolt://localhost:7687')
+# add manta vars
+
+parse_anuran = subparsers.add_parser('anuran', description='Analyse groups of networks in the database.',
+                                               help='The wrapper module can run manta and anuran \n '
+                                                    'on networks extracted from the Neo4j database.')
+parse_anuran.add_argument('-fp', '--output_filepath',
+                          dest='fp',
+                          help='File path for importing and / or exporting files. ',
+                          default=None)
+parse_anuran.add_argument('-cf', '--config',
+                          dest='config',
+                          action='store_true',
+                          help='If true, store config files to reload Neo4j settings. ',
+                          required=False,
+                          default=None)
+parse_anuran.add_argument('-u', '--username',
+                          dest='username',
+                          required=False,
+                          help='Username for neo4j database access. ',
+                          type=str,
+                          default='neo4j')
+parse_anuran.add_argument('-p', '--password',
+                          dest='password',
+                          required=False,
+                          type=str,
+                          help='Password for neo4j database access. ')
+parse_anuran.add_argument('-a', '--address',
+                          dest='address',
+                          required=False,
+                          help='Address for neo4j database. ',
+                          type=str,
+                          default='bolt://localhost:7687')
 
 def main():
     mp.freeze_support()
