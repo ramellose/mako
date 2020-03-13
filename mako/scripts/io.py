@@ -327,7 +327,7 @@ class IoDriver(ParentDriver):
             networks = list(_get_unique(networks, key='n'))
         # create 1 network per database
         for network in networks:
-            g = nx.MultiGraph()
+            g = nx.Graph()
             with self._driver.session() as session:
                 edge_list = session.read_transaction(self._association_list, network)
             for edge in edge_list[0]:

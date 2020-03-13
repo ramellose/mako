@@ -17,6 +17,7 @@ from manta.reliability import perm_clusters
 from anuran.main import model_calcs
 from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
 import logging.handlers
+import networkx as nx
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -64,7 +65,8 @@ def start_wrapper(inputs):
     # run manta
     if 'manta' in inputs:
         for network in networks:
-            run_manta(inputs, network, driver)
+            run_manta(inputs, name=network,
+                      network=networks[network], driver=driver)
     if 'anuran' in inputs:
         run_anuran(inputs, networks, driver)
     # run anuran
@@ -75,16 +77,18 @@ def start_wrapper(inputs):
     logger.info('Completed netstats operations!  ')
 
 
-def run_manta(inputs, network, driver):
+def run_manta(inputs, name, network, driver):
     """
     Takes the extracted network object and runs manta.
     The manta results are then uploaded back to
     the database as node properties.
     :param inputs: Arguments for manta
+    :param name: Name of network object
     :param network: Network to cluster
     :param driver: Neo4j IO driver
     :return:
     """
+    network = nx.to_undirected(network)
     results = cluster_graph(network, limit=inputs['limit'], max_clusters=inputs['max'],
                             min_clusters=inputs['min'], min_cluster_size=inputs['ms'],
                             iterations=inputs['iter'], subset=inputs['subset'],
