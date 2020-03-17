@@ -68,10 +68,6 @@ def start_wrapper(inputs):
             run_manta(inputs, network=networks[network], driver=driver)
     if 'anuran' in inputs:
         run_anuran(inputs, networks, driver)
-    # run anuran
-
-    # add properties to database
-
     driver.close()
     logger.info('Completed netstats operations!  ')
 
@@ -94,9 +90,11 @@ def run_manta(inputs, network, driver):
                             permutations=inputs['perm'], verbose=False)
     graph = results[0]
     # write to db
-    nodes = nx.get_node_attributes(network, 'assignment')
-    driver.include_nodes(nodes, name='assignment', label='Taxon')
-    nodes = nx.get_node_attributes(network, 'cluster')
+    nodes = nx.get_node_attributes(graph, 'assignment')
+    if len(nodes) > 0:
+        # sometimes no assignment if the graph is balanced
+        driver.include_nodes(nodes, name='assignment', label='Taxon')
+    nodes = nx.get_node_attributes(graph, 'cluster')
     driver.include_nodes(nodes, name='cluster', label='Taxon')
     if inputs['cr']:
         perm_clusters(graph=graph, limit=inputs['limit'], max_clusters=inputs['max'],
@@ -104,11 +102,11 @@ def run_manta(inputs, network, driver):
                       iterations=inputs['iter'], ratio=inputs['ratio'],
                       partialperms=inputs['perm'], relperms=inputs['rel'], subset=inputs['subset'],
                       error=inputs['error'], verbose=False)
-        nodes = nx.get_node_attributes(network, 'lowerCI')
+        nodes = nx.get_node_attributes(graph, 'lowerCI')
         driver.include_nodes(nodes, name='lowerCI', label='Taxon')
-        nodes = nx.get_node_attributes(network, 'upperCI')
+        nodes = nx.get_node_attributes(graph, 'upperCI')
         driver.include_nodes(nodes, name='upperCI', label='Taxon')
-        nodes = nx.get_node_attributes(network, 'widthCI')
+        nodes = nx.get_node_attributes(graph, 'widthCI')
         driver.include_nodes(nodes, name='widthCI', label='Taxon')
 
 
