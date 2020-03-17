@@ -156,9 +156,9 @@ f.remove_edge('GG_OTU_3', 'GG_OTU_4')
 f.add_edge('GG_OTU_1', 'GG_OTU_5', weight=-1.0)
 
 
-class TestNeo4Biom(unittest.TestCase):
+class TestNetstats(unittest.TestCase):
     """
-    Tests Base methods.
+    Tests netstats methods.
     Warning: most of these functions are to start a local database.
     Therefore, the presence of the necessary local files is a prerequisite.
     """

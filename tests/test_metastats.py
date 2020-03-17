@@ -251,9 +251,9 @@ f = g.copy(as_view=False)
 g["GG_OTU_1"]["GG_OTU_2"]['weight'] = -1.0
 
 
-class TestNeo4Biom(unittest.TestCase):
+class TestMetastats(unittest.TestCase):
     """
-    Tests Base methods.
+    Tests metastats methods.
     Warning: most of these functions are to start a local database.
     Therefore, the presence of the necessary local files is a prerequisite.
     """

@@ -130,9 +130,9 @@ g["GG_OTU_2"]["GG_OTU_5"]['weight'] = 1.0
 g["GG_OTU_3"]["GG_OTU_4"]['weight'] = -1.0
 
 
-class TestNeo4Biom(unittest.TestCase):
+class TestIo(unittest.TestCase):
     """
-    Tests Base methods.
+    Tests io methods.
     Warning: most of these functions are to start a local database.
     Therefore, the presence of the necessary local files is a prerequisite.
     """
