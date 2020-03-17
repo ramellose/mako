@@ -330,12 +330,20 @@ class IoDriver(ParentDriver):
             g = nx.Graph()
             with self._driver.session() as session:
                 edge_list = session.read_transaction(self._association_list, network)
+            edge_error = None
             for edge in edge_list[0]:
                 index_1 = edge[0]
                 index_2 = edge[1]
                 weight = edge_list[1][edge]
-                g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
-                           weight=weight)
+                try:
+                    g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
+                               weight=float(weight))
+                except ValueError:
+                    g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
+                               weight=weight)
+                    edge_error = True
+            if edge_error:
+                logger.warning('Could not convert all edge weights to floats for ' + network + '.')
             # necessary for networkx indexing
             tax_dict = {}
             tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
@@ -441,7 +449,7 @@ class IoDriver(ParentDriver):
         except ConnectionError:
             logger.warning("Could not export networks to Cytoscape. Is Cytoscape running?", exc_info=True)
 
-    def include_nodes(self, nodes, name, label):
+    def include_nodes(self, nodes, name, label, verbose=True):
         """
         Given a dictionary, this function tries to upload
         the file to the Neo4j database.
@@ -449,10 +457,12 @@ class IoDriver(ParentDriver):
         already present in the Neo4j graph database,
         while the second column reflects node names that will be added.
         The column names are used to assign node types to the new metadata.
-        The dictionary should contain another dictionary of target nodes and edge weights.
+        The dictionary should contain another dictionary of target nodes and edge weights,
+        or only a single value (target node).
         :param nodes: Dictionary of existing nodes as values with node names as keys
         :param name: Name of variable, inserted in Neo4j graph database as type
         :param label: Label of source node (e.g. Taxon, Specimen, Property, Experiment etc)
+        :param verbose: If true, adds logging info
         :return:
         """
         # first step:
@@ -463,15 +473,23 @@ class IoDriver(ParentDriver):
             if found_nodes == 0:
                 logger.warning('No source nodes are present in the network. \n')
                 sys.exit()
-            else:
+            elif verbose:
                 logger.info(str(found_nodes) + ' out of ' + str(len(matches)) + ' values found in database.')
         found_nodes = {x: v for x, v in nodes.items() if matches[x]}
         for node in found_nodes:
             with self._driver.session() as session:
-                session.write_transaction(self._create_property,
-                                          source=node, sourcetype=label,
-                                          target=str(nodes[node]['target']), name=name,
-                                          weight=nodes[node]['weight'])
+                if type(nodes[node]) == dict:
+                    # each dictionary value is another dictionary
+                    # this dictionary contains the target and weight
+                    session.write_transaction(self._create_property,
+                                              source=node, sourcetype=label,
+                                              target=str(nodes[node]['target']), name=name,
+                                              property_dictionary=nodes[node])
+                else:
+                    # each dictionary value is the target
+                    session.write_transaction(self._create_property,
+                                              source=node, sourcetype=label,
+                                              target=str(nodes[node]), name=name)
 
     def export_fasta(self, fp, name):
         """
@@ -785,7 +803,7 @@ class IoDriver(ParentDriver):
         return found_nodes
 
     @staticmethod
-    def _create_property(tx, source, target, name, weight, sourcetype=''):
+    def _create_property(tx, source, target, name, sourcetype='', property_dictionary=None):
         """
         Creates target node if it does not exist yet
         and adds the relationship between target and source.
@@ -793,13 +811,20 @@ class IoDriver(ParentDriver):
         :param source: Source node, should exist in database
         :param target: Target node
         :param name: Type variable of target node
-        :param weight: Weight of relationship
-        :param sourcetype: Type variable of source node (not required)
+        :param property_dictionary: Additional property for relationship and targets, tuple
         :return:
         """
-        tx.run(("MERGE (a:Property {name: '" + str(target) + "'}) "
-                "SET a.type = '" + name + "' "
-                "RETURN a")).data()
+        if 'target_property' in property_dictionary:
+            query = ("MERGE (a:Property {name: '" + str(target) +
+                     "', type: '" + name)
+            for val in property_dictionary['target_property']:
+                query += "', " + val[0] + ": '" + str(val[1])
+            query += "'}) RETURN a"
+            prop_id = tx.run(query).data()[0]['a'].id
+        else:
+            prop_id = tx.run(("MERGE (a:Property {name: '" + str(target) + "'}) "
+                              "SET a.type = '" + name + "' "
+                              "RETURN a")).data()[0]['a'].id
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
         matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:QUALITY_OF]-(b:Property) "
@@ -807,17 +832,33 @@ class IoDriver(ParentDriver):
                                "' AND b.name = '" + target +
                                "' AND b.type = '" + name +
                                "' RETURN r")).data()
-        if weight:
-            rel = " {weight: [" + str(weight) + "]}"
+        rel = []
+        if 'rel_property' in property_dictionary:
+            rel.extend(property_dictionary['rel_property'])
+        elif 'weight' in property_dictionary:
+            rel.append(('weight',  str(property_dictionary['weight'])))
         else:
-            rel = ""
+            rel = []
         if len(matching_rel) == 0:
-            tx.run(("MATCH (a" + sourcetype + "), (b:Property) "
-                    "WHERE a.name = '" + source +
-                    "' AND b.name = '" + target +
-                    "' AND b.type = '" + name +
-                    "' MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) "
-                    "RETURN type(r)"))
+            no_rel = "MATCH (a" + sourcetype + "), (b:Property) "
+            match = ("WHERE a.name = '" + source +
+                     "' AND b.name = '" + target +
+                     "' AND b.type = '" + name + "' ")
+            if 'target_property' in property_dictionary:
+                for val in property_dictionary['target_property']:
+                    query = no_rel + match + " AND b." + val[0] + " = '" + str(val[1]) + "' "
+            else:
+                query = no_rel + match
+            query += ("MERGE (a)-[r:QUALITY_OF]->(b) "
+                      "RETURN type(r)")
+            tx.run(query)
+            query = "MATCH (a" + sourcetype + ")-[r]-(b:Property) " + \
+                    match
+            for val in rel:
+                query += ("SET r." + val[0] + " = '" + str(val[1]) + "' ")
+            query += "RETURN type(r)"
+            tx.run(query)
+
 
     @staticmethod
     def _get_fasta(tx):

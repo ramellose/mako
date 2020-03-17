@@ -15,7 +15,7 @@ from mako.scripts.io import IoDriver
 from manta.cluster import cluster_graph
 from manta.reliability import perm_clusters
 from anuran.main import model_calcs
-from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
+from mako.scripts.utils import _create_logger, _read_config
 import logging.handlers
 import networkx as nx
 
@@ -65,8 +65,7 @@ def start_wrapper(inputs):
     # run manta
     if 'manta' in inputs:
         for network in networks:
-            run_manta(inputs, name=network,
-                      network=networks[network], driver=driver)
+            run_manta(inputs, network=networks[network], driver=driver)
     if 'anuran' in inputs:
         run_anuran(inputs, networks, driver)
     # run anuran
@@ -77,13 +76,12 @@ def start_wrapper(inputs):
     logger.info('Completed netstats operations!  ')
 
 
-def run_manta(inputs, name, network, driver):
+def run_manta(inputs, network, driver):
     """
     Takes the extracted network object and runs manta.
     The manta results are then uploaded back to
     the database as node properties.
     :param inputs: Arguments for manta
-    :param name: Name of network object
     :param network: Network to cluster
     :param driver: Neo4j IO driver
     :return:
@@ -93,15 +91,25 @@ def run_manta(inputs, name, network, driver):
                             min_clusters=inputs['min'], min_cluster_size=inputs['ms'],
                             iterations=inputs['iter'], subset=inputs['subset'],
                             ratio=inputs['ratio'], edgescale=inputs['edgescale'],
-                            permutations=inputs['perm'], verbose=True)
+                            permutations=inputs['perm'], verbose=False)
     graph = results[0]
+    # write to db
+    nodes = nx.get_node_attributes(network, 'assignment')
+    driver.include_nodes(nodes, name='assignment', label='Taxon')
+    nodes = nx.get_node_attributes(network, 'cluster')
+    driver.include_nodes(nodes, name='cluster', label='Taxon')
     if inputs['cr']:
         perm_clusters(graph=graph, limit=inputs['limit'], max_clusters=inputs['max'],
                       min_clusters=inputs['min'], min_cluster_size=inputs['ms'],
                       iterations=inputs['iter'], ratio=inputs['ratio'],
                       partialperms=inputs['perm'], relperms=inputs['rel'], subset=inputs['subset'],
-                      error=inputs['error'], verbose=True)
-    # do something with writing to the database here
+                      error=inputs['error'], verbose=False)
+        nodes = nx.get_node_attributes(network, 'lowerCI')
+        driver.include_nodes(nodes, name='lowerCI', label='Taxon')
+        nodes = nx.get_node_attributes(network, 'upperCI')
+        driver.include_nodes(nodes, name='upperCI', label='Taxon')
+        nodes = nx.get_node_attributes(network, 'widthCI')
+        driver.include_nodes(nodes, name='widthCI', label='Taxon')
 
 
 def run_anuran(inputs, networks, driver):
@@ -114,5 +122,19 @@ def run_anuran(inputs, networks, driver):
     :param driver: Neo4j IO driver
     :return:
     """
-    centralities = model_calcs(networks=networks, inputs=inputs)
-    # do something with writing to the database here
+    grouped_networks = [(name, networks[name]) for name in networks]
+    args = inputs.copy()
+    args['fp'] += '/anuran'
+    centralities = model_calcs(networks={'Neo4j': grouped_networks}, args=args)
+    # add a node with the different centrality
+    # give node properties with comparison value
+    # add p value as relationship
+    for index, row in centralities.iterrows():
+        # still need to fix:
+        # only random centralities added
+        centrality_dict = {}
+        centrality_dict[row['Node']] = {}
+        centrality_dict[row['Node']]['target'] = row['Measure'] + ', ' + row['Comparison']
+        centrality_dict[row['Node']]['rel_property'] = [('pvalue', row['P']),
+                                                        ('padj', row['P.adj'])]
+        driver.include_nodes(centrality_dict, name='Centrality', label='Taxon', verbose=False)
