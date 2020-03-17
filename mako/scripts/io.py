@@ -703,11 +703,11 @@ class IoDriver(ParentDriver):
         :param tx: Neo4j transaction
         :return: Dictionary with only keys
         """
-        nodes = tx.run("MATCH (n)--(m:Property) WHERE n:Taxon OR n:Agglom_Taxon RETURN m").data()
+        nodes = tx.run("MATCH (n)--(m:Property) WHERE n:Taxon RETURN m").data()
         nodes = _get_unique(nodes, 'm')
         properties = dict()
         for node in nodes:
-            property = tx.run("MATCH (m:Property) RETURN m").data()
+            property = tx.run("MATCH (m:Property {name: '" + node + "'}) RETURN m").data()
             property_key = property[0]['m']['type']
             properties[property_key] = dict()
         return properties
@@ -846,7 +846,7 @@ class IoDriver(ParentDriver):
             match = ("WHERE a.name = '" + source +
                      "' AND b.name = '" + target +
                      "' AND b.type = '" + name + "' ")
-            if 'target_property' in property_dictionary:
+            if property_dictionary:
                 for val in property_dictionary['target_property']:
                     query = no_rel + match + " AND b." + val[0] + " = '" + str(val[1]) + "' "
             else:
