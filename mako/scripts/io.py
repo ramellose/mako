@@ -814,11 +814,12 @@ class IoDriver(ParentDriver):
         :param property_dictionary: Additional property for relationship and targets, tuple
         :return:
         """
-        if 'target_property' in property_dictionary:
+        if property_dictionary:
             query = ("MERGE (a:Property {name: '" + str(target) +
                      "', type: '" + name)
-            for val in property_dictionary['target_property']:
-                query += "', " + val[0] + ": '" + str(val[1])
+            if 'target_property' in property_dictionary:
+                for val in property_dictionary['target_property']:
+                    query += "', " + val[0] + ": '" + str(val[1])
             query += "'}) RETURN a"
             prop_id = tx.run(query).data()[0]['a'].id
         else:
