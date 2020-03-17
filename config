@@ -3,5 +3,5 @@
 pid: None
 address: None
 neo4j: None
-username: neo4j
-password: test
+username: None
+password: None

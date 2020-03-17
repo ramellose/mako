@@ -834,10 +834,11 @@ class IoDriver(ParentDriver):
                                "' AND b.type = '" + name +
                                "' RETURN r")).data()
         rel = []
-        if 'rel_property' in property_dictionary:
-            rel.extend(property_dictionary['rel_property'])
-        elif 'weight' in property_dictionary:
-            rel.append(('weight',  str(property_dictionary['weight'])))
+        if property_dictionary:
+            if 'rel_property' in property_dictionary:
+                rel.extend(property_dictionary['rel_property'])
+            elif 'weight' in property_dictionary:
+                rel.append(('weight',  str(property_dictionary['weight'])))
         else:
             rel = []
         if len(matching_rel) == 0:
