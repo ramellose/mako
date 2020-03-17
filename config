@@ -1,7 +1,7 @@
 # This file contains the PID and login details of the Neo4j console.
 # If there is no PID specified, the 3rd line should state None.
 pid: None
-address: None
+address: bolt://localhost:7688
 neo4j: None
-username: None
-password: None
+username: neo4j
+password: test

@@ -846,10 +846,10 @@ class IoDriver(ParentDriver):
             match = ("WHERE a.name = '" + source +
                      "' AND b.name = '" + target +
                      "' AND b.type = '" + name + "' ")
-            if property_dictionary:
+            try:
                 for val in property_dictionary['target_property']:
                     query = no_rel + match + " AND b." + val[0] + " = '" + str(val[1]) + "' "
-            else:
+            except (KeyError, ValueError):
                 query = no_rel + match
             query += ("MERGE (a)-[r:QUALITY_OF]->(b) "
                       "RETURN type(r)")
