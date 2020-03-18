@@ -24,6 +24,7 @@ from mako.GUI.database import BasePanel
 from mako.GUI.biom import BiomPanel
 from mako.GUI.interface import InterfacePanel
 from mako.GUI.analysis import AnalysisPanel
+from mako.GUI.wraptab import WrapPanel
 import multiprocessing
 
 # the general_settings file is supposed to replace the argparse outcome.
@@ -61,13 +62,15 @@ class BuildFrame(wx.Frame):
         self.tab2 = BasePanel(self.nb)
         self.tab3 = BiomPanel(self.nb)
         self.tab4 = InterfacePanel(self.nb)
-        self.tab6 = AnalysisPanel(self.nb)
+        self.tab5 = AnalysisPanel(self.nb)
+        self.tab6 = WrapPanel(self.nb)
 
         self.nb.AddPage(self.tab1, "Start")
         self.nb.AddPage(self.tab2, "Connection")
         self.nb.AddPage(self.tab3, "BIOM files")
         self.nb.AddPage(self.tab4, "Access database")
-        self.nb.AddPage(self.tab6, "Network analysis")
+        self.nb.AddPage(self.tab5, "Network analysis")
+        self.nb.AddPage(self.tab6, "manta | anuran")
 
         self.settings = general_settings
 

@@ -201,9 +201,19 @@ class AnalysisPanel(wx.Panel):
         event.Skip()
 
     def weight(self, event):
+        """
+        Sets the weight parameter.
+        :param event:
+        :return:
+        """
         self.settings['weight'] = self.weight_btn.GetSelection()
 
     def agglomerate(self, event):
+        """
+        Starts worker for agglomerating networks.
+        :param event:
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['agglom'] = self.agglom_box.GetString(self.agglom_box.GetSelection())
         eg = Thread(target=start_metastats, args=(self.settings,))
@@ -211,6 +221,11 @@ class AnalysisPanel(wx.Panel):
         eg.join()
 
     def get_properties(self, event):
+        """
+        Gets properties from Neo4j database.
+        :param event:
+        :return:
+        """
         eg = ThreadPoolExecutor()
         worker = eg.submit(query, self.settings, 'MATCH (n:Property) RETURN n.type')
         result = worker.result()
@@ -218,6 +233,11 @@ class AnalysisPanel(wx.Panel):
         self.property_list.Set(list(property_types))
 
     def correlate_properties(self, event):
+        """
+        Correlates properties in Neo4j database.
+        :param event:
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['variable'] = [self.property_list.GetString(i)
                                    for i in self.property_list.GetSelections()]
@@ -227,12 +247,22 @@ class AnalysisPanel(wx.Panel):
         self.settings['variable'] = None
 
     def get_networks(self, event):
+        """
+        Gets network nodes from Neo4j database.
+        :param event:
+        :return:
+        """
         eg = ThreadPoolExecutor()
         worker = eg.submit(query, self.settings, 'MATCH (n) WHERE n:Network OR n:Set RETURN n')
         del_values = _get_unique(worker.result(), key='n')
         self.network_list.Set(list(del_values))
 
     def get_sets(self, event):
+        """
+        Makes networks that contain network overlap.
+        :param event:
+        :return:
+        """
         self.logbox.AppendText("Starting operation...\n")
         self.settings['set'] = True
         fracs = self.fraction_ctrl.GetValue()
