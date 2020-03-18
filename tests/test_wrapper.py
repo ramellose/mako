@@ -12,8 +12,8 @@ import biom
 import networkx as nx
 from mako.scripts.neo4biom import Biom2Neo
 from mako.scripts.io import IoDriver
-from mako.scripts.wrapper import start_wrapper, run_manta, run_anuran
-from mako.scripts.utils import _resource_path
+from mako.scripts.wrapper import start_wrapper
+from mako.scripts.utils import _resource_path, _get_unique
 
 __author__ = 'Lisa Rottjers'
 __maintainer__ = 'Lisa Rottjers'
@@ -248,7 +248,13 @@ g["GG_OTU_2"]["GG_OTU_3"]['weight'] = 1.0
 g["GG_OTU_4"]["GG_OTU_1"]['weight'] = -1.0
 
 f = g.copy(as_view=False)
-g["GG_OTU_1"]["GG_OTU_2"]['weight'] = -1.0
+f["GG_OTU_1"]["GG_OTU_2"]['weight'] = -1.0
+
+h = g.copy(as_view=False)
+h.add_edge("GG_OTU_1", "GG_OTU_3", weight=1.0)
+
+j = g.copy(as_view=False)
+j.add_edge("GG_OTU_1", "GG_OTU_4", weight=1.0)
 
 
 class TestWrapper(unittest.TestCase):
@@ -272,10 +278,10 @@ class TestWrapper(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='g')
         driver.convert_networkx(network=f, network_id='f')
-        driver.convert_networkx(network=g, network_id='h')
+        driver.convert_networkx(network=h, network_id='h')
         driver.convert_networkx(network=g, network_id='i')
-        driver.convert_networkx(network=f, network_id='j')
-
+        driver.convert_networkx(network=j, network_id='j')
+        driver.convert_networkx(network=f, network_id='k')
 
     @classmethod
     def tearDownClass(cls):
@@ -297,7 +303,7 @@ class TestWrapper(unittest.TestCase):
                   'username': 'neo4j',
                   'password': 'test',
                   'address': 'bolt://localhost:7688',
-                  'store_config': True,
+                  'store_config': False,
                   'min': 2,
                   'ms': 0.2,
                   'max': 2,
@@ -312,7 +318,6 @@ class TestWrapper(unittest.TestCase):
                   'error': 0.1,
                   'b': False,
                   'manta': True,
-                  'anuran': False,
                   'encryption': False
                   }
         start_wrapper(inputs)
@@ -320,11 +325,97 @@ class TestWrapper(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH (n:Property {type: 'cluster'}) RETURN n")
-        for id in test:
-            driver.query(("MATCH "))
-        self.assertEqual(len(test), 2)
+        test = driver.query("MATCH (n:Property {type: 'Cluster'}) RETURN n")
+        driver.query("MATCH (n:Property {type: 'Cluster'}) DETACH DELETE n")
+        # 2 clusters per network
+        self.assertEqual(len(test), 12)
 
+    def test_run_anuran(self):
+        """
+        Checks if nodes are correctly together in the cluster.
+        :return:
+        """
+        inputs = {'networks': None,
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'size': [1],
+                  'sign': True,
+                  'sample': False,
+                  'n': None,
+                  'cs': None,
+                  'prev': [1],
+                  'perm': 3,
+                  'nperm': 10,
+                  'centrality': True,
+                  'network': False,
+                  'comparison': False,
+                  'draw': False,
+                  'stats': 'bonferroni',
+                  'core': 4,
+                  'anuran': True,
+                  'encryption': False}
+        start_wrapper(inputs)
+        driver = IoDriver(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        test = driver.query("MATCH p=(n:Property {type: 'Centrality'})--(:Taxon) RETURN n")
+        test = _get_unique(test, 'n')
+        driver.query("MATCH (n:Property {type: 'Centrality'}) DETACH DELETE n")
+        os.remove(_resource_path('anuran_centralities.csv'))
+        os.remove(_resource_path('anuran_centrality_stats.csv'))
+        os.remove(_resource_path('anuran_difference_stats.csv'))
+        os.remove(_resource_path('anuran_Neo4j_1_intersection.graphml'))
+        os.remove(_resource_path('anuran_set_differences.csv'))
+        os.remove(_resource_path('anuran_set_stats.csv'))
+        os.remove(_resource_path('anuran_sets.csv'))
+        self.assertEqual(len(test), 6)
+
+    def test_run_manta(self):
+        """
+        Checks if nodes have centrality labels
+        :return:
+        """
+        inputs = {'networks': None,
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'min': 2,
+                  'ms': 0.2,
+                  'max': 2,
+                  'limit': 2,
+                  'iter': 20,
+                  'perm': None,
+                  'subset': 0.8,
+                  'ratio': 0.8,
+                  'edgescale': 0.8,
+                  'cr': False,
+                  'rel': 20,
+                  'error': 0.1,
+                  'b': False,
+                  'manta': True,
+                  'encryption': False
+                  }
+        start_wrapper(inputs)
+        driver = IoDriver(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        test = driver.query("MATCH p=(n:Property {type: 'Cluster'})--(:Taxon) RETURN p")
+        cluster0 = []
+        cluster1 = []
+        for pattern in test:
+            if pattern['p'].nodes[0]['name'][0] == 'i' and pattern['p'].nodes[0]['name'][-3:] == '0.0':
+                cluster0.append(pattern['p'].nodes[1]['name'])
+            elif pattern['p'].nodes[0]['name'][0] == 'i' and pattern['p'].nodes[0]['name'][-3:] == '1.0':
+                cluster1.append(pattern['p'].nodes[1]['name'])
+        driver.query("MATCH (n:Property) DETACH DELETE n")
+        self.assertEqual(max(len(cluster0), len(cluster1)), 3)
 
 
 if __name__ == '__main__':
