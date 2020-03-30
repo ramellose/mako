@@ -148,7 +148,7 @@ def read_bioms(files, filepath, driver):
         if checked_path:
             biomtab = load_table(checked_path)
         else:
-            exit()
+            os.exit()
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
         name = name.split(".")[0]
