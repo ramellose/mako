@@ -183,7 +183,7 @@ class MetastatsDriver(ParentDriver):
         edges = _get_unique(edges, key='a')
         with self._driver.session() as session:
             for edge in edges:
-                session.write_transaction(self._copy_edge, edge, new_network)
+                session.write_transaction(self._copy_edge, edge, source_network, new_network)
 
     def get_pairlist(self, level, weight, network):
         """
@@ -275,24 +275,31 @@ class MetastatsDriver(ParentDriver):
         try:
             conts = list()
             categs = list()
-            with self._driver.session() as session:
-                query = "WITH " + str(properties) + \
-                        " as names MATCH (:Taxon {name: '" + taxon + \
-                        "'})-->(:Specimen)-->(n:Property) WHERE n.name in names RETURN n"
-                sample_properties = session.read_transaction(self._query, query)
-                for item in sample_properties:
-                    value = item['n'].get('name')
-                    if value == null_input:
-                        break
-                    # try to convert value to float; if successful, adds type to continous vars
-                    try:
-                        value = float(value)
-                    except ValueError:
-                        pass
-                    if type(value) == float:
-                        conts.append(item['n'].get('type'))
-                    else:
-                        categs.append([item['n'].get('type'), item['n'].get('name')])
+            for property in properties:
+                with self._driver.session() as session:
+                    query = "MATCH (:Taxon {name: '" + taxon + \
+                            "'})-->(:Specimen)-[r]->(n:Property {name: '" + property + \
+                            "'}) RETURN n, r LIMIT 1"
+                    rel = session.read_transaction(self._query, query)
+                value = rel[0]['r'].get('value')
+                if value == null_input:
+                    break
+                # try to convert value to float; if successful, adds type to continous vars
+                try:
+                    value = float(value)
+                except ValueError:
+                    pass
+                if type(value) == float:
+                    conts.append(property)
+                else:
+                    with self._driver.session() as session:
+                        query = "MATCH (:Taxon {name: '" + taxon + \
+                                "'})-->(:Specimen)-[r]->(n:Property {name: '" + property + \
+                                "'}) RETURN r.value"
+                        rel = session.read_transaction(self._query, query)
+                    rel = set([x['r.value'] for x in rel])
+                    for value in rel:
+                        categs.append([property, value])
             conts = set(conts)
             categs = set(tuple(categ) for categ in categs)
             for categ_val in categs:
@@ -363,9 +370,9 @@ class MetastatsDriver(ParentDriver):
         :return: List of transaction outputs
         """
         if weight:
-            result = tx.run(("MATCH (a:Edge)--(:Network {name: '" + network +
-                             "'})--(b:Edge) WHERE (a.name <> b.name) "
-                             "AND (a.sign = b.sign) "
+            result = tx.run(("MATCH (a:Edge)-[x]-(:Network {name: '" + network +
+                             "'})-[y]-(b:Edge) WHERE (a.name <> b.name) "
+                             "AND (x.sign = y.sign) "
                              "WITH a, b "
                              "MATCH p=(a:Edge)--()--(x:" + level +
                              ")--()--(b:Edge)--()--(y:" + level +
@@ -503,11 +510,11 @@ class MetastatsDriver(ParentDriver):
                          "' CREATE (m)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
             targets.append(target[0]['m'].get('name'))
             if weight:
-                edge_weight = tx.run(("MATCH (a:Taxon)--(b:Edge) "
-                                 "WHERE a.name = '" + node +
-                                 "' AND b.name = '" + assoc +
-                                 "' RETURN b.sign")).data()
-                weights.append(edge_weight[0]['b.sign'])
+                edge_weight = tx.run(("MATCH (a:Taxon)--(b:Edge)-[r]--(:Network {name: '" + network +
+                                      "'}) WHERE a.name = '" + node +
+                                      "' AND b.name = '" + assoc +
+                                      "' RETURN r.sign")).data()
+                weights.append(edge_weight[0]['r.sign'])
         while len(targets) > 1:
             item = targets[0]
             # write function for finding edges that have both matching
@@ -590,13 +597,14 @@ class MetastatsDriver(ParentDriver):
                     tree.nodes[i].get('name') + "' CREATE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"))
 
     @staticmethod
-    def _copy_edge(tx, edge, network):
+    def _copy_edge(tx, edge, source_network, target_network):
         """
         Takes a single edge and copies it while adding a connection to the new network.
 
         :param tx: Neo4j transaction
         :param edge: Edge uuid
-        :param network: Name of network to connect copy to
+        :param source_network: Name of original network
+        :param target_network: Name of network to connect copy to
         :return:
         """
         edge_partners = tx.run(("MATCH (a)-[:PARTICIPATES_IN]-(:Edge {name: '" + edge +
@@ -611,14 +619,16 @@ class MetastatsDriver(ParentDriver):
                 edge_partners = selfloop
             else:
                 logger.error("Detected edge with only 1 interaction partner!", exc_info=True)
-        edge_sign = tx.run(("MATCH (a:Edge {name: '" + edge + "'}) RETURN a.sign")).data()
+        edge_sign = tx.run(("MATCH (a:Edge {name: '" + edge + "'})-[r]-(:Network {name: '" + source_network +
+                            "'}) RETURN r.sign")).data()
         uid = str(uuid4())
         tx.run("CREATE (a:Edge {name: '" + uid +
-               "'}) SET a.sign = " + str(np.sign(edge_sign[0]['a.sign'])) +
-               " RETURN a")
+               "'}) RETURN a")
         tx.run("MATCH (a:Edge {name: '" + uid +
-               "'}), (b:Network {name: '" + network +
-               "'}) MERGE (a)-[r:PART_OF]->(b) RETURN type(r)")
+               "'}), (b:Network {name: '" + target_network +
+               "'}) MERGE (a)-[r:PART_OF]->(b) "
+               "SET r.sign = " + str(np.sign(edge_sign[0]['r.sign'])) +
+               " RETURN type(r)")
         tx.run(("MATCH (a:Edge),(b) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
                 edge_partners[0]['a']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
@@ -721,22 +731,24 @@ class MetastatsDriver(ParentDriver):
         type_val = categ[0]
         success = categ[1]
         hypergeom_vals = dict()
-        query = "MATCH (n:Specimen)-->(:Property {type: '" + type_val + \
+        query = "MATCH (n:Specimen)-->(:Property {name: '" + type_val + \
                 "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['total_pop'] = _get_unique(total_samples, 'n', 'num')
-        query = "MATCH (n:Specimen)-->(:Property {type: '" + type_val + \
-                "', name: '" + success + "'}) RETURN n"
+        query = "MATCH (n:Specimen)-[r {value: '" + success + \
+                "'}]->(:Property {name: '" + type_val + \
+                "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['success_pop'] = _get_unique(total_samples, 'n', 'num')
         query = "MATCH (:Taxon {name: '" + taxon +\
-                "'})-->(n:Specimen)-->(:Property {type: '" + type_val + \
+                "'})-->(n:Specimen)-->(:Property {name: '" + type_val + \
                 "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['total_taxon'] = _get_unique(total_samples, 'n', 'num')
         query = "MATCH (:Taxon {name: '" + taxon +\
-                "'})-->(n:Specimen)-->(:Property {type: '" + type_val + \
-                "', name: '" + success + "'}) RETURN n"
+                "'})-->(n:Specimen)-[r {value: '" + success + \
+                "'}]->(:Property {name: '" + type_val + \
+                "'}) RETURN n"
         total_samples = tx.run(query).data()
         hypergeom_vals['success_taxon'] = _get_unique(total_samples, 'n', 'num')
         return hypergeom_vals
@@ -754,14 +766,14 @@ class MetastatsDriver(ParentDriver):
         sample_values = list()
         sample_names = list()
         taxon_values = list()
-        query = "MATCH (n:Specimen)-->(:Property {type: '" + type_val + \
+        query = "MATCH (n:Specimen)-->(:Property {name: '" + type_val + \
                 "'}) RETURN n"
         samples = _get_unique(tx.run(query).data(), 'n')
         for item in samples:
             query = "MATCH (:Specimen {name: '" + item + \
-                    "'})-->(n:Property {type: '" + type_val + \
-                    "'}) RETURN n"
-            sample_value = tx.run(query).data()[0]['n'].get('name')
+                    "'})-[r]->(n:Property {name: '" + type_val + \
+                    "'}) RETURN r"
+            sample_value = tx.run(query).data()[0]['r']['value']
             try:
                 sample_value = float(sample_value)
             except ValueError:
