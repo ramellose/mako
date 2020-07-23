@@ -268,7 +268,7 @@ class Biom2Neo(ParentDriver):
                             # meta[key] = re.sub(r'\W+', '', str(meta[key]))
                             session.write_transaction(self.create_property,
                                                       source=sample, sourcetype='Specimen',
-                                                      target=meta[key], name=key, weight=None)
+                                                      value=meta[key], name=key, weight=None)
             obs_data = biomfile.to_dataframe()
             rows, cols = np.where(obs_data.values != 0)
             observations = list()
@@ -378,37 +378,43 @@ class Biom2Neo(ParentDriver):
                 "RETURN type(r)"))
 
     @staticmethod
-    def create_property(tx, source, target, name, weight, sourcetype=''):
+    def create_property(tx, source,  value, name, weight, sourcetype=''):
         """
         Creates target node if it does not exist yet
         and adds the relationship between target and source.
         :param tx: Neo4j transaction
         :param source: Source node, should exist in database
-        :param target: Target node
+        :param value: Relationship property for metadata value
         :param name: Type variable of target node
-        :param weight: Weight of relationship
+        :param weight: Weight of relationship (i.e. for statistics output)
         :param sourcetype: Type variable of source node (not required)
         :return:
         """
-        tx.run(("MERGE (a:Property {name: '" + target + "'})"
-                " SET a.type = '" + name + "' "
+        tx.run(("MERGE (a:Property {name: '" + name + "'}) "
                 "RETURN a")).data()
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
         matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:QUALITY_OF]-(b:Property) "
                                "WHERE a.name = '" + source +
-                               "' AND b.name = '" + target +
-                               "' AND b.type = '" + name +
+                               "' AND b.name = '" + name +
                                "' RETURN r")).data()
+        rel = ""
+        weight_rel = None
+        val_rel = None
         if weight:
-            rel = " {weight: [" + weight + "]}"
-        else:
-            rel = ""
+            weight_rel = "weight: '" + weight + "'"
+        if value:
+            val_rel = "value: '" + value + "'"
+        if weight and value:
+            rel = " {" + weight_rel + ", " + val_rel + "}"
+        elif weight:
+            rel = " {" + weight_rel + "}"
+        elif val_rel:
+            rel = " {" + val_rel + "}"
         if len(matching_rel) == 0:
             tx.run(("MATCH (a" + sourcetype + "), (b:Property) "
                     "WHERE a.name = '" + source +
-                    "' AND b.name = '" + target +
-                    "' AND b.type = '" + name +
+                    "' AND b.name = '" + name +
                     "' MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) "
                     "RETURN type(r)"))
 
