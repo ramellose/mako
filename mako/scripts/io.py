@@ -570,113 +570,66 @@ class IoDriver(ParentDriver):
         :param network: NetworkX object
         :return:
         """
-        # creates metadata for eventual CoNet feature edges
         for edge in network.edges:
             taxon1 = edge[0]
             taxon2 = edge[1]
             attr = network.get_edge_data(taxon1, taxon2)
             # networkx files imported from graphml will have an index
             # the 'name' property changes the name to the index
-            # should probably standardize graphml imports or something
+            # Indices can overlap across networks,
+            # but names should not - OTU_5 in one network should be same as OTU_5 in another
+            # if OTU identifiers do not match, users should agglomerate to taxonomic levels
             if 'name' in network.nodes[taxon1]:
                 taxon1 = network.nodes[taxon1]['name']
                 taxon2 = network.nodes[taxon2]['name']
-            # for CoNet imports, the taxa can actually be features
-            # need to check this, because these taxa will NOT be in the dataset
-            # in that case, we need to create nodes that represent
-            # the features
-            network_weight = None
-            if 'weight' in attr:
-                network_weight = attr['weight']
-                hit = tx.run(("MATCH p=(a)<--(e:Edge)-->(b) "
-                              "WHERE a.name = '" + taxon1 +
-                              "' AND b.name = '" + taxon2 +
-                              "' AND e.sign = " + str(np.sign(network_weight)) +
-                              " RETURN p")).data()
-
-            else:
-                hit = tx.run(("MATCH p=(a)<--(e:Edge)-->(b) "
-                              "WHERE a.name = '" + taxon1 +
-                              "' AND b.name = '" + taxon2 +
-                              "' RETURN p")).data()
-            # first check if association is already present
-            if len(hit) > 0:
-                # we upload weights twice
-                # once as the sign of the median
-                # once as a list of strings
-                weights = [str(network_weight)]
-                for association in hit:
-                    uid = association['p'].nodes[1].get('name')
-                    # first check if there is already a link between the association and network
-                    network_hit = tx.run(("MATCH p=(a:Edge)--(b:Network) "
-                                          "WHERE a.name = '" +
-                                          uid +
-                                          "' AND b.name = '" + name +
-                                          "' RETURN p")).data()
-                    database_weight = association['p'].nodes[1].get('weights')
-                    try:
-                        database_weight = re.findall("[-+]?[.]?[\d]+(?:,\d\d\d)*[.]?\d*(?:[eE][-+]?\d+)?",
-                                                     database_weight)
-                    except TypeError:
-                        if type(database_weight) == list:
-                            pass
-                        else:
-                            database_weight = []
-                    weights.extend(database_weight)
-                    if len(network_hit) == 0:
-                        tx.run(("MATCH (a:Edge), (b:Network) "
-                                "WHERE a.name = '" +
-                                uid +
-                                "' AND b.name = '" + name +
-                                "' MERGE (a)-[r:PART_OF]->(b) "
-                                "RETURN type(r)"))
-                    tx.run(("MATCH (a:Edge) WHERE a.name = '" +
-                            uid +
-                            "' SET a.weights = " +
-                            str(weights) +
-                            " RETURN a"))
-                    median_weight = np.median([float(x) for x in weights])
-                    tx.run(("MATCH (a:Edge) WHERE a.name = '" +
-                            uid +
-                            "' SET a.weight = " +
-                            str(median_weight) +
-                            " SET a.sign = " + str(np.sign(median_weight)) +
-                            " RETURN a"))
-            else:
-                uid = str(uuid4())
-                # non alphanumeric chars break networkx
+            # First create / merge the association
+            # uid is updated for every edge,
+            # faster than checking for uid and adding it
+            uid = str(uuid4())
+            hit = tx.run(("MATCH (a:Taxon {name: '" + taxon1 + "'}), "
+                          "(b:Taxon {name: '" + taxon2 + "'}) "
+                          "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) "
+                          "SET e.name = '" + str(uid) + "' " +
+                          "RETURN e")).data()
+            if len(hit) == 0:
+                # Node in network not in database
+                # Assuming node is a metadata property
+                metahits = list()
+                for property in [taxon1, taxon2]:
+                    taxmatch = tx.run(("MATCH (a:Taxon {name: '" + property + "'}) RETURN a")).data()
+                    if len(taxmatch) == 0:
+                        tx.run(("MERGE (a:Property {name: '" + property + "'}) "
+                                "RETURN a"))
+                        metahits.append("Property")
+                    else:
+                        metahits.append("Taxon")
+                hit = tx.run(("MATCH (a:" + metahits[0] + " {name: '" + taxon1 + "'}), "
+                              "(b:" + metahits[1] + " {name: '" + taxon2 + "'}) "
+                              "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) "
+                              "SET e.name = '" + str(uid) + "' " +
+                              "RETURN e")).data()
+            # Next, link association to network
+            for association in hit:
+                uid = association['e']['name']
+                # first check if there is already a link between the association and network
                 if 'weight' in attr:
-                    tx.run("MERGE (a:Edge {name: $id}) "
-                           "SET a.weight = $weight SET a.weights = $weight "
-                           "SET a.sign = " + str(np.sign(network_weight)) +
-                           " RETURN a", id=uid, weight=str(network_weight))
+                    sign = np.sign(attr['weight'])
+                    network_hit = tx.run(("MATCH (a:Edge), (b:Network) "
+                                          "WHERE a.name = '" +
+                                          str(uid) +
+                                          "' AND b.name = '" + name +
+                                          "' MERGE p=(a)-[r:PART_OF]->(b) "
+                                          "SET r.weight = " + str(attr['weight']) +
+                                          " SET r.sign = " + str(sign) +
+                                          " RETURN r")).data()
                 else:
-                    tx.run("MERGE (a:Edge {name: $id}) "
-                           "RETURN a", id=uid)
-                match = tx.run(("MATCH (a:Edge), (b:Taxon) "
-                                "WHERE a.name = '" +
-                                uid +
-                                "' AND b.name = '" + taxon1 +
-                                "' MERGE (a)-[r:PARTICIPATES_IN]->(b) "
-                                "RETURN type(r)")).data()
-                if len(match) == 0:
-                    logger.error("Taxon in network not in database. Cancelling network upload.")
-                    sys.exit()
-                match = tx.run(("MATCH (a:Edge), (b:Taxon) "
-                                "WHERE a.name = '" +
-                                uid +
-                                "' AND b.name = '" + taxon2 +
-                                "' MERGE (a)-[r:PARTICIPATES_IN]->(b) "
-                                "RETURN type(r)")).data()
-                if len(match) == 0:
-                    logger.error("Taxon in network not in database. Cancelling network upload.")
-                    sys.exit()
-                tx.run(("MATCH (a:Edge), (b:Network) "
-                        "WHERE a.name = '" +
-                        uid +
-                        "' AND b.name = '" + name +
-                        "' MERGE (a)-[r:PART_OF]->(b) "
-                        "RETURN type(r)"))
+                    network_hit = tx.run(("MATCH (a:Edge), (b:Network) "
+                                          "WHERE a.name = '" +
+                                          str(uid) +
+                                          "' AND b.name = '" + name +
+                                          "' MERGE p=(a)-[r:PART_OF]->(b) "
+                                          "RETURN r")).data()
+
 
     @staticmethod
     def _tax_dict(tx, node, tax_dict):
@@ -754,15 +707,13 @@ class IoDriver(ParentDriver):
                 pass  # apparently this can happen. Need to figure out why!!
             else:
                 edge_tuple = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
-                network = tx.run(("MATCH (:Edge {name: '" + taxa[0]['n'].get('name') +
-                                  "'})-->(n:Network) RETURN n"))
-                network = _get_unique(network, key='n')
+                network_hit = tx.run(("MATCH (:Edge {name: '" + taxa[0]['n'].get('name') +
+                                  "'})-[r]->(n:Network) RETURN n, r"))
+                network = _get_unique(network_hit, key='n')
                 network_list = list()
                 for item in network:
                     network_list.append(item)
-                weight = edge['n'].get('weight')
-                if not weight:
-                    weight = edge['n'].get('sign')
+                weight = network_hit[0]['r']['weight']
                 networks[edge_tuple] = network_list
                 weights[edge_tuple] = weight
         edge_list = (networks, weights)
