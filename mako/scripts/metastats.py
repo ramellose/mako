@@ -225,12 +225,16 @@ class MetastatsDriver(ParentDriver):
                 session.write_transaction(self._chainlinks, agglom_2, pair.nodes[5], pair.nodes[7])
                 session.write_transaction(self._taxonomy, agglom_1, pair.nodes[2], level)
                 session.write_transaction(self._taxonomy, agglom_2, pair.nodes[6], level)
+            with self._driver.session() as session:
                 if weight:
-                    edge_sign = pair.nodes[0]['sign']
+                    edge_sign = session.read_transaction(self._query, ("MATCH (n:Edge)-[r]-(m:Network) "
+                                                                       "WHERE n.name = '" + pair.nodes[0]['name'] +
+                                                                       "' AND m.name = '" + network +
+                                                                       "' RETURN r.sign"))
                 else:
                     edge_sign = None
                 session.write_transaction(self._create_edge, agglom_1, agglom_2, network,
-                                          edge_sign=edge_sign)
+                                          edge_sign=edge_sign[0]['r.sign'])
             with self._driver.session() as session:
                 session.write_transaction(self._delete_old_edges, [pair.nodes[0], pair.nodes[4]])
         except Exception:
@@ -655,22 +659,24 @@ class MetastatsDriver(ParentDriver):
         """
         uid = str(uuid4())
         # non alphanumeric chars break networkx
-        if edge_sign:
-            tx.run("CREATE (a:Edge {name: '" + uid +
-                   "'}) SET a.sign = " + str(edge_sign) +
-                   " RETURN a")
-        else:
-            tx.run("CREATE (a:Edge {name: $id}) RETURN a",
-                   id=uid)
+        tx.run("CREATE (a:Edge {name: $id}) RETURN a",
+               id=uid)
         tx.run(("MATCH (a:Edge),(b:Taxon) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
                 agglom_1 + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
         tx.run(("MATCH (a:Edge),(b:Taxon) "
                 "WHERE a.name = '" + uid + "' AND b.name = '" +
                 agglom_2 + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
-        tx.run(("MATCH (a:Edge),(b:Network) "
-                "WHERE a.name = '" + uid + "' AND b.name = '" +
-                network + "' CREATE (a)-[r:PART_OF]->(b) RETURN type(r)"))
+        if edge_sign:
+            tx.run(("MATCH (a:Edge),(b:Network) "
+                    "WHERE a.name = '" + uid + "' AND b.name = '" +
+                    network + "' CREATE (a)-[r:PART_OF]->(b) "
+                              "SET r.sign = '" + str(edge_sign) + "' RETURN type(r)"))
+        else:
+            tx.run(("MATCH (a:Edge),(b:Network) "
+                    "WHERE a.name = '" + uid + "' AND b.name = '" +
+                    network + "' CREATE (a)-[r:PART_OF]->(b)"
+                              " RETURN type(r)"))
 
     @staticmethod
     def _get_network(tx, nodes):
@@ -805,12 +811,11 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         name = str(np.round(prob, 3))
-        tx.run(("MERGE (a:Property {type: 'hypergeom_" + categ[0] +
+        tx.run(("MERGE (a:Property {type: 'hypergeom_" + categ[1] +
                 "', name: '" + name + "'}) RETURN a"))
         tx.run(("MATCH (a:Taxon),(b:Property) "
                 "WHERE a.name = '" + taxon +
                 "' AND b.name = '" + name +
-                "' AND b.type = 'hypergeom_" + categ[0] +
                 "' MERGE (a)-[r:HYPERGEOM]->(b) "
                 "RETURN type(r)"))
 
