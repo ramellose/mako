@@ -69,7 +69,7 @@ def start_metastats(inputs):
         # sys.stdout.write("Associating samples...")
         variables = inputs['variable']
         if inputs['variable'][0] == 'all':
-            variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.type") for y in x])
+            variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.name") for y in x])
         for var in variables:
             driver.associate_samples(label=var)
     driver.close()
@@ -256,7 +256,7 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         with self._driver.session() as session:
-            label_nodes = session.read_transaction(self._query, "MATCH (n:Property) WHERE n.type = '" +
+            label_nodes = session.read_transaction(self._query, "MATCH (n:Property) WHERE n.name = '" +
                                                    label + "' RETURN n.name")
         properties = list(set().union(*(d.values() for d in label_nodes)))
         try:
