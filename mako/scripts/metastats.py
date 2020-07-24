@@ -514,7 +514,7 @@ class MetastatsDriver(ParentDriver):
                          "' CREATE (m)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
             targets.append(target[0]['m'].get('name'))
             if weight:
-                edge_weight = tx.run(("MATCH (a:Taxon)--(b:Edge)-[r]--(:Network {name: '" + network +
+                edge_weight = tx.run(("MATCH (a:Taxon)--(b:Edge)-[r]-(:Network {name: '" + network +
                                       "'}) WHERE a.name = '" + node +
                                       "' AND b.name = '" + assoc +
                                       "' RETURN r.sign")).data()
