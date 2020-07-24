@@ -51,6 +51,7 @@ class TestBase(unittest.TestCase):
     def tearDownClass(cls):
         os.system('docker stop neo4j')
 
+    @unittest.SkipTest  # This test only works on desktop instance, not Docker
     def test_start_base_pid(self):
         """
         Checks if an error is returned when the pid is wrong.
@@ -66,13 +67,15 @@ class TestBase(unittest.TestCase):
                   'clear': False,
                   'quit': False,
                   'store_config': True,
-                  'check': False}
+                  'check': False,
+                  'encryption': False}
         start_base(inputs)
         config = _read_config(inputs)
         self.assertTrue(pid_exists(int(config['pid'])))
         parent = Process(int(config['pid']))
         parent.kill()
 
+    @unittest.SkipTest  # This test only works on desktop instance, not Docker
     def test_stop_base_pid(self):
         """
         Checks if an error is returned when the pid is wrong.
@@ -88,7 +91,8 @@ class TestBase(unittest.TestCase):
                   'clear': False,
                   'quit': False,
                   'store_config': True,
-                  'check': False}
+                  'check': False,
+                  'encryption': False}
         start_base(inputs)
         inputs = {'fp': _resource_path(''),
                   'neo4j': loc + '//Documents//neo4j',
@@ -99,7 +103,8 @@ class TestBase(unittest.TestCase):
                   'clear': False,
                   'quit': True,
                   'store_config': True,
-                  'check': False}
+                  'check': False,
+                  'encryption': False}
         start_base(inputs)
         config = _read_config(inputs)
         self.assertFalse(pid_exists(int(config['pid'])))
