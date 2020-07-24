@@ -708,7 +708,7 @@ class IoDriver(ParentDriver):
             else:
                 edge_tuple = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
                 network_hit = tx.run(("MATCH (:Edge {name: '" + taxa[0]['n'].get('name') +
-                                  "'})-[r]->(n:Network) RETURN n, r"))
+                                  "'})-[r]->(n:Network) RETURN n, r")).data()
                 network = _get_unique(network_hit, key='n')
                 network_list = list()
                 for item in network:
