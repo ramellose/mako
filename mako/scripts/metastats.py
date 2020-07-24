@@ -811,31 +811,40 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         name = str(np.round(prob, 3))
-        tx.run(("MERGE (a:Property {type: 'hypergeom_" + categ[1] +
-                "', name: '" + name + "'}) RETURN a"))
-        tx.run(("MATCH (a:Taxon),(b:Property) "
-                "WHERE a.name = '" + taxon +
-                "' AND b.name = '" + name +
-                "' MERGE (a)-[r:HYPERGEOM]->(b) "
+        tx.run(("MERGE (a:Property {name: 'hypergeom_" + categ[1] +
+                "'}) RETURN a"))
+        tx.run(("MATCH (a:Taxon {name: '" + taxon +
+                "'}), (b:Property {name: 'hypergeom_" + categ[1] +
+                "'}) MERGE (a)-[r:HYPERGEOM]->(b)" +
+                " SET r.value = " + name +
+                " RETURN type(r)"))
+        tx.run(("MATCH (a:Property), (b:Property) "
+                "WHERE a.name = 'hypergeom_" + categ[1] +
+                "' AND b.name = '" + categ[0] +
+                "' MERGE (a)-[r:STAT]->(b) "
                 "RETURN type(r)"))
 
     @staticmethod
-    def _shortcut_continuous(tx, taxon, type_val):
+    def _shortcut_continuous(tx, taxon, var_dict):
         """
         Creates relationship between categorical variable and taxon.
         :param tx: Neo4j transaction
         :param taxon: Taxon name
-        :param type_val: Metadata node type
+        :param var_dict: Dict with variable and value
         :return:
         """
-        var_id = list(type_val.keys())[0]
-        name = str(np.round(type_val[var_id], 3))
+        var_id = list(var_dict.keys())[0]
+        name = str(np.round(var_dict[var_id], 3))
         # first check if property already exists
-        tx.run(("MERGE (a:Property {type: 'spearman_" + var_id +
-                "', name: '" + name + "'}) RETURN a"))
-        tx.run(("MATCH (a:Taxon),(b:Property) "
-                "WHERE a.name = '" + taxon +
-                "' AND b.type = 'spearman_" + var_id +
-                "' AND b.name = '" + name +
-                "' MERGE (a)-[r:SPEARMAN]->(b) "
+        tx.run(("MERGE (a:Property {name: 'spearman_" + var_id +
+                "'}) RETURN a"))
+        tx.run(("MATCH (a:Taxon {name: '" + taxon +
+                "'}), (b:Property {name: 'spearman_" + var_id +
+                "'}) MERGE (a)-[r:SPEARMAN]->(b)" +
+                " SET r.value = " + name +
+                " RETURN type(r)"))
+        tx.run(("MATCH (a:Property), (b:Property) "
+                "WHERE a.name = 'spearman_" + var_id +
+                "' AND b.name = '" + var_id +
+                "' MERGE (a)-[r:STAT]->(b) "
                 "RETURN type(r)"))

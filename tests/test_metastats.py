@@ -390,14 +390,14 @@ class TestMetastats(unittest.TestCase):
 
     def test_qual_variable(self):
         """
-        Checks if the hypergeometic test links are added.
+        Checks if the hypergeometric test links are added.
         :return:
         """
         driver = MetastatsDriver(user='neo4j',
                                  password='test',
                                  uri='bolt://localhost:7688', filepath=_resource_path(''),
                                  encrypted=False)
-        variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.type") for y in x])
+        variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.name") for y in x])
         for var in variables:
             driver.associate_samples(label=var)
         test = driver.query("MATCH (n:Taxon)-[r:HYPERGEOM]-(:Property) RETURN count(r) as count")
@@ -406,14 +406,14 @@ class TestMetastats(unittest.TestCase):
 
     def test_quant_variable(self):
         """
-        Checks if the hypergeometic test links are added.
+        Checks if the hypergeometric test links are added.
         :return:
         """
         driver = MetastatsDriver(user='neo4j',
                                  password='test',
                                  uri='bolt://localhost:7688', filepath=_resource_path(''),
                                  encrypted=False)
-        variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.type") for y in x])
+        variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.name") for y in x])
         for var in variables:
             driver.associate_samples(label=var)
         test = driver.query("MATCH (n:Taxon)-[r:SPEARMAN]-(:Property) RETURN count(r) as count")
