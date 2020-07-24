@@ -700,15 +700,15 @@ class IoDriver(ParentDriver):
         for edge in edges:
             taxa = tx.run(("MATCH (m)--(:Edge {name: '" + edge['n'].get('name') +
                            "'})--(n) "
-                           "WHERE (m:Taxon OR m:Agglom_Taxon) AND (n:Taxon OR n:Agglom_Taxon) "
+                           "WHERE (m:Taxon) AND (n:Taxon) "
                            "AND m.name <> n.name "
                            "RETURN m, n LIMIT 1")).data()
             if len(taxa) == 0:
                 pass  # apparently this can happen. Need to figure out why!!
             else:
                 edge_tuple = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
-                network_hit = tx.run(("MATCH (:Edge {name: '" + taxa[0]['n'].get('name') +
-                                  "'})-[r]->(n:Network) RETURN n, r")).data()
+                network_hit = tx.run(("MATCH (:Edge {name: '" + edge['n'].get('name') +
+                                      "'})-[r]->(n:Network) RETURN n, r")).data()
                 network = _get_unique(network_hit, key='n')
                 network_list = list()
                 for item in network:
