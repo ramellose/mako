@@ -13,6 +13,7 @@ import sys
 from itertools import combinations
 from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
 import logging.handlers
+from random import sample
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -147,15 +148,17 @@ class NetstatsDriver(ParentDriver):
         return difference
 
     @staticmethod
-    def _get_weight(tx, node):
+    def _get_weight(tx, node, network):
         """
         Returns the weight of an Edge node.
         :param tx: Neo4j transaction
         :param node: Returns the weight of the specified node
+        :param network: Network where weight is needed
         :return:
         """
         weight = tx.run("MATCH (n:Edge {name: '" + node.get('name') +
-                        "'}) RETURN n").data()[0]['n'].get('weight')
+                        "'})-[r]-(:Network {name: '" + network + "'})"
+                        " RETURN r").data()[0]['r']['weight']
         return weight
 
     @staticmethod
@@ -183,52 +186,17 @@ class NetstatsDriver(ParentDriver):
         :param n: If specified, number of networks that the intersecting node should be in
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
+        # First, get a list of all edges
         if not n:
-            queries = list()
-            for node in networks:
-                queries.append(("MATCH (n:Edge)-->(:Network {name: '" +
-                                node + "'}) "))
-            query = " ".join(queries) + "RETURN n"
+            # get edges that are in all networks
+            query = _get_intersection_query(networks, weight)
             edges = tx.run(query).data()
         else:
+            # get all edges in number of networks
             edges = list()
             combos = combinations(networks, n)
-            for combo in combos:
-                queries = list()
-                for node in combo:
-                    queries.append(("MATCH (n:Edge)-->(:Network {name: '" +
-                                    node + "'}) "))
-                query = " ".join(queries) + "RETURN n"
-                combo_edges = tx.run(query).data()
-                edges.extend(combo_edges)
+            query = _get_intersection_query(combos, weight)
         edges = list(_get_unique(edges, 'n'))
-        if weight:
-            query = ("MATCH (a)-[:PARTICIPATES_IN]-(n:Edge)-[:PARTICIPATES_IN]-(b) "
-                     "MATCH (a)-[:PARTICIPATES_IN]-(m:Edge)-[:PARTICIPATES_IN]-(b) "
-                     "WHERE (n.name <> m.name) RETURN n, m")
-            weighted = tx.run(query).data()
-            filter_weighted = list()
-            for edge in weighted:
-                # check whether edges are in all networks
-                in_networks = list()
-                nets = tx.run(("MATCH (a:Edge {name: '"
-                               + edge['n'].get('name') +
-                               "'})-->(n:Network) RETURN n")).data()
-                nets = _get_unique(nets, 'n')
-                in_networks.extend(nets)
-                nets = tx.run(("MATCH (a:Edge {name: '"
-                               + edge['m'].get('name') +
-                               "'})-->(n:Network) RETURN n")).data()
-                nets = _get_unique(nets, 'n')
-                in_networks.extend(nets)
-                if n:
-                    if len(in_networks) > n:
-                        filter_weighted.append(edge)
-                else:
-                    if all(x in in_networks for x in networks):
-                        filter_weighted.append(edge)
-            edges.extend(_get_unique(filter_weighted, 'n'))
-            edges.extend(_get_unique(filter_weighted, 'm'))
         name = 'Intersection'
         if weight:
             name += '_weight'
@@ -248,21 +216,28 @@ class NetstatsDriver(ParentDriver):
         """
         edges = list()
         for network in networks:
-            edges.extend(tx.run(("MATCH (n:Edge)-->(:Network {name: '" + network +
-                                 "'}) WITH n MATCH (n)-[r]->(:Network) WITH n, count(r) "
+            # all edges with only 1 link to a network
+            # are part of the difference
+            edges.extend(tx.run(("MATCH (n:Edge)-->(x:Network {name: '" + network +
+                                 "'}) WITH n MATCH (n)-[r]->(y:Network) WHERE y.name IN " + str(networks) +
+                                 " WITH n, count(r) "
                                  "as num WHERE num=1 RETURN n")).data())
-        edges = _get_unique(edges, 'n')
         if weight:
-            cleaned = list()
-            for edge in edges:
-                query = ("MATCH (a)-[:PARTICIPATES_IN]-(n:Edge {name: '" + edge +
-                         "'})-[:PARTICIPATES_IN]-(b) "
-                         "MATCH (a)-[:PARTICIPATES_IN]-(m:Edge)-[:PARTICIPATES_IN]-(b) "
-                         "WHERE (n.name <> m.name) RETURN n, m")
-                check = tx.run(query).data()
-                if len(check) == 0:
-                    cleaned.append(edge)
-            edges = cleaned
+            # if edges are in 2 networks,
+            # and they have a different sign in each network,
+            # they are included in the weighted difference.
+            # so query each combination of networks
+            # to find edges that have a relationship to those networks,
+            # with different weights.
+            combos = combinations(networks, 2)
+            for combo in combos:
+                edges.extend(tx.run(("MATCH (n:Edge)-[a]->(:Network {name: '" + combo[0] +
+                                     "'}) MATCH (n:Edge)-[b]->(:Network {name: '" + combo[1] +
+                                     "'}) WHERE a.sign <> b.sign " +
+                                     "WITH n MATCH (n)-[r]->(x:Network) WHERE x.name IN " + str(networks) +
+                                     " WITH n, count(r) "
+                                     "as num WHERE num=2 RETURN n")).data())
+        edges = _get_unique(edges, 'n')
         name = 'Difference'
         if weight:
             name += '_weight'
@@ -308,3 +283,27 @@ def _write_logic(tx, operation, networks, edges):
                 "' MERGE (a)-[r:IN_SET]->(b) "
                 "RETURN type(r)"))
     return name
+
+
+def _get_intersection_query(networks, weight):
+    """
+    For a list of networks,
+    constructs a query that gets edges belonging to all networks.
+    Can extract only edges that have the same weight in all networks,
+    or edges that have different weights (if weight is false.)
+    :param networks:
+    :return:
+    """
+    queries = list()
+    for node in networks:
+        if weight:
+            queries.append(("MATCH (n:Edge)-[r" + str(networks.index(node)) + "]->(:Network {name: '" +
+                            node + "'}) "))
+        else:
+            queries.append(("MATCH (n:Edge)-->(:Network {name: '" +
+                            node + "'}) "))
+    if weight:
+        queries.append("WHERE " + " = ".join(["r" + str(i) + ".sign" for i in range(len(networks))]))
+    query = " ".join(queries) + " RETURN n"
+    return query
+
