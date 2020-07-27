@@ -209,7 +209,7 @@ class TestNetstats(unittest.TestCase):
                           encrypted=False)
         test = driver.query("MATCH (n:Set) RETURN count(n) as count")
         driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 4)
+        self.assertEqual(test[0]['count'], 3)
 
     def test_intersection(self):
         """

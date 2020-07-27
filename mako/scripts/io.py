@@ -766,24 +766,22 @@ class IoDriver(ParentDriver):
         :return:
         """
         if property_dictionary:
-            query = ("MERGE (a:Property {name: '" + str(target) +
-                     "', type: '" + name)
+            query = ("MERGE (a:Property {name: '" + str(name))
             if 'target_property' in property_dictionary:
                 for val in property_dictionary['target_property']:
                     query += "', " + val[0] + ": '" + str(val[1])
             query += "'}) RETURN a"
-            prop_id = tx.run(query).data()[0]['a'].id
+            tx.run(query).data()
         else:
-            prop_id = tx.run(("MERGE (a:Property {name: '" + str(target) + "'}) "
-                              "SET a.type = '" + name + "' "
-                              "RETURN a")).data()[0]['a'].id
+            tx.run(("MERGE (a:Property {name: '" + str(name) + "'}) "
+                    "RETURN a")).data()
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
-        matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:QUALITY_OF]-(b:Property) "
+        matching_rel = tx.run(("MATCH (a" + sourcetype + "), (b:Property) "
                                "WHERE a.name = '" + source +
-                               "' AND b.name = '" + target +
-                               "' AND b.type = '" + name +
-                               "' RETURN r")).data()
+                               "' AND b.name = '" + name +
+                               "' MERGE  (a)-[r:QUALITY_OF {value: '" + str(target) +
+                               "'}]->(b) RETURN r")).data()
         rel = []
         if property_dictionary:
             if 'rel_property' in property_dictionary:
@@ -795,8 +793,8 @@ class IoDriver(ParentDriver):
         if len(matching_rel) == 0:
             no_rel = "MATCH (a" + sourcetype + "), (b:Property) "
             match = ("WHERE a.name = '" + source +
-                     "' AND b.name = '" + target +
-                     "' AND b.type = '" + name + "' ")
+                     "' AND b.name = '" + name +
+                     "' ")
             try:
                 for val in property_dictionary['target_property']:
                     query = no_rel + match + " AND b." + val[0] + " = '" + str(val[1]) + "' "

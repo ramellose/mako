@@ -278,7 +278,7 @@ class TestWrapper(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='g')
         driver.convert_networkx(network=f, network_id='f')
-        driver.convert_networkx(network=h, network_id='h')
+        driver.convert_networkx(network=f, network_id='h')
         driver.convert_networkx(network=g, network_id='i')
         driver.convert_networkx(network=j, network_id='j')
         driver.convert_networkx(network=f, network_id='k')
@@ -309,7 +309,7 @@ class TestWrapper(unittest.TestCase):
                   'max': 2,
                   'limit': 2,
                   'iter': 20,
-                  'perm': None,
+                  'perm': 100,
                   'subset': 0.8,
                   'ratio': 0.8,
                   'edgescale': 0.8,
@@ -325,8 +325,8 @@ class TestWrapper(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH (n:Property {type: 'Cluster'}) RETURN n")
-        driver.query("MATCH (n:Property {type: 'Cluster'}) DETACH DELETE n")
+        test = driver.query("MATCH (n:Property {name: 'Cluster'}) RETURN n")
+        driver.query("MATCH (n:Property {name: 'Cluster'}) DETACH DELETE n")
         # 2 clusters per network
         self.assertEqual(len(test), 12)
 
@@ -362,9 +362,9 @@ class TestWrapper(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH p=(n:Property {type: 'Centrality'})--(:Taxon) RETURN n")
+        test = driver.query("MATCH p=(n:Property {name: 'Centrality'})--(:Taxon) RETURN n")
         test = _get_unique(test, 'n')
-        driver.query("MATCH (n:Property {type: 'Centrality'}) DETACH DELETE n")
+        driver.query("MATCH (n:Property {name: 'Centrality'}) DETACH DELETE n")
         os.remove(_resource_path('anuran_centralities.csv'))
         os.remove(_resource_path('anuran_centrality_stats.csv'))
         os.remove(_resource_path('anuran_difference_stats.csv'))
@@ -406,7 +406,7 @@ class TestWrapper(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH p=(n:Property {type: 'Cluster'})--(:Taxon) RETURN p")
+        test = driver.query("MATCH p=(n:Property {name: 'Cluster'})--(:Taxon) RETURN p")
         cluster0 = []
         cluster1 = []
         for pattern in test:
