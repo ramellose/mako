@@ -661,7 +661,7 @@ class IoDriver(ParentDriver):
         properties = dict()
         for node in nodes:
             property = tx.run("MATCH (m:Property {name: '" + node + "'}) RETURN m").data()
-            property_key = property[0]['m']['type']
+            property_key = property[0]['m']['name']
             properties[property_key] = dict()
         return properties
 
@@ -674,15 +674,15 @@ class IoDriver(ParentDriver):
         :param tax_properties: Dictionary with taxon property types
         :return: Dictionary of dictionary of taxon properties
         """
-        hits = tx.run("MATCH (:Taxon {name: '" + node + "'})--(b:Property) RETURN b").data()
+        hits = tx.run("MATCH (:Taxon {name: '" + node + "'})-[r]-(b:Property) RETURN r").data()
         if hits:
             for hit in hits:
-                value = hit['b'].get('name')
+                value = hit['r'].get('value')
                 try:
                     value = np.round(float(value), 4)
                 except ValueError:
                     pass
-                tax_properties[hit['b'].get('type')][node] = value
+                tax_properties[hit['b'].get('name')][node] = value
         return tax_properties
 
     @staticmethod

@@ -325,10 +325,13 @@ class TestWrapper(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH (n:Property {name: 'Cluster'}) RETURN n")
+        test = driver.query("MATCH (n:Property {name: 'Cluster'})-[r]-(:Taxon) WITH r RETURN count(r)")
         driver.query("MATCH (n:Property {name: 'Cluster'}) DETACH DELETE n")
         # 2 clusters per network
-        self.assertEqual(len(test), 12)
+        # 6 networks
+        # 4 nodes
+        # -> 6 * 4 = 24 node - cluster relationships (1 cluster per node)
+        self.assertEqual(test[0]['count(r)'], 24)
 
     def test_run_anuran(self):
         """

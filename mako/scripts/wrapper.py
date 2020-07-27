@@ -163,5 +163,4 @@ def construct_manta(source, value, network_id):
     node_dict = {}
     node_dict[source] = {}
     node_dict[source]['target'] = network_id + ', cluster ' + str(value)
-    node_dict[source]['target_property'] = [('value', value)]
     return node_dict
