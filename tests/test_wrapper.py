@@ -352,7 +352,7 @@ class TestWrapper(unittest.TestCase):
                   'prev': [1],
                   'perm': 3,
                   'nperm': 10,
-                  'centrality': True,
+                  'centrality': False,
                   'network': False,
                   'comparison': False,
                   'draw': False,
@@ -361,21 +361,13 @@ class TestWrapper(unittest.TestCase):
                   'anuran': True,
                   'encryption': False}
         start_wrapper(inputs)
-        driver = IoDriver(user='neo4j',
-                          password='test',
-                          uri='bolt://localhost:7688', filepath=_resource_path(''),
-                          encrypted=False)
-        test = driver.query("MATCH p=(n:Property {name: 'Centrality'})--(:Taxon) RETURN n")
-        test = _get_unique(test, 'n')
-        driver.query("MATCH (n:Property {name: 'Centrality'}) DETACH DELETE n")
-        os.remove(_resource_path('anuran_centralities.csv'))
-        os.remove(_resource_path('anuran_centrality_stats.csv'))
+        test = os.path.isfile(_resource_path("anuran_difference_stats.csv"))
         os.remove(_resource_path('anuran_difference_stats.csv'))
         os.remove(_resource_path('anuran_Neo4j_1_intersection.graphml'))
         os.remove(_resource_path('anuran_set_differences.csv'))
         os.remove(_resource_path('anuran_set_stats.csv'))
         os.remove(_resource_path('anuran_sets.csv'))
-        self.assertEqual(len(test), 6)
+        self.assertTrue(test)
 
     def test_run_manta(self):
         """
@@ -409,13 +401,13 @@ class TestWrapper(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH p=(n:Property {name: 'Cluster'})--(:Taxon) RETURN p")
+        test = driver.query("MATCH p=(n:Property {name: 'Cluster'})-[r]-(:Taxon) RETURN p")
         cluster0 = []
         cluster1 = []
         for pattern in test:
-            if pattern['p'].nodes[0]['name'][0] == 'i' and pattern['p'].nodes[0]['name'][-3:] == '0.0':
+            if pattern['p'].relationships[0]['value'][0] == 'i' and pattern['p'].relationships[0]['value'][-3:] == '0.0':
                 cluster0.append(pattern['p'].nodes[1]['name'])
-            elif pattern['p'].nodes[0]['name'][0] == 'i' and pattern['p'].nodes[0]['name'][-3:] == '1.0':
+            elif pattern['p'].relationships[0]['value'][0]  == 'i' and pattern['p'].relationships[0]['value'][-3:] == '1.0':
                 cluster1.append(pattern['p'].nodes[1]['name'])
         driver.query("MATCH (n:Property) DETACH DELETE n")
         self.assertEqual(max(len(cluster0), len(cluster1)), 3)

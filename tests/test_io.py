@@ -291,7 +291,7 @@ class TestIo(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
         start_io(inputs)
-        test = driver.query("MATCH (:Taxon)-[r]-(:Property {type: 'Fruit'}) RETURN count(r) as count")
+        test = driver.query("MATCH (:Taxon)-[r]-(:Property {name: 'Fruit'}) RETURN count(r) as count")
         driver.query("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 5)
 
@@ -324,7 +324,7 @@ class TestIo(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
         driver.include_nodes(nodes=testdict, name='Fruit', label='Taxon')
-        test = driver.query("MATCH (:Taxon)-[r]-(:Property {type: 'Fruit'}) RETURN count(r) as count")
+        test = driver.query("MATCH (:Taxon)-[r]-(:Property {name: 'Fruit'}) RETURN count(r) as count")
         driver.query("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 5)
 

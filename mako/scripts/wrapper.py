@@ -139,16 +139,15 @@ def run_anuran(inputs, networks, driver):
     # add a node with the different centrality
     # give node properties with comparison value
     # add p value as relationship
-    for index, row in centralities.iterrows():
-        # still need to fix:
-        # only random centralities added
-        centrality_dict = {}
-        centrality_dict[row['Node']] = {}
-        centrality_dict[row['Node']]['target'] = row['Measure'] + ', ' + row['Comparison']
-        centrality_dict[row['Node']]['rel_property'] = [('pvalue', row['P'])]
-        if 'P.adj' in row:
-            centrality_dict[row['Node']]['rel_property'].append(('padj', row['P.adj']))
-        driver.include_nodes(centrality_dict, name='Centrality', label='Taxon', verbose=False)
+    if centralities:
+        for index, row in centralities.iterrows():
+            centrality_dict = {}
+            centrality_dict[row['Node']] = {}
+            centrality_dict[row['Node']]['target'] = row['Measure'] + ', ' + row['Comparison']
+            centrality_dict[row['Node']]['rel_property'] = [('pvalue', row['P'])]
+            if 'P.adj' in row:
+                centrality_dict[row['Node']]['rel_property'].append(('padj', row['P.adj']))
+            driver.include_nodes(centrality_dict, name='Centrality', label='Taxon', verbose=False)
 
 
 def construct_manta(source, value, network_id):
