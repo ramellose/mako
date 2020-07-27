@@ -194,9 +194,10 @@ class NetstatsDriver(ParentDriver):
         else:
             # get all edges in number of networks
             edges = list()
-            combos = combinations(networks, n)
-            query = _get_intersection_query(combos, weight)
-            edges = tx.run(query).data()
+            combos = list(combinations(networks, n))
+            for combo in combos:
+                query = _get_intersection_query(combos, weight)
+                edges.extend(tx.run(query).data())
         edges = list(_get_unique(edges, 'n'))
         name = 'Intersection'
         if weight:
