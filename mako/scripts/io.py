@@ -674,7 +674,7 @@ class IoDriver(ParentDriver):
         :param tax_properties: Dictionary with taxon property types
         :return: Dictionary of dictionary of taxon properties
         """
-        hits = tx.run("MATCH (:Taxon {name: '" + node + "'})-[r]-(b:Property) RETURN r").data()
+        hits = tx.run("MATCH (:Taxon {name: '" + node + "'})-[r]-(b:Property) RETURN r, b").data()
         if hits:
             for hit in hits:
                 value = hit['r'].get('value')
