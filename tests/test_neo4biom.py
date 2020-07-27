@@ -299,9 +299,9 @@ class TestNeo4Biom(unittest.TestCase):
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
         driver.convert_biom(testbiom, 'test')
-        test = driver.query("MATCH (n:Property {type: 'Description'}) RETURN count(n) as count")
+        test = driver.query("MATCH (n:Property {name: 'Description'})-[r]-(:Specimen) RETURN count(r) as count")
         driver.query("MATCH (n:) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 2)
+        self.assertEqual(test[0]['count'], 6)
 
 
 if __name__ == '__main__':
