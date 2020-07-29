@@ -131,7 +131,8 @@ def read_networks(files, filepath, driver):
         for y in os.listdir(files):
             network = _read_network_extension(files + '/' + y)
             name = y.split(".")[0]
-            driver.convert_networkx(network=network, network_id=name)
+            if network:
+                driver.convert_networkx(network=network, network_id=name)
     else:
         checked_path = _get_path(path=files, default=filepath)
         if checked_path:
@@ -141,7 +142,8 @@ def read_networks(files, filepath, driver):
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
         name = name.split(".")[0]
-        driver.convert_networkx(network=network, network_id=name)
+        if network:
+            driver.convert_networkx(network=network, network_id=name)
 
 
 def add_sequences(filepath, location, driver):
@@ -249,6 +251,9 @@ def _read_network_extension(filename):
     Given a filename with a specific extension,
     this function calls the correct function to read the file.
 
+    If the file cannot be read,
+    this function returns False.
+
     :param filename: Complete filename.
     :return: NetworkX object
     """
@@ -263,15 +268,15 @@ def _read_network_extension(filename):
         elif extension == 'gml':
             network = nx.read_gml(filename)
         else:
-            logger.warning('Format not accepted. '
-                           'Please specify the filename including extension (e.g. test.graphml).', exc_info=True)
-            sys.exit()
-        try:
-            if 'name' in network.nodes[list(network.nodes)[0]]:
-                if network.nodes[list(network.nodes)[0]]['name'] != list(network.nodes)[0]:
-                    network = nx.relabel_nodes(network, nx.get_node_attributes(network, 'name'))
-        except IndexError:
-            logger.warning('One of the imported networks contains no nodes.', exc_info=True)
+            logger.warning('Ignoring file with wrong format.', exc_info=True)
+            network = False
+        if network:
+            try:
+                if 'name' in network.nodes[list(network.nodes)[0]]:
+                    if network.nodes[list(network.nodes)[0]]['name'] != list(network.nodes)[0]:
+                        network = nx.relabel_nodes(network, nx.get_node_attributes(network, 'name'))
+            except IndexError:
+                logger.warning('One of the imported networks contains no nodes.', exc_info=True)
     except Exception:
         logger.error('Could not import network file!', exc_info=True)
     return network
