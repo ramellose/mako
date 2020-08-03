@@ -19,6 +19,7 @@ import sys
 import os
 import argparse
 import multiprocessing as mp
+from pbr.version import VersionInfo
 from mako.scripts.base import start_base
 from mako.scripts.neo4biom import start_biom
 from mako.scripts.io import start_io
@@ -47,8 +48,10 @@ def mako(mako_args):
     :param mako_args: Arguments.
     :return:
     """
-    # handler to file
-    # construct logger after filepath is provided
+    if mako_args['version']:
+        info = VersionInfo('anuran')
+        logger.info('Version ' + info.version_string())
+        sys.exit(0)
     if 'base' in mako_args:
         logger.info('Running base Neo4j module. ')
         start_base(mako_args)
@@ -77,6 +80,12 @@ mako_parser.add_argument('-s', '--set',
                               'filepaths to processed data, '
                               'as well as other settings. ',
                          default=os.getcwd() + '\\config')
+mako_parser.add_argument('-version', '--version',
+                         dest='version',
+                         required=False,
+                         help='Version number.',
+                         action='store_true',
+                         default=False)
 subparsers = mako_parser.add_subparsers(title="mako modules",
                                         description="Each module carries out a part of mako. "
                                                     "Modules can be used independently "
