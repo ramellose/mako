@@ -1,11 +1,11 @@
 """
 This file contains parsers and functions that call on other functionality defined
-in the rest of massoc's scripts directory.
+in the rest of mako's scripts directory.
 The command line interface is intended to be called sequentially;
 files are written to disk as intermediates,
 while a settings file is used to transfer logs and other information
 between the modules. These modules are contained in this file.
-This modular design allows users to leave out parts of massoc that are not required,
+This modular design allows users to leave out parts of mako that are not required,
 and reduces the number of parameters that need to be defined in the function calls.
 """
 
