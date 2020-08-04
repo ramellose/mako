@@ -86,7 +86,8 @@ def start_biom(inputs):
     if inputs['count_table'] is not None:
         try:
             for i in range(len(inputs['count_table'])):
-                read_tabs(inputs=inputs, i=i, driver=driver)
+                name, biomtab = read_tabs(inputs=inputs, i=i, driver=driver)
+                driver.convert_biom(biomfile=biomtab, exp_id=name)
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
     if inputs['delete']:
@@ -224,7 +225,7 @@ def read_tabs(inputs, i, driver):
         obs_data = MetadataMap.from_file(obs_f)
         obs_f.close()
         biomtab.add_metadata(obs_data, axis='observation')
-    driver.convert_biom(biomfile=biomtab, exp_id=name)
+    return name, biomtab
 
 
 class Biom2Neo(ParentDriver):
