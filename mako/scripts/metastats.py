@@ -91,7 +91,17 @@ class MetastatsDriver(ParentDriver):
         The stop condition is the length of the pair list;
         as soon as no pair meets the qualification, agglomeration is terminated.
         By default, agglomeration is done separately
-        per network in the database.
+        per network in the database, so each network gets an agglomerated version.
+
+        The networks parameter can be both a dict and a list.
+        If it is a dict, the keys are the new network names, the values the old names.
+
+        Pseudocode representation:
+        1. Duplicate networks
+        2. For each edge pair (taxon-level)-taxon-taxon-(taxon-level)
+            3. Create new edge
+            4. Delete edge pair
+
         :param level: Taxonomic level matching taxonomic assignments in Neo4j database
         :param weight: if True, takes edge weight into account
         :param networks: If specified, only these networks are agglomerated
@@ -412,7 +422,6 @@ class MetastatsDriver(ParentDriver):
                          ") WHERE (e.name = f.name) "
                          "AND (m.name <> n.name) RETURN p LIMIT 1"))
         return result.data()
-
 
     @staticmethod
     def _create_agglom(tx):

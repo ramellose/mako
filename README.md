@@ -1,14 +1,12 @@
 # _mako_ ![mako](https://github.com/ramellose/mako/blob/master/mako.png)
 
 Microbial Associations Katalog. _mako_ helps you structure data from multiple networks to carry out better meta-analysis.
-This package contains functions for importing BIOM and network files into a Neo4j database according to a strict database model.
+This package contains functions for importing BIOM and network files into a Neo4j database according to an OWL database model.
 Neo4j is a native graph database and therefore the natural match for linked biological data.
 In addition to setting up the Neo4j database, _mako_ contains functions for exporting networks to Cytoscape through HTML.
 
 By storing the data on a harddisk rather than in memory, _mako_ can store vast amounts of data compared to conventional network libraries.
 This supports meta-analyses on much greater scales. Moreover, _mako_ allows you to carry out reasoning on your graph with plugins like [GraphScale](https://www.derivo.de/en/products/graphscale/).
-
-_mako_ supports FAIR data by automatically generating a provenance log for your networks.
 
 This API contains drivers for interacting with a Neo4j database.
 Many of these drivers have functions that allow for BIOM files,
@@ -41,6 +39,19 @@ If you have both Python 2.7 and Python 3 installed, you may need to change the c
 ```
 python3 -m pip install git+https://github.com/ramellose/mako.git
 ```
+
+At the moment, the API is not very well documented, since _mako_ is in early development.
+You can run the _mako_ script and read the help docs with the following command.
+To get more information for specific modules, please specify the module before _-h_.
+
+```
+mako -h
+```
+
+For interacting with your Neo4j database, you will first need to start or connect to an instance of a Neo4j database.
+You can do so through the _base_ module. The _biom_ and _io_ modules allow you to upload BIOM files and networks respectively, or to write networks.
+The _netstats_ module runs Neo4j queries to extract sets from specified networks.
+The _metastats_ module can do some basic statistics, or agglomerate networks by taxonomic level.
 
 ### Contributions
 
