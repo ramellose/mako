@@ -40,7 +40,7 @@ If you have both Python 2.7 and Python 3 installed, you may need to change the c
 python3 -m pip install git+https://github.com/ramellose/mako.git
 ```
 
-At the moment, the API is not very well documented, since _mako_ is in early development.
+At the moment, the CLI is not very well documented, since _mako_ is in early development.
 You can run the _mako_ script and read the help docs with the following command.
 To get more information for specific modules, please specify the module before _-h_.
 
@@ -52,6 +52,10 @@ For interacting with your Neo4j database, you will first need to start or connec
 You can do so through the _base_ module. The _biom_ and _io_ modules allow you to upload BIOM files and networks respectively, or to write networks.
 The _netstats_ module runs Neo4j queries to extract sets from specified networks.
 The _metastats_ module can do some basic statistics, or agglomerate networks by taxonomic level.
+
+Before you can use mako, you need to be able to access a Neo4j database.
+For getting acquainted with the Neo4j technology, the [Neo4j Desktop version](https://neo4j.com/docs/operations-manual/current/installation/neo4j-desktop/) is very helpful.
+Neo4j comes with a [browser interface](https://neo4j.com/developer/neo4j-browser/) that can be used to access the database.
 
 ### Contributions
 
