@@ -13,7 +13,7 @@ Many of these drivers have functions that allow for BIOM files,
 network files and other microbiome-related files to be ported to the database.
 
 Contact the author at lisa.rottjers (at) kuleuven.be. Your feedback is much appreciated!
-This version is still in early beta and has been tested for Python 3.6.
+This version is still in early alpha and has been tested for Python 3.6.
 
 ## Getting Started
 
