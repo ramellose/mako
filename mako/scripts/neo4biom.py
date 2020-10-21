@@ -237,48 +237,116 @@ class Biom2Neo(ParentDriver):
     def convert_biom(self, biomfile, exp_id):
         """
         Stores a BIOM object in the database.
+        To speed up this process, all data from the BIOM object is first converted to
+        dictionaries or lists that can be used in parameterized batch queries.
+        Labels need to be set statically,
+        which is done as part of the static functions.
         :param biomfile: BIOM file.
         :param exp_id: Label of experiment used to generate BIOM file.
         :return:
         """
         try:
             # first check if sample metadata exists
-            tax_meta = biomfile.metadata(axis='observation')
-            sample_meta = biomfile.metadata(axis='sample')
+            tax_meta = biomfile.metadata_to_dataframe(axis='observation')
+            sample_meta = biomfile.metadata_to_dataframe(axis='sample')
             with self._driver.session() as session:
                 session.write_transaction(self._create_experiment, exp_id)
-                for taxon in biomfile.ids(axis='observation'):
-                    session.write_transaction(self._create_taxon, taxon, biomfile)
-                    tax_index = biomfile.index(axis='observation', id=taxon)
-                    if tax_meta:
-                        meta = biomfile.metadata(axis='observation')[tax_index]
-                        for key in meta:
-                            if key != 'taxonomy' and type(meta[key]) == str:
-                                session.write_transaction(self.create_property,
-                                                          source=taxon, sourcetype='Taxon',
-                                                          target=meta[key], name=key)
+            taxon_query_dict = list()
+            for taxon in biomfile.ids(axis='observation'):
+                taxon_query_dict.append({'taxon': taxon})
             with self._driver.session() as session:
-                for sample in biomfile.ids(axis='sample'):
-                    session.write_transaction(self._create_sample, sample, exp_id)
-                    sample_index = biomfile.index(axis='sample', id=sample)
-                    if sample_meta:
-                        meta = biomfile.metadata(axis='sample')[sample_index]
-                        # need to clean up these 'if' conditions to catch None properties
-                        # there is also a problem with commas + quotation marks here
-                        for key in meta:
-                            # meta[key] = re.sub(r'\W+', '', str(meta[key]))
-                            session.write_transaction(self.create_property,
-                                                      source=sample, sourcetype='Specimen',
-                                                      value=meta[key], name=key, weight=None)
+                # Add taxon nodes
+                session.write_transaction(self._create_taxon, taxon_query_dict)
+            taxonomy_query_dict = list()
+            tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
+            taxonomy_table = biomfile.metadata_to_dataframe(axis='observation').drop_duplicates()
+            for i in reversed(range(7)):
+                taxonomy_table_i = set(taxonomy_table.iloc[:,i])
+                level = tax_levels[i]
+                # Create each taxonomic label
+                taxonomy_query_dict = list()
+                for val in taxonomy_table_i:
+                    # filters out empty assignments with just prefix
+                    if len(val) > 4:
+                        taxonomy_query_dict.append({'label': val})
+                with self._driver.session() as session:
+                    session.write_transaction(self._create_taxonomy, level, taxonomy_query_dict)
+            for i in reversed(range(1, 7)):
+                # Connect each taxonomic label to its higher-level label
+                taxonomy_table_i = taxonomy_table.iloc[:,[i,i-1]].drop_duplicates()
+                lower_level = tax_levels[i]
+                upper_level = tax_levels[i-1]
+                taxonomy_query_dict = list()
+                for index, row in taxonomy_table_i.iterrows():
+                    # filters out empty assignments with just prefix
+                    if len(row[0]) > 4:
+                        taxonomy_query_dict.append({'label1': row[0], 'label2': row[1]})
+                with self._driver.session() as session:
+                    session.write_transaction(self._connect_taxonomy, lower_level, upper_level,
+                                              taxonomy_query_dict)
+            for i in range(7):
+                taxonomy_query_dict = list()
+                for taxon in biomfile.ids(axis='observation'):
+                    tax_index = biomfile.index(axis='observation', id=taxon)
+                    tax_labels = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
+                    if len(tax_labels[i]) > 4:
+                        taxonomy_query_dict.append({'taxon': taxon, 'level': tax_labels[i]})
+                if len(taxonomy_query_dict) > 0:
+                    with self._driver.session() as session:
+                        session.write_transaction(self._add_taxonomy, tax_levels[i], taxonomy_query_dict)
+            metadata_query_dict = list()
+            for column in tax_meta.columns:
+                if 'taxonomy' not in column:
+                    metadata_query_dict.append({'label': column})
+            if len(metadata_query_dict) > 0:
+                with self._driver.session() as session:
+                    session.write_transaction(self._create_property, metadata_query_dict)
+            metadata_query_dict = list()
+            for taxon in biomfile.ids(axis='observation'):
+                tax_index = biomfile.index(axis='observation', id=taxon)
+                if len(tax_meta) > 0:
+                    meta = biomfile.metadata(axis='observation')[tax_index]
+                    for key in meta:
+                        if key != 'taxonomy' and type(meta[key]) == str:
+                            metadata_query_dict.append({'source': taxon,
+                                                        'value': meta[key], 'name': key})
+            if len(metadata_query_dict) > 0:
+                with self._driver.session() as session:
+                    session.write_transaction(self._connect_property, metadata_query_dict, sourcetype='Taxon')
+            sampledata_query_dict = list()
+            for sample in biomfile.ids(axis='sample'):
+                sampledata_query_dict.append({'sample': sample, 'exp_id': exp_id})
+            if len(sampledata_query_dict) > 0:
+                with self._driver.session() as session:
+                    session.write_transaction(self._create_sample, sampledata_query_dict)
+            sampleproperty_query_dict = list()
+            for column in sample_meta.columns:
+                sampleproperty_query_dict.append({'label': column})
+            if len(sampleproperty_query_dict) > 0:
+                with self._driver.session() as session:
+                    session.write_transaction(self._create_property, sampleproperty_query_dict)
+            sampleproperty_query_dict = list()
+            for sample in biomfile.ids(axis='sample'):
+                sample_index = biomfile.index(axis='sample', id=sample)
+                if len(sample_meta) > 0:
+                    meta = biomfile.metadata(axis='sample')[sample_index]
+                    # need to clean up these 'if' conditions to catch None properties
+                    # there is also a problem with commas + quotation marks here
+                    for key in meta:
+                        sampleproperty_query_dict.append({'source': sample,
+                                                          'value': meta[key], 'name': key})
+            # not setting properties yet!
+            if len(sampleproperty_query_dict) > 0:
+                with self._driver.session() as session:
+                    session.write_transaction(self._connect_property, sampleproperty_query_dict, sourcetype='Specimen')
             obs_data = biomfile.to_dataframe()
             rows, cols = np.where(obs_data.values != 0)
             observations = list()
             for taxon, sample in list(zip(obs_data.index[rows], obs_data.columns[cols])):
                 value = obs_data[sample][taxon]
-                observations.append((taxon, sample, value))
+                observations.append({'taxon': taxon, 'sample': sample, 'value': value})
             with self._driver.session() as session:
-                for observation in observations:
-                    session.write_transaction(self._create_observation, observation)
+                session.write_transaction(self._create_observations, observations)
         except Exception:
             logger.error("Could not write BIOM file to database. \n", exc_info=True)
 
@@ -314,127 +382,144 @@ class Biom2Neo(ParentDriver):
         tx.run("MERGE (a:Experiment {name: '" + exp_id + "'}) RETURN a")
 
     @staticmethod
-    def _create_taxon(tx, taxon, biomfile):
+    def _create_taxon(tx, taxon_query_dict):
         """
         Creates a node that represents a taxon.
-        Also generates taxonomy nodes + connects them, and
-        includes metadata.
         :param tx: Neo4j transaction
-        :param taxon: ID for taxon
-        :param biomfile: BIOM file containing count data.
+        :param taxon_query_dict: Dictionary of taxon IDs
         :return:
         """
-        tx.run("MERGE (a:Taxon {name: '" + taxon + "'}) RETURN a")
-        tax_index = biomfile.index(axis='observation', id=taxon)
-        if biomfile.metadata(axis='observation'):
-            # it is possible that there is no metadata
-            tax_dict = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
-            tax_levels = ['Kingdom', 'Phylum', 'Class',
-                          'Order', 'Family', 'Genus', 'Species']
-            if str(taxon) is not 'Bin':
-                # define range for which taxonomy needs to be added
-                j = 0
-                if tax_dict:
-                    for i in range(len(tax_dict)):
-                        level = tax_dict[i]
-                        if sum(c.isalpha() for c in level) > 1:
-                            # only consider adding as node if there is more
-                            # than 1 character in the taxonomy
-                            # first request ID to see if the taxonomy node already exists
-                            j += 1
-                    for i in range(0, j):
-                        if tax_dict[i] != 'NA':  # maybe allow user input to specify missing values
-                            tx.run(("MERGE (a:" + tax_levels[i] +
-                                    " {name: '" + tax_dict[i] +
-                                    "', type: 'Taxonomy'}) RETURN a")).data()
-                            if i > 0:
-                                tx.run(("MATCH (a:" + tax_levels[i] +
-                                        "), (b:" + tax_levels[i-1] +
-                                        ") WHERE a.name = '" + tax_dict[i] +
-                                        "' AND b.name = '" + tax_dict[i-1] +
-                                        "' MERGE (a)-[r:MEMBER_OF]->(b) "
-                                        "RETURN type(r)"))
-                            tx.run(("MATCH (a:Taxon), (b:" + tax_levels[i] +
-                                    ") WHERE a.name = '" + taxon +
-                                    "' AND b.name = '" + tax_dict[i] +
-                                    "' MERGE (a)-[r:MEMBER_OF]->(b) "
-                                    "RETURN type(r)"))
-        else:
-            tx.run("MERGE (a:Taxon {name: 'Bin'})")
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Taxon {name:record.taxon}) RETURN a"
+        tx.run(query, batch=taxon_query_dict)
 
     @staticmethod
-    def _create_sample(tx, sample, exp_id):
+    def _create_taxonomy(tx, level, taxonomy_query_dict):
+        """
+        Creates a node that represents a taxonomic label.
+        :param tx: Neo4j transaction
+        :param level: Label used for taxonomy node
+        :param taxonomy_query_dict: Dictionary of taxon labels
+        :return:
+        """
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:" + level + " {name:record.label}) RETURN a"
+        tx.run(query, batch=taxonomy_query_dict)
+
+    @staticmethod
+    def _connect_taxonomy(tx, level1, level2, taxonomy_query_dict):
+        """
+        Connects a taxonomic label to its higher-level label.
+        :param tx: Neo4j transaction
+        :param level1: Label used for lower-level taxonomy node
+        :param level2: Label used for upper-level taxonomy node
+        :param taxonomy_query_dict: Dictionary of taxon label
+        :return:
+        """
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:" + level1 + " {name:record.label1}), (b:" + level2 + \
+                " {name:record.label2}) " \
+                "MERGE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"
+        tx.run(query, batch=taxonomy_query_dict)
+
+    @staticmethod
+    def _add_taxonomy(tx, level, taxonomy_query_dict):
+        """
+        Connects taxon node to taxonomy node.
+        :param tx: Neo4j transaction
+        :param level: Label used for taxonomy node
+        :param taxonomy_query_dict: List of taxon IDs
+        :return:
+        """
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Taxon {name:record.taxon}), (b:" + level + \
+                " {name:record.level}) " \
+                "MERGE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"
+        tx.run(query, batch=taxonomy_query_dict)
+
+    @staticmethod
+    def _create_sample(tx, sample_query_dict):
         """
         Creates sample nodes and link to experiment.
         :param tx: Neo4j transaction
-        :param sample: Specimen name
+        :param sample_query_dict: List of dictionaries with sample names and experiment IDs
         :param exp_id: Experiment name
         :return:
         """
-        tx.run("MERGE (a:Specimen {name: '" + sample + "'}) RETURN a")
-        tx.run(("MATCH (a:Specimen), (b:Experiment) "
-                "WHERE a.name = '" + sample +
-                "' AND b.name = '" + exp_id +
-                "' MERGE (a)-[r:PART_OF]->(b) "
-                "RETURN type(r)"))
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Specimen {name:record.sample}) RETURN a"
+        tx.run(query, batch=sample_query_dict)
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Specimen {name:record.sample}), (b:Experiment {name:record.exp_id}) " \
+                "MERGE (a)-[r:PART_OF]->(b) RETURN type(r)"
+        tx.run(query, batch=sample_query_dict)
 
     @staticmethod
-    def create_property(tx, source,  value, name, weight, sourcetype=''):
+    def _create_property(tx, property_query_dict):
         """
         Creates target node if it does not exist yet
         and adds the relationship between target and source.
         :param tx: Neo4j transaction
-        :param source: Source node, should exist in database
-        :param value: Relationship property for metadata value
-        :param name: Type variable of target node
-        :param weight: Weight of relationship (i.e. for statistics output)
-        :param sourcetype: Type variable of source node (not required)
+        :param property_query_dict: List of dictionaries with property names
         :return:
         """
-        tx.run(("MERGE (a:Property {name: '" + name + "'}) "
-                "RETURN a")).data()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Property {name:record.label}) RETURN a"
+        tx.run(query, batch=property_query_dict)
+
+    @staticmethod
+    def _connect_property(tx, property_query_dict, sourcetype=''):
+        """
+        Creates target node if it does not exist yet
+        and adds the relationship between target and source.
+        :param tx: Neo4j transaction
+        :param property_query_dict: List of dictionaries with property names, targets, values of relationship.
+        :return:
+        """
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
-        matching_rel = tx.run(("MATCH (a" + sourcetype + ")-[r:QUALITY_OF]-(b:Property) "
-                               "WHERE a.name = '" + source +
-                               "' AND b.name = '" + name +
-                               "' RETURN r")).data()
         rel = ""
         weight_rel = None
         val_rel = None
-        if weight:
-            weight_rel = "weight: '" + weight + "'"
-        if value:
-            val_rel = "value: '" + value + "'"
-        if weight and value:
+        if 'weight' in property_query_dict[0]:
+            weight_rel = "weight: record.weight"
+        if 'value' in property_query_dict[0]:
+            val_rel = "value: record.value"
+        if weight_rel and val_rel:
             rel = " {" + weight_rel + ", " + val_rel + "}"
-        elif weight:
+        elif weight_rel:
             rel = " {" + weight_rel + "}"
         elif val_rel:
             rel = " {" + val_rel + "}"
-        if len(matching_rel) == 0:
-            tx.run(("MATCH (a" + sourcetype + "), (b:Property) "
-                    "WHERE a.name = '" + source +
-                    "' AND b.name = '" + name +
-                    "' MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) "
-                    "RETURN type(r)"))
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a" + sourcetype + " {name:record.source}), (b:Property {name:record.name}) " \
+                "MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
+                "RETURN type(r)"
+        tx.run(query, batch=property_query_dict)
 
     @staticmethod
-    def _create_observation(tx, observation):
+    def _create_observations(tx, observations):
         """
         Creates relationships between taxa and samples
         that represent the count number of that taxon in a sample.
         :param tx: Neo4j transaction
-        :param observation: An observation (count) of a taxon in a sample.
+        :param observations: A list of dictionaries containing taxon name, sample ID and count.
         :return:
         """
-        taxon, sample, value = observation
-        tx.run(("MATCH (a:Taxon), (b:Specimen) "
-                "WHERE a.name = '" + taxon +
-                "' AND b.name = '" + sample +
-                "' MERGE (a)-[r:LOCATED_IN]->(b) "
-                "SET r.count = '" + str(value) +
-                "' RETURN type(r)"))
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Taxon {name:record.taxon}), (b:Specimen {name:record.sample}) " \
+                "MERGE (a)-[r:LOCATED_IN {count: record.value}]->(b) " \
+                "RETURN type(r)"
+        tx.run(query, batch=observations)
 
     @staticmethod
     def _samples_to_delete(tx, exp_id):
