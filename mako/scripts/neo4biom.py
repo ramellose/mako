@@ -247,104 +247,57 @@ class Biom2Neo(ParentDriver):
         """
         try:
             # first check if sample metadata exists
-            tax_meta = biomfile.metadata_to_dataframe(axis='observation')
-            sample_meta = biomfile.metadata_to_dataframe(axis='sample')
             with self._driver.session() as session:
                 session.write_transaction(self._create_experiment, exp_id)
-            taxon_query_dict = list()
-            for taxon in biomfile.ids(axis='observation'):
-                taxon_query_dict.append({'taxon': taxon})
+            taxon_query_dict = self._create_taxon_dict(biomfile)
             with self._driver.session() as session:
                 # Add taxon nodes
                 session.write_transaction(self._create_taxon, taxon_query_dict)
-            taxonomy_query_dict = list()
             tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
-            taxonomy_table = biomfile.metadata_to_dataframe(axis='observation').drop_duplicates()
-            for i in reversed(range(7)):
-                taxonomy_table_i = set(taxonomy_table.iloc[:,i])
-                level = tax_levels[i]
-                # Create each taxonomic label
-                taxonomy_query_dict = list()
-                for val in taxonomy_table_i:
-                    # filters out empty assignments with just prefix
-                    if len(val) > 4:
-                        taxonomy_query_dict.append({'label': val})
-                with self._driver.session() as session:
-                    session.write_transaction(self._create_taxonomy, level, taxonomy_query_dict)
-            for i in reversed(range(1, 7)):
-                # Connect each taxonomic label to its higher-level label
-                taxonomy_table_i = taxonomy_table.iloc[:,[i,i-1]].drop_duplicates()
-                lower_level = tax_levels[i]
-                upper_level = tax_levels[i-1]
-                taxonomy_query_dict = list()
-                for index, row in taxonomy_table_i.iterrows():
-                    # filters out empty assignments with just prefix
-                    if len(row[0]) > 4:
-                        taxonomy_query_dict.append({'label1': row[0], 'label2': row[1]})
-                with self._driver.session() as session:
-                    session.write_transaction(self._connect_taxonomy, lower_level, upper_level,
-                                              taxonomy_query_dict)
-            for i in range(7):
-                taxonomy_query_dict = list()
-                for taxon in biomfile.ids(axis='observation'):
-                    tax_index = biomfile.index(axis='observation', id=taxon)
-                    tax_labels = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
-                    if len(tax_labels[i]) > 4:
-                        taxonomy_query_dict.append({'taxon': taxon, 'level': tax_labels[i]})
-                if len(taxonomy_query_dict) > 0:
+            try:
+                taxonomy_table = biomfile.metadata_to_dataframe(axis='observation').drop_duplicates()
+                for i in reversed(range(7)):
+                    level = tax_levels[i]
+                    taxonomy_query_dict = self._create_taxonomy_dict(taxonomy_table, i, level)
                     with self._driver.session() as session:
-                        session.write_transaction(self._add_taxonomy, tax_levels[i], taxonomy_query_dict)
-            metadata_query_dict = list()
-            for column in tax_meta.columns:
-                if 'taxonomy' not in column:
-                    metadata_query_dict.append({'label': column})
-            if len(metadata_query_dict) > 0:
+                        session.write_transaction(self._create_taxonomy, level, taxonomy_query_dict)
+                for i in reversed(range(1, 7)):
+                    # Connect each taxonomic label to its higher-level label
+                    lower_level = tax_levels[i]
+                    upper_level = tax_levels[i-1]
+                    taxonomy_query_dict = self._connect_taxonomy_dict(taxonomy_table, i)
+                    with self._driver.session() as session:
+                        session.write_transaction(self._connect_taxonomy, lower_level, upper_level,
+                                                  taxonomy_query_dict)
+                for i in range(7):
+                    taxonomy_query_dict = self._add_taxonomy_dict(biomfile, i)
+                    if len(taxonomy_query_dict) > 0:
+                        with self._driver.session() as session:
+                            session.write_transaction(self._add_taxonomy, tax_levels[i], taxonomy_query_dict)
+            except KeyError:
+                pass
+            try:
+                tax_meta = biomfile.metadata_to_dataframe(axis='observation')
+                metadata_query_dict1, metadata_query_dict2 = self._create_meta_dict(tax_meta, biomfile)
+                if len(metadata_query_dict1) > 0:
+                    with self._driver.session() as session:
+                        session.write_transaction(self._create_property, metadata_query_dict1)
+                if len(metadata_query_dict2) > 0:
+                    with self._driver.session() as session:
+                        session.write_transaction(self._connect_property, metadata_query_dict2, sourcetype='Taxon')
+            except KeyError:
+                pass
+            sampledata_query_dict1, sampleproperty_query_dict2, sampleproperty_query_dict3 = self._create_sample_dict(biomfile, exp_id)
+            if len(sampledata_query_dict1) > 0:
                 with self._driver.session() as session:
-                    session.write_transaction(self._create_property, metadata_query_dict)
-            metadata_query_dict = list()
-            for taxon in biomfile.ids(axis='observation'):
-                tax_index = biomfile.index(axis='observation', id=taxon)
-                if len(tax_meta) > 0:
-                    meta = biomfile.metadata(axis='observation')[tax_index]
-                    for key in meta:
-                        if key != 'taxonomy' and type(meta[key]) == str:
-                            metadata_query_dict.append({'source': taxon,
-                                                        'value': meta[key], 'name': key})
-            if len(metadata_query_dict) > 0:
+                    session.write_transaction(self._create_sample, sampledata_query_dict1)
+            if len(sampleproperty_query_dict2) > 0:
                 with self._driver.session() as session:
-                    session.write_transaction(self._connect_property, metadata_query_dict, sourcetype='Taxon')
-            sampledata_query_dict = list()
-            for sample in biomfile.ids(axis='sample'):
-                sampledata_query_dict.append({'sample': sample, 'exp_id': exp_id})
-            if len(sampledata_query_dict) > 0:
+                    session.write_transaction(self._create_property, sampleproperty_query_dict2)
+            if len(sampleproperty_query_dict3) > 0:
                 with self._driver.session() as session:
-                    session.write_transaction(self._create_sample, sampledata_query_dict)
-            sampleproperty_query_dict = list()
-            for column in sample_meta.columns:
-                sampleproperty_query_dict.append({'label': column})
-            if len(sampleproperty_query_dict) > 0:
-                with self._driver.session() as session:
-                    session.write_transaction(self._create_property, sampleproperty_query_dict)
-            sampleproperty_query_dict = list()
-            for sample in biomfile.ids(axis='sample'):
-                sample_index = biomfile.index(axis='sample', id=sample)
-                if len(sample_meta) > 0:
-                    meta = biomfile.metadata(axis='sample')[sample_index]
-                    # need to clean up these 'if' conditions to catch None properties
-                    # there is also a problem with commas + quotation marks here
-                    for key in meta:
-                        sampleproperty_query_dict.append({'source': sample,
-                                                          'value': meta[key], 'name': key})
-            # not setting properties yet!
-            if len(sampleproperty_query_dict) > 0:
-                with self._driver.session() as session:
-                    session.write_transaction(self._connect_property, sampleproperty_query_dict, sourcetype='Specimen')
-            obs_data = biomfile.to_dataframe()
-            rows, cols = np.where(obs_data.values != 0)
-            observations = list()
-            for taxon, sample in list(zip(obs_data.index[rows], obs_data.columns[cols])):
-                value = obs_data[sample][taxon]
-                observations.append({'taxon': taxon, 'sample': sample, 'value': value})
+                    session.write_transaction(self._connect_property, sampleproperty_query_dict3, sourcetype='Specimen')
+            observations = self._create_obs_dict(biomfile)
             with self._driver.session() as session:
                 session.write_transaction(self._create_observations, observations)
         except Exception:
@@ -370,6 +323,138 @@ class Biom2Neo(ParentDriver):
         logger.info('Removed disconnected taxa...')
         self.query(("MATCH (a:Experiment {name: '" + exp_id + "'}) DETACH DELETE a"))
         logger.info('Finished deleting ' + exp_id + '.')
+
+    @staticmethod
+    def _create_taxon_dict(biomfile):
+        """
+        Creates a taxon dictionary to use for batch Neo4j queries.
+        This dictionary creates taxon nodes.
+        :param biomfile: BIOM object
+        :return:
+        """
+        taxon_query_dict = list()
+        for taxon in biomfile.ids(axis='observation'):
+            taxon_query_dict.append({'taxon': taxon})
+        return taxon_query_dict
+
+    @staticmethod
+    def _create_taxonomy_dict(taxonomy_table, i):
+        """
+        Creates a taxonomy dictionary to use for batch Neo4j queries.
+        This dictionary creates taxonomy nodes.
+        :param taxonomy_table: Taxonomy dataframe
+        :param i: index of taxonomic level
+        :return:
+        """
+        taxonomy_table_i = set(taxonomy_table.iloc[:, i])
+        # Create each taxonomic label
+        taxonomy_query_dict = list()
+        for val in taxonomy_table_i:
+            # filters out empty assignments with just prefix
+            if len(val) > 4:
+                taxonomy_query_dict.append({'label': val})
+        return taxonomy_query_dict
+
+    @staticmethod
+    def _connect_taxonomy_dict(taxonomy_table, i):
+        """
+        Creates a taxonomy dictionary to use for batch Neo4j queries.
+        This dictionary connects taxonomy nodes.
+        :param taxonomy_table: Taxonomy dataframe
+        :param i: index of taxonomic level
+        :return:
+        """
+        taxonomy_query_dict = list()
+        taxonomy_table_i = taxonomy_table.iloc[:, [i, i - 1]].drop_duplicates()
+        for index, row in taxonomy_table_i.iterrows():
+            # filters out empty assignments with just prefix
+            if len(row[0]) > 4:
+                taxonomy_query_dict.append({'label1': row[0], 'label2': row[1]})
+        return taxonomy_query_dict
+
+    @staticmethod
+    def _add_taxonomy_dict(biomfile, i):
+        """
+        Creates a taxonomy dictionary to connect taxa to taxonomy nodes.
+        :param biomfile: BIOM object
+        :param i: Index of taxonomy level
+        :return:
+        """
+        taxonomy_query_dict = list()
+        for taxon in biomfile.ids(axis='observation'):
+            tax_index = biomfile.index(axis='observation', id=taxon)
+            tax_labels = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
+            if len(tax_labels[i]) > 4:
+                taxonomy_query_dict.append({'taxon': taxon, 'level': tax_labels[i]})
+        return taxonomy_query_dict
+
+    @staticmethod
+    def _create_meta_dict(tax_meta, biomfile):
+        """
+        Takes taxon metadata (not taxonomy) and makes a dictionary for those metadata properties.
+        :param tax_meta: Dataframe of taxon metadata.
+        :param biomfile: BIOM object.
+        :return:
+        """
+        metadata_query_dict1 = list()
+        for column in tax_meta.columns:
+            if 'taxonomy' not in column:
+                metadata_query_dict1.append({'label': column})
+        metadata_query_dict2 = list()
+        for taxon in biomfile.ids(axis='observation'):
+            tax_index = biomfile.index(axis='observation', id=taxon)
+            if len(tax_meta) > 0:
+                meta = biomfile.metadata(axis='observation')[tax_index]
+                for key in meta:
+                    if key != 'taxonomy' and type(meta[key]) == str:
+                        metadata_query_dict2.append({'source': taxon,
+                                                    'value': meta[key], 'name': key})
+        return metadata_query_dict1, metadata_query_dict2
+
+    @staticmethod
+    def _create_sample_dict(biomfile, exp_id):
+        """
+        Creates two dictionaries, one for sample nodes, one for sample properties.
+        :param biomfile: BIOM object
+        :param exp_id: Name used for BIOM object
+        :return:
+        """
+        sampledata_query_dict = list()
+        sampleproperty_query_dict = list()
+        sampleproperty_query_dict2 = list()
+        for sample in biomfile.ids(axis='sample'):
+            sampledata_query_dict.append({'sample': sample, 'exp_id': exp_id})
+        try:
+            sample_meta = biomfile.metadata_to_dataframe(axis='sample')
+            for column in sample_meta.columns:
+                sampleproperty_query_dict.append({'label': column})
+            for sample in biomfile.ids(axis='sample'):
+                sample_index = biomfile.index(axis='sample', id=sample)
+                if len(sample_meta) > 0:
+                    meta = biomfile.metadata(axis='sample')[sample_index]
+                    # need to clean up these 'if' conditions to catch None properties
+                    # there is also a problem with commas + quotation marks here
+                    for key in meta:
+                        sampleproperty_query_dict2.append({'source': sample,
+                                                           'value': meta[key], 'name': key})
+        except KeyError:
+            pass
+        return sampledata_query_dict, sampleproperty_query_dict, sampleproperty_query_dict2
+
+    @staticmethod
+    def _create_obs_dict(biomfile):
+        """
+        Creates a dictionary that can be used to connect taxa to samples via observation values.
+        :param biomfile: BIOM object.
+        :return:
+        """
+        obs_data = biomfile.to_dataframe()
+        rows, cols = np.where(obs_data.values != 0)
+        observations = list()
+        for taxon, sample in list(zip(obs_data.index[rows], obs_data.columns[cols])):
+            value = obs_data[sample][taxon]
+            observations.append({'taxon': taxon, 'sample': sample, 'value': value})
+        return observations
 
     @staticmethod
     def _create_experiment(tx, exp_id):
