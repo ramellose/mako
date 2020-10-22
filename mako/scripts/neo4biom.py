@@ -311,15 +311,19 @@ class Biom2Neo(ParentDriver):
         """
         with self._driver.session() as session:
             samples = session.read_transaction(self._samples_to_delete, exp_id)
+        deletion_dict = list()
+        for sample in samples:
+            deletion_dict.append({'sample': sample['a.name'], 'exp_id': exp_id})
         with self._driver.session() as session:
-            for sample in samples:
-                session.write_transaction(self._delete_sample, sample['a.name'])
+            session.write_transaction(self._delete_sample, deletion_dict)
         logger.info('Detached samples...')
         with self._driver.session() as session:
             taxa = session.read_transaction(self._taxa_to_delete)
+        deletion_dict = list()
+        for tax in taxa:
+            deletion_dict.append({'taxon': tax['a.name']})
         with self._driver.session() as session:
-            for tax in taxa:
-                session.write_transaction(self._delete_taxon, tax['a.name'])
+                session.write_transaction(self._delete_taxon, deletion_dict)
         logger.info('Removed disconnected taxa...')
         self.query(("MATCH (a:Experiment {name: '" + exp_id + "'}) DETACH DELETE a"))
         logger.info('Finished deleting ' + exp_id + '.')
@@ -632,32 +636,35 @@ class Biom2Neo(ParentDriver):
         return names
 
     @staticmethod
-    def _delete_sample(tx, sample):
+    def _delete_sample(tx, deletion_dict):
         """
         Deletes a sample node and all the observations linked to the sample.
         Only samples present in a single experiment are deleted.
         :param tx:
-        :param sample: Sample ID
+        :param deletion_dict: List of dictionaries containing sample + experiment ID
         :return:
         """
-        result = tx.run(("MATCH p=(a:Experiment)--(:Specimen {name: '" + sample +
-                         "'})--(b:Experiment) "
-                         "WHERE a.name <> b.name RETURN p")).data()
-        if len(result) == 0:
-                tx.run(("MATCH (a:Specimen {name: '" + sample +
-                        "'}) DETACH DELETE a"))
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Specimen {name:record.sample})--(b:Experiment {name:record.exp_id}) " \
+                "DETACH DELETE a"
+        tx.run(query, batch=deletion_dict)
 
     @staticmethod
-    def _delete_taxon(tx, taxon):
+    def _delete_taxon(tx, deletion_dict):
         """
         Deletes a taxon and all the edges linked to the taxon.
         :param tx:
-        :param taxon: Taxon ID
+        :param deletion_dict: List of dictionaries containing taxon identifiers
         :return:
         """
-        tx.run(("MATCH (a:Taxon)--(b:Edge) "
-                "WHERE a.name = '" + taxon +
-                "' DETACH DELETE b"))
-        tx.run(("MATCH (a:Taxon) "
-                "WHERE a.name = '" + taxon +
-                "' DETACH DELETE a"))
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Taxon {name:record.taxon})--(b:Edge) " \
+                "DETACH DELETE b"
+        tx.run(query, batch=deletion_dict)
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Taxon {name:record.taxon}) " \
+                "DETACH DELETE a"
+        tx.run(query, batch=deletion_dict)
