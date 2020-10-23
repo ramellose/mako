@@ -258,7 +258,7 @@ class Biom2Neo(ParentDriver):
                 taxonomy_table = biomfile.metadata_to_dataframe(axis='observation').drop_duplicates()
                 for i in reversed(range(7)):
                     level = tax_levels[i]
-                    taxonomy_query_dict = self._create_taxonomy_dict(taxonomy_table, i, level)
+                    taxonomy_query_dict = self._create_taxonomy_dict(taxonomy_table, i)
                     with self._driver.session() as session:
                         session.write_transaction(self._create_taxonomy, level, taxonomy_query_dict)
                 for i in reversed(range(1, 7)):
