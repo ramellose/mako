@@ -117,7 +117,7 @@ ae", "g__Escherichia", "s__"]}}
 
 testbiom = biom.parse.parse_biom_table(testraw)
 testdict = dict.fromkeys(testbiom._observation_ids)
-testdict = {x: {'target': 'banana', 'weight': None} for x in testdict}
+testdict = {x: {'target': 'banana', 'weight': 1} for x in testdict}
 
 # make toy network
 g = nx.Graph()
@@ -391,6 +391,37 @@ class TestIo(unittest.TestCase):
         network = nx.read_graphml(_resource_path('test.graphml'))
         nx.write_graphml(g, _resource_path('test.graphml'))
         self.assertFalse('GG_OTU_1' in network.nodes)
+
+    def test_import_network(self):
+        """
+        Checks if the network is written to the Neo4j database.
+        :return:
+        """
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        driver.convert_biom(testbiom, exp_id='test')
+        inputs = {'networks': ['test'],
+                  'fp': _resource_path(''),
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'delete': None,
+                  'store_config': False,
+                  'cyto': None,
+                  'fasta': None,
+                  'meta': None,
+                  'write': True,
+                  'encryption': True}
+        driver = IoDriver(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        driver.convert_networkx(network=g, network_id='test')
+        test = driver.query("MATCH (n:Network) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(len(test), 0)
 
 
 if __name__ == '__main__':

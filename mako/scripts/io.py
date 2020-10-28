@@ -299,17 +299,23 @@ class IoDriver(ParentDriver):
         """
         try:
             with self._driver.session() as session:
+                missing_no, edge_dict_tt, edge_dict_tm, edge_dict_mm = \
+                    session.read_transaction(self._create_edge_dict, network_id, network)
+            with self._driver.session() as session:
                 session.write_transaction(self._create_network, network_id)
-                session.write_transaction(self._create_edges, network_id, network)
+                session.write_transaction(self._create_edges, tt=edge_dict_tt,
+                                          tm=edge_dict_tm, mm=edge_dict_mm, missing_no=missing_no)
         except Exception:
             logger.error("Could not write networkx object to database. \n", exc_info=True)
 
     def delete_network(self, network_id):
         with self._driver.session() as session:
             edges = session.read_transaction(self._assocs_to_delete, network_id).data()
+        edge_query_dict = list()
+        for edge in edges:
+            edge_query_dict.append({'label': edge['a.name']})
         with self._driver.session() as session:
-            for edge in edges:
-                session.write_transaction(self._delete_assoc, edge['a.name'])
+            session.write_transaction(self._delete_assoc, edge_query_dict)
         logger.info('Detached edges...')
         self.query(("MATCH (a:Network) WHERE a.name = '" + network_id + "' DETACH DELETE a"))
         with self._driver.session() as session:
@@ -464,7 +470,8 @@ class IoDriver(ParentDriver):
         The column names are used to assign node types to the new metadata.
         The dictionary should contain another dictionary of target nodes and edge weights,
         or only a single value (target node).
-        :param nodes: Dictionary of existing nodes as values with node names as keys
+        The node properties should be identical for all node dictionaries.
+        :param nodes: Dictionary of existing nodes as values with node names as keys.
         :param name: Name of variable, inserted in Neo4j graph database as type
         :param label: Label of source node (e.g. Taxon, Specimen, Property, Experiment etc)
         :param verbose: If true, adds logging info
@@ -481,20 +488,29 @@ class IoDriver(ParentDriver):
             elif verbose:
                 logger.info(str(found_nodes) + ' out of ' + str(len(matches)) + ' values found in database.')
         found_nodes = {x: v for x, v in nodes.items() if matches[x]}
-        for node in found_nodes:
+        node_query_dict = list()
+        if type(found_nodes[list(found_nodes.keys())[0]]) == dict:
+            for node in found_nodes:
+                single_query = {'source': node,
+                                'target': str(nodes[node]['target']),
+                                'name': name}
+                for property in found_nodes[node]:
+                    if found_nodes[node][property]:
+                        single_query[property] = found_nodes[node][property]
+                node_query_dict.append(single_query)
             with self._driver.session() as session:
-                if type(nodes[node]) == dict:
                     # each dictionary value is another dictionary
                     # this dictionary contains the target and weight
                     session.write_transaction(self._create_property,
-                                              source=node, sourcetype=label,
-                                              target=str(nodes[node]['target']), name=name,
-                                              property_dictionary=nodes[node])
-                else:
-                    # each dictionary value is the target
-                    session.write_transaction(self._create_property,
-                                              source=node, sourcetype=label,
-                                              target=str(nodes[node]), name=name)
+                                              node_query_dict, sourcetype=label)
+        else:
+            for node in found_nodes:
+                node_query_dict.append({'source': node,
+                                        'target': str(nodes[node]['target']),
+                                        'name': name})
+            with self._driver.session() as session:
+                session.write_transaction(self._create_property,
+                                          node_query_dict, sourcetype=label)
 
     def export_fasta(self, fp, name):
         """
@@ -565,7 +581,7 @@ class IoDriver(ParentDriver):
                                 "' RETURN a"))
 
     @staticmethod
-    def _create_edges(tx, name, network):
+    def _create_edge_dict(tx, name, network):
         """
         Generates all the edges contained in a network and
         connects them to the related network node.
@@ -575,6 +591,19 @@ class IoDriver(ParentDriver):
         :param network: NetworkX object
         :return:
         """
+        # first find nodes that are not taxa
+        node_list = [{'name': x} for x in network.nodes]
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Taxon {name:record.name}) RETURN a.name"
+        hits = tx.run(query, batch=node_list).data()
+        hits = [x['a.name'] for x in hits]
+        missing_no = [{'missingno': x} for x in list(network.nodes) if x not in hits]
+        label_dict = {y: 'Taxon' for y in network.nodes}
+        for entry in network.nodes:
+            if entry in missing_no:
+                label_dict[entry] = 'Property'
+        edge_query_dict = list()
         for edge in network.edges:
             taxon1 = edge[0]
             taxon2 = edge[1]
@@ -591,50 +620,86 @@ class IoDriver(ParentDriver):
             # uid is updated for every edge,
             # faster than checking for uid and adding it
             uid = str(uuid4())
-            hit = tx.run(("MATCH (a:Taxon {name: '" + taxon1 + "'}), "
-                          "(b:Taxon {name: '" + taxon2 + "'}) "
-                          "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) "
-                          "SET e.name = '" + str(uid) + "' " +
-                          "RETURN e")).data()
-            if len(hit) == 0:
-                # Node in network not in database
-                # Assuming node is a metadata property
-                metahits = list()
-                for property in [taxon1, taxon2]:
-                    taxmatch = tx.run(("MATCH (a:Taxon {name: '" + property + "'}) RETURN a")).data()
-                    if len(taxmatch) == 0:
-                        tx.run(("MERGE (a:Property {name: '" + property + "'}) "
-                                "RETURN a"))
-                        metahits.append("Property")
-                    else:
-                        metahits.append("Taxon")
-                hit = tx.run(("MATCH (a:" + metahits[0] + " {name: '" + taxon1 + "'}), "
-                              "(b:" + metahits[1] + " {name: '" + taxon2 + "'}) "
-                              "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) "
-                              "SET e.name = '" + str(uid) + "' " +
-                              "RETURN e")).data()
-            # Next, link association to network
-            for association in hit:
-                uid = association['e']['name']
-                # first check if there is already a link between the association and network
-                if 'weight' in attr:
-                    sign = np.sign(attr['weight'])
-                    network_hit = tx.run(("MATCH (a:Edge), (b:Network) "
-                                          "WHERE a.name = '" +
-                                          str(uid) +
-                                          "' AND b.name = '" + name +
-                                          "' MERGE p=(a)-[r:PART_OF]->(b) "
-                                          "SET r.weight = " + str(attr['weight']) +
-                                          " SET r.sign = " + str(sign) +
-                                          " RETURN r")).data()
-                else:
-                    network_hit = tx.run(("MATCH (a:Edge), (b:Network) "
-                                          "WHERE a.name = '" +
-                                          str(uid) +
-                                          "' AND b.name = '" + name +
-                                          "' MERGE p=(a)-[r:PART_OF]->(b) "
-                                          "RETURN r")).data()
+            edge_dict = {'taxon1': taxon1,
+                         'taxon2': taxon2,
+                         'uuid': uid,
+                         'network': name}
+            for val in attr:
+                edge_dict[val] = attr[val]
+            edge_query_dict.append(edge_dict)
+        edge_dict_tt = list()
+        edge_dict_tm = list()
+        edge_dict_mm = list()
+        # necessary to make 3 separate queries to add metadata nodes not
+        # previously added as taxa
+        for query_dict in edge_query_dict:
+            if label_dict[query_dict['taxon1']] == 'Taxon' and label_dict[query_dict['taxon2']] == 'Taxon':
+                edge_dict_tt.append(query_dict)
+            elif label_dict[query_dict['taxon1']] == 'Property' and label_dict[query_dict['taxon2']] == 'Property':
+                edge_dict_mm.append(query_dict)
+            else:
+                new_query = query_dict.copy()
+                if label_dict[query_dict['taxon2']] == 'Property':
+                    # always put property node as first node
+                    new_query['taxon1'] = query_dict['taxon2']
+                    new_query['taxon2'] = query_dict['taxon1']
+                edge_dict_tm.append(new_query)
+        return missing_no, edge_dict_tt, edge_dict_tm, edge_dict_mm
 
+    @staticmethod
+    def _create_edges(tx, tt, tm=list(), mm=list(), missing_no=list()):
+        """
+        Generates all the edges contained in a network and
+        connects them to the related network node.
+        This function uses dictionaries made by _create_edge_dict as source.
+
+
+        :param tx: Neo4j transaction
+        :param tt: Dictionary of edges between taxa only
+        :param tm: Dictionary of edges between metadata and taxa
+        :param tm: Dictionary of edges between only metadata
+        :param tm: Dictionary of edges between missing nodes
+        :return:
+        """
+        # first create missing nodes
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Property {name:record.missingno}) " \
+                "RETURN a"
+        tx.run(query, batch=missing_no)
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Taxon {name: record.taxon1}), " \
+                "(b:Taxon {name: record.taxon2}) " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) " \
+                "SET e.name = record.uuid, e.weight = record.weight " \
+                "RETURN e"
+        tx.run(query, batch=tt)
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Property {name: record.taxon1}), " \
+                "(b:Taxon {name: record.taxon2}) " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) " \
+                "SET e.name = record.uuid, e.weight = record.weight " \
+                "RETURN e"
+        tx.run(query, batch=tm)
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Property {name: record.taxon1}), " \
+                "(b:Property {name: record.taxon2}) " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) " \
+                "SET e.name = record.uuid, e.weight = record.weight " \
+                "RETURN e"
+        tx.run(query, batch=mm)
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Edge {name: record.uuid}), " \
+                "(b:Network {name: record.network}) " \
+                "MERGE p=(a)<-[r:PART_OF]->(b) " \
+                "RETURN r"
+        tx.run(query, batch=tt)
+        tx.run(query, batch=tm)
+        tx.run(query, batch=mm)
 
     @staticmethod
     def _tax_dict(tx, node, tax_dict):
@@ -759,62 +824,37 @@ class IoDriver(ParentDriver):
         return found_nodes
 
     @staticmethod
-    def _create_property(tx, source, target, name, sourcetype='', property_dictionary=None):
+    def _create_property(tx, query_dict, sourcetype=''):
         """
         Creates target node if it does not exist yet
         and adds the relationship between target and source.
+        If the dictionary contains new properties,
+        these are added as extra properties on the new target node.
         :param tx: Neo4j transaction
-        :param source: Source node, should exist in database
-        :param target: Target node
-        :param name: Type variable of target node
-        :param property_dictionary: Additional property for relationship and targets, tuple
+        :param query_dict: Dictionary of values to include as nodes
+        :param sourcetype: Label of node to connect to
         :return:
         """
-        if property_dictionary:
-            query = ("MERGE (a:Property {name: '" + str(name))
-            if 'target_property' in property_dictionary:
-                for val in property_dictionary['target_property']:
-                    query += "', " + val[0] + ": '" + str(val[1])
-            query += "'}) RETURN a"
-            tx.run(query).data()
-        else:
-            tx.run(("MERGE (a:Property {name: '" + str(name) + "'}) "
-                    "RETURN a")).data()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Property {name:record.name"
+        property_names = [x for x in query_dict[0].keys()
+                          if x not in ['source',
+                                       'sourcetype',
+                                       'target',
+                                       'name']]
+        for val in property_names:
+            query += ", " + val + ": record." + val
+        query += "}) RETURN a"
+        tx.run(query, batch=query_dict)
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
-        matching_rel = tx.run(("MATCH (a" + sourcetype + "), (b:Property) "
-                               "WHERE a.name = '" + source +
-                               "' AND b.name = '" + name +
-                               "' MERGE  (a)-[r:QUALITY_OF {value: '" + str(target) +
-                               "'}]->(b) RETURN r")).data()
-        rel = []
-        if property_dictionary:
-            if 'rel_property' in property_dictionary:
-                rel.extend(property_dictionary['rel_property'])
-            elif 'weight' in property_dictionary:
-                rel.append(('weight',  str(property_dictionary['weight'])))
-        else:
-            rel = []
-        if len(matching_rel) == 0:
-            no_rel = "MATCH (a" + sourcetype + "), (b:Property) "
-            match = ("WHERE a.name = '" + source +
-                     "' AND b.name = '" + name +
-                     "' ")
-            try:
-                for val in property_dictionary['target_property']:
-                    query = no_rel + match + " AND b." + val[0] + " = '" + str(val[1]) + "' "
-            except (KeyError, ValueError):
-                query = no_rel + match
-            query += ("MERGE (a)-[r:QUALITY_OF]->(b) "
-                      "RETURN type(r)")
-            tx.run(query)
-            query = "MATCH (a" + sourcetype + ")-[r]-(b:Property) " + \
-                    match
-            for val in rel:
-                query += ("SET r." + val[0] + " = '" + str(val[1]) + "' ")
-            query += "RETURN type(r)"
-            tx.run(query)
-
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a" + sourcetype + " {name:record.source}), " \
+                "(b:Property {name: record.name}) " \
+                "MERGE (a)-[r:QUALITY_OF {value: record.target}]->(b) RETURN r"
+        tx.run(query, batch=query_dict)
 
     @staticmethod
     def _get_fasta(tx):
@@ -846,19 +886,17 @@ class IoDriver(ParentDriver):
         return names
 
     @staticmethod
-    def _delete_assoc(tx, edge):
+    def _delete_assoc(tx, edge_query_dict):
         """
         Deletes an edge node.
         :param tx: Neo4j transaction
-        :param assoc: Edge ID
+        :param edge_query_dict: List of dictionaries with edge names
         :return:
         """
-        result = tx.run(("MATCH p=(a:Network)--(:Edge {name: '" + edge +
-                         "'})--(b:Network) "
-                         "WHERE a.name <> b.name RETURN p")).data()
-        if len(result) == 0:
-                tx.run(("MATCH (a:Edge {name: '" + edge +
-                        "'}) DETACH DELETE a"))
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Edge {name:record.label}) DETACH DELETE a"
+        tx.run(query, batch=edge_query_dict)
 
     @staticmethod
     def _delete_disconnected_taxon(tx):
@@ -869,8 +907,14 @@ class IoDriver(ParentDriver):
         :return:
         """
         names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Edge) RETURN a").data()
+        del_dict = list()
         for name in names:
-            tx.run(("MATCH (a:Taxon) "
-                    "WHERE a.name = '" + name['a']['name'] +
-                    "' DETACH DELETE a"))
+            del_dict.append({'label': name['a']['name']})
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Taxon {name:record.label}) DETACH DELETE a"
+        tx.run(query, batch=del_dict)
+
+
+
 
