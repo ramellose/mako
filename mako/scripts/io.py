@@ -346,30 +346,25 @@ class IoDriver(ParentDriver):
                 index_1 = edge[0]
                 index_2 = edge[1]
                 weight = edge_list[1][edge]
-                try:
-                    g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
-                               weight=float(weight))
-                except ValueError:
-                    g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
-                               weight=weight)
-                    edge_error = True
+                if weight:
+                    try:
+                        g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
+                                   weight=float(weight))
+                    except ValueError:
+                        g.add_edge(index_1, index_2, source=str(edge_list[0][edge]),
+                                   weight=weight)
+                        edge_error = True
+                else:
+                    g.add_edge(index_1, index_2, source=str(edge_list[0][edge]))
             if edge_error:
                 logger.warning('Could not convert all edge weights to floats for ' + network + '.')
             # necessary for networkx indexing
-            tax_dict = {}
-            tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
-            for item in tax_levels:
-                tax_dict[item] = dict()
-            tax_properties = {}
             with self._driver.session() as session:
-                tax_properties = session.read_transaction(self._tax_properties_dict)
-            for node in g.nodes:
-                with self._driver.session() as session:
-                    tax_dict = session.read_transaction(self._tax_dict, node, tax_dict)
-                    tax_properties = session.read_transaction(self._tax_properties, node, tax_properties)
-            for node in g.nodes:
-                with self._driver.session() as session:
-                    tax_properties = session.read_transaction(self._tax_properties, node, tax_properties)
+                tax_property_dict = session.read_transaction(self._tax_properties_dict)
+            tax_nodes = [{'name': x} for x in g.nodes]
+            with self._driver.session() as session:
+                tax_dict = session.read_transaction(self._tax_query_dict, tax_nodes)
+                tax_properties = session.read_transaction(self._tax_properties, tax_nodes, tax_property_dict)
             for item in tax_dict:
                 nx.set_node_attributes(g, tax_dict[item], item)
             for item in tax_properties:
@@ -480,7 +475,8 @@ class IoDriver(ParentDriver):
         # first step:
         # check whether key values in node dictionary exist in network
         with self._driver.session() as session:
-            matches = session.read_transaction(self._find_nodes, list(nodes.keys()))
+            network_query = [{'name': x} for x in nodes.keys()]
+            matches = session.read_transaction(self._find_nodes, network_query)
             found_nodes = sum([matches[x] for x in matches])
             if found_nodes == 0:
                 logger.warning('No source nodes are present in the network. \n')
@@ -661,34 +657,35 @@ class IoDriver(ParentDriver):
         :param tm: Dictionary of edges between missing nodes
         :return:
         """
-        # first create missing nodes
-        query = "WITH $batch as batch " \
-                "UNWIND batch as record " \
-                "MERGE (a:Property {name:record.missingno}) " \
-                "RETURN a"
-        tx.run(query, batch=missing_no)
+        if len(missing_no) > 0:
+            # first create missing nodes
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MERGE (a:Property {name:record.missingno}) " \
+                    "RETURN a"
+            tx.run(query, batch=missing_no)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Taxon {name: record.taxon1}), " \
                 "(b:Taxon {name: record.taxon2}) " \
-                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) " \
-                "SET e.name = record.uuid, e.weight = record.weight " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {weight: record.weight})-[:PARTICIPATES_IN]->(b) " \
+                "SET e.name = record.uuid " \
                 "RETURN e"
         tx.run(query, batch=tt)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Property {name: record.taxon1}), " \
                 "(b:Taxon {name: record.taxon2}) " \
-                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) " \
-                "SET e.name = record.uuid, e.weight = record.weight " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {weight: record.weight})-[:PARTICIPATES_IN]->(b) " \
+                "SET e.name = record.uuid " \
                 "RETURN e"
         tx.run(query, batch=tm)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Property {name: record.taxon1}), " \
                 "(b:Property {name: record.taxon2}) " \
-                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge)-[:PARTICIPATES_IN]->(b) " \
-                "SET e.name = record.uuid, e.weight = record.weight " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {weight: record.weight})-[:PARTICIPATES_IN]->(b) " \
+                "SET e.name = record.uuid " \
                 "RETURN e"
         tx.run(query, batch=mm)
         query = "WITH $batch as batch " \
@@ -702,22 +699,34 @@ class IoDriver(ParentDriver):
         tx.run(query, batch=mm)
 
     @staticmethod
-    def _tax_dict(tx, node, tax_dict):
+    def _tax_query_dict(tx, nodes):
         """
         Returns a dictionary of taxonomic values for each node.
         :param tx: Neo4j transaction
         :param node: Node name
         :return: Dictionary of taxonomy separated by taxon
         """
-        for level in tax_dict:
-            tax = None
-            level_name = tx.run("MATCH (b {name: '" + node +
-                                "'})--(n:"+ level + ") RETURN n").data()
-            if len(level_name) != 0:
-                tax = level_name[0]['n'].get('name')
-            if tax:
-                tax_dict[level][node] = tax
-        return tax_dict
+        # Cannot query all taxonomies at once since
+        # the pattern needs to match all statements,
+        # and not all taxa are connected to all levels
+        tax_dict = {'Species': None,
+                    'Genus': None,
+                    'Family': None,
+                    'Order': None,
+                    'Class': None,
+                    'Phylum': None,
+                    'Kingdom': None}
+        for val in tax_dict:
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MATCH (a:Taxon {name: record.name})--(b:" + val + ") " \
+                    "RETURN a.name, b.name"
+            vals = tx.run(query, batch=nodes).data()
+            tax_dict[val] = vals
+        final_dict = dict.fromkeys(tax_dict)
+        for val in final_dict:
+            final_dict[val] = {x['a.name']: x['b.name'] for x in tax_dict[val]}
+        return final_dict
 
     @staticmethod
     def _tax_properties_dict(tx):
@@ -727,33 +736,39 @@ class IoDriver(ParentDriver):
         :return: Dictionary with only keys
         """
         nodes = tx.run("MATCH (n)--(m:Property) WHERE n:Taxon RETURN m").data()
-        nodes = _get_unique(nodes, 'm')
+        nodes = [{'name': x} for x in _get_unique(nodes, 'm')]
         properties = dict()
-        for node in nodes:
-            property = tx.run("MATCH (m:Property {name: '" + node + "'}) RETURN m").data()
-            property_key = property[0]['m']['name']
-            properties[property_key] = dict()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a:Property {name:record.name}) " \
+                "RETURN a"
+        properties_data = tx.run(query, batch=nodes).data()
+        for prop in properties_data:
+            properties[prop['a']['name']] = dict()
         return properties
 
     @staticmethod
-    def _tax_properties(tx, node, tax_properties):
+    def _tax_properties(tx, nodes, tax_property_dict):
         """
         Returns a dictionary of taxon / sample properties, to be included as taxon metadata.
         :param tx: Neo4j transaction
-        :param node: Taxon node label
-        :param tax_properties: Dictionary with taxon property types
+        :param nodes: Dictionary with node names
+        :param tax_property_dict: Dictionary with taxon property labels
         :return: Dictionary of dictionary of taxon properties
         """
-        hits = tx.run("MATCH (:Taxon {name: '" + node + "'})-[r]-(b:Property) RETURN r, b").data()
-        if hits:
-            for hit in hits:
-                value = hit['r'].get('value')
-                try:
-                    value = np.round(float(value), 4)
-                except ValueError:
-                    pass
-                tax_properties[hit['b'].get('name')][node] = value
-        return tax_properties
+        for property in tax_property_dict:
+            tax_property_dict[property]
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MATCH p=(a:Taxon {name: record.name})" \
+                    "-[r]-(b:Property {name: '" + property + "'}) " \
+                    "RETURN p"
+            query_results = tx.run(query, batch=nodes).data()
+            for result in query_results:
+                tax = result['p'].nodes[0]['name']
+                rel = result['p'].relationships[0]['value']
+                tax_property_dict[property][tax] = rel
+        return tax_property_dict
 
     @staticmethod
     def _association_list(tx, network):
@@ -763,31 +778,38 @@ class IoDriver(ParentDriver):
         :param network: Name of network or set node
         :return: List of lists with source and target nodes, source networks and edge weights.
         """
-        edges = tx.run(("MATCH (n:Edge)--(b {name: '" + network +
-                        "'}) RETURN n")).data()
-        networks = dict()
-        weights = dict()
-        for edge in edges:
-            taxa = tx.run(("MATCH (m)--(:Edge {name: '" + edge['n'].get('name') +
-                           "'})--(n) "
-                           "WHERE (m:Taxon) AND (n:Taxon) "
-                           "AND m.name <> n.name "
-                           "RETURN m, n LIMIT 1")).data()
-            if len(taxa) == 0:
-                pass  # apparently this can happen. Need to figure out why!!
-            else:
-                edge_tuple = (taxa[0]['m'].get('name'), taxa[0]['n'].get('name'))
-                network_hit = tx.run(("MATCH (:Edge {name: '" + edge['n'].get('name') +
-                                      "'})-[r]->(n:Network) RETURN n, r")).data()
-                network = _get_unique(network_hit, key='n')
-                network_list = list()
-                for item in network:
-                    network_list.append(item)
-                weight = network_hit[0]['r']['weight']
-                networks[edge_tuple] = network_list
-                weights[edge_tuple] = weight
-        edge_list = (networks, weights)
-        return edge_list
+        try:
+            edges = tx.run(("MATCH (n:Edge)--(b {name: '" + network +
+                            "'}) RETURN n")).data()
+            networks = dict()
+            weights = dict()
+            edges = [{'name': x['n']['name']} for x in edges]
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MATCH (m)--(p:Edge {name: record.name})--(n) " \
+                    "WHERE (m:Taxon OR m:Property) AND (n:Taxon OR n:Property) " \
+                    "RETURN p,m,n"
+            partner_results = tx.run(query, batch=edges).data()
+            taxon_dict = {x['name']: list() for x in edges}
+            for result in partner_results:
+                taxon_dict[result['p']['name']] = (result['m'].get('name'), result['n'].get('name'))
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MATCH (p:Edge {name: record.name})--(n:Network)" \
+                    "RETURN p,n"
+            network_results = tx.run(query, batch=edges).data()
+            network_dict = {x['name']: list() for x in edges}
+            for result in network_results:
+                network_dict[result['p']['name']].append(result['n']['name'])
+            weight_dict = dict.fromkeys(network_dict.keys())
+            for result in network_results:
+                weight_dict[result['p']['name']] = result['p']['weight']
+            for edge in network_dict:
+                networks[taxon_dict[edge]] = network_dict[edge]
+                weights[taxon_dict[edge]] = weight_dict[edge]
+        except AttributeError:
+            logger.warning("Could not extract edges from database.", exc_info=True)
+        return networks, weights
 
     @staticmethod
     def _get_list(tx, label):
@@ -809,18 +831,17 @@ class IoDriver(ParentDriver):
         :param names: List of names of nodes
         :return:
         """
-        found_nodes = dict.fromkeys(names)
-        for name in names:
-            netname = tx.run("MATCH (n {name: '" + name +
-                             "'}) RETURN n").data()
-            netname = _get_unique(netname, key='n')
+        found_nodes = {x['name']: False for x in names}
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (p {name: record.name}) " \
+                "RETURN p, count(p)"
+        finding_nodes = tx.run(query, batch=names).data()
+        for name in finding_nodes:
             # only checking node name; should be unique in database!
-            if len(netname) == 0:
-                found_nodes[name] = False
-            elif len(netname) > 1:
+            found_nodes[name['p']['name']] = True
+            if name['count(p)'] > 1:
                 logger.warning("Duplicated node name in database! \n")
-            else:
-                found_nodes[name] = True
         return found_nodes
 
     @staticmethod

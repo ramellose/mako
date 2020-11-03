@@ -1,6 +1,9 @@
 """
 The metastats module contains functions for analysis of the graphs in the Neo4j database.
 These analytical methods involve metadata, such as taxonomy.
+
+Since the edge agglomeration requires the pair list to be updated in between steps,
+this is one of the few larger queries that cannot be carried out as a batch operation.
 """
 
 __author__ = 'Lisa Rottjers'

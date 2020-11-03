@@ -386,6 +386,7 @@ class TestIo(unittest.TestCase):
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
+        driver.query("MATCH (n:Taxon {name: 'GG_OTU_1'})--(b:Edge) DETACH DELETE b")
         driver.query("MATCH (n:Taxon {name: 'GG_OTU_1'}) DETACH DELETE n")
         start_io(inputs)
         network = nx.read_graphml(_resource_path('test.graphml'))
@@ -421,7 +422,7 @@ class TestIo(unittest.TestCase):
         driver.convert_networkx(network=g, network_id='test')
         test = driver.query("MATCH (n:Network) RETURN n")
         driver.query("MATCH (n) DETACH DELETE n")
-        self.assertEqual(len(test), 0)
+        self.assertEqual(len(test), 1)
 
 
 if __name__ == '__main__':
