@@ -154,6 +154,7 @@ g["GG_OTU_3"]["GG_OTU_4"]['weight'] = -1.0
 f = g.copy(as_view=False)
 f.remove_edge('GG_OTU_3', 'GG_OTU_4')
 f.add_edge('GG_OTU_1', 'GG_OTU_5', weight=-1.0)
+g.add_edge('GG_OTU_1', 'GG_OTU_5', weight=1.0)
 
 
 class TestNetstats(unittest.TestCase):
@@ -230,6 +231,25 @@ class TestNetstats(unittest.TestCase):
         driver.query("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 2)
 
+    def test_intersection_weight(self):
+        """
+        Checks if the correct number of edges is in the intersection.
+        is deleted.
+        :return:
+        """
+        driver = NetstatsDriver(user='neo4j',
+                                password='test',
+                                uri='bolt://localhost:7688', filepath=_resource_path(''),
+                                encrypted=False)
+        driver.graph_intersection(networks=['f', 'g'], weight=False, fraction=1)
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
+        driver.query("MATCH (n:Set) DETACH DELETE n")
+        self.assertEqual(test[0]['count'], 4)
+
     def test_difference(self):
         """
         Checks if the correct number of edges is in the difference.
@@ -246,7 +266,25 @@ class TestNetstats(unittest.TestCase):
                           encrypted=False)
         test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
         driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 2)
+        self.assertEqual(test[0]['count'], 1)
+
+    def test_difference(self):
+        """
+        Checks if the correct number of edges is in the difference.
+        :return:
+        """
+        driver = NetstatsDriver(user='neo4j',
+                                password='test',
+                                uri='bolt://localhost:7688', filepath=_resource_path(''),
+                                encrypted=False)
+        driver.graph_difference(networks=['f', 'g'], weight=False)
+        driver = Biom2Neo(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
+        driver.query("MATCH (n:Set) DETACH DELETE n")
+        self.assertEqual(test[0]['count'], 3)
 
     def test_union(self):
         """
@@ -264,7 +302,7 @@ class TestNetstats(unittest.TestCase):
                           encrypted=False)
         test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
         driver.query("MATCH (n:Set) DETACH DELETE n")
-        self.assertEqual(test[0]['count'], 4)
+        self.assertEqual(test[0]['count'], 5)
 
     def test_set_name(self):
         """
