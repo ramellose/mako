@@ -227,7 +227,7 @@ class NetstatsDriver(ParentDriver):
         Accesses database to return edge list of difference of networks.
         :param tx: Neo4j transaction
         :param networks: List of network names
-        :param weight: If false, the difference excludes edges with matching partners but different weights
+        :param weight: If false, the difference includes edges with matching partners but different weights
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
         edges = list()
@@ -238,22 +238,19 @@ class NetstatsDriver(ParentDriver):
                                  "'}) WITH n MATCH (n)-[r]->(y:Network) WHERE y.name IN " + str(networks) +
                                  " WITH n, count(r) "
                                  "as num WHERE num=1 RETURN n")).data())
+        edges = _get_unique(edges, 'n')
         if weight:
             # if edges are in 2 networks,
             # and they have a different sign in each network,
-            # they are included in the weighted difference.
+            # they are removed in the weighted difference.
             # so query each combination of networks
             # to find edges that have a relationship to those networks,
             # with different weights.
-            combos = combinations(networks, 2)
-            for combo in combos:
-                edges.extend(tx.run(("MATCH (n:Edge)-[a]->(:Network {name: '" + combo[0] +
-                                     "'}) MATCH (n:Edge)-[b]->(:Network {name: '" + combo[1] +
-                                     "'}) WHERE a.sign <> b.sign " +
-                                     "WITH n MATCH (n)-[r]->(x:Network) WHERE x.name IN " + str(networks) +
-                                     " WITH n, count(r) "
-                                     "as num WHERE num=2 RETURN n")).data())
-        edges = _get_unique(edges, 'n')
+            unweighted_query, weighted_query = _get_intersection_query(networks, weight=False)
+            edge_partners = tx.run(weighted_query).data()
+            edge_partners = _get_unique(edge_partners, key='a')
+            curated_weighted_edges = _curate_weighted_edges(tx, edge_partners, networks)
+            edges = edges.difference(curated_weighted_edges)
         name = 'Difference'
         if weight:
             name += '_weight'
@@ -328,12 +325,14 @@ def _write_logic(tx, operation, networks, edges):
            "DETACH DELETE n", id=name, networks=str(networks))
     tx.run("CREATE (n:Set {name: $id, networks: $networks}) "
            "RETURN n", id=name, networks=str(networks))
-    for edge in edges:
-        tx.run(("MATCH (a:Edge), (b:Set) WHERE a.name = '" +
-                edge +
-                "' AND b.name = '" + name +
-                "' MERGE (a)-[r:IN_SET]->(b) "
-                "RETURN type(r)"))
+    edges = [{'name': x, 'set': name} for x in edges]
+    query = "WITH $batch as batch " \
+            "UNWIND batch as record " \
+            "MATCH (a:Edge {name: record.name}), " \
+            "(b:Set {name: record.set}) " \
+            "MERGE (a)-[r:IN_SET]->(b) " \
+            "RETURN type(r)"
+    tx.run(query, batch=edges)
     return name
 
 
