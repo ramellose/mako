@@ -187,18 +187,32 @@ class NetstatsDriver(ParentDriver):
         :return: Edge list of lists containing source, target, network and weight of each edge.
         """
         # First, get a list of all edges
+        curated_weighted_edges = []
         if not n:
             # get edges that are in all networks
-            query = _get_intersection_query(networks, weight)
-            edges = tx.run(query).data()
+            unweighted_query, weighted_query = _get_intersection_query(networks, weight)
+            edges = tx.run(unweighted_query).data()
+            if weighted_query:
+                weighted_edges = tx.run(weighted_query).data()
+                # ok not to match pattern,
+                # it will always be captured in reverse too
+                weighted_edges = _get_unique(weighted_edges, key='a')
+                curated_weighted_edges = _curate_weighted_edges(tx, weighted_edges, networks)
         else:
             # get all edges in number of networks
             edges = list()
             combos = list(combinations(networks, n))
             for combo in combos:
-                query = _get_intersection_query(combo, weight)
-                edges.extend(tx.run(query).data())
+                unweighted_query, weighted_query = _get_intersection_query(combo, weight)
+                edges.extend(tx.run(unweighted_query).data())
+                # the weighted query returns edges present in multiple networks
+                # but it's not guaranteed to be all the networks in combo
+                if weighted_query:
+                    weighted_edges = tx.run(weighted_query).data()
+                    weighted_edges = _get_unique(weighted_edges, key='a')
+                    curated_weighted_edges = _curate_weighted_edges(tx, weighted_edges, networks)
         edges = list(_get_unique(edges, 'n'))
+        edges.extend(curated_weighted_edges)
         name = 'Intersection'
         if weight:
             name += '_weight'
@@ -261,6 +275,42 @@ class NetstatsDriver(ParentDriver):
         return num[0]['count']
 
 
+def _curate_weighted_edges(tx, weighted_edges, networks):
+    """
+    Takes a list with names of associations of weighted edges,
+    and returns the networks connected to both edges.
+    Weighted edges that are not connected to all networks in
+    the networks parameter are not returned.
+    :param weighted_edges:
+    :param networks:
+    :return:
+    """
+    curated_edges = list()
+    query_edges = [{'name': x} for x in weighted_edges]
+    query = "WITH $batch as batch " \
+            "UNWIND batch as record " \
+            "MATCH (m)--(a:Edge {name: record.name})--(n)--(b:Edge)--(m) " \
+            "WHERE (m:Taxon OR m:Property) AND (n:Taxon OR n:Property) " \
+            "RETURN a.name,b.name LIMIT 1"
+    paired_edges = tx.run(query, batch=query_edges)
+    query = "WITH $batch as batch " \
+            "UNWIND batch as record " \
+            "MATCH (a:Edge {name: record.name})--(b:Network) " \
+            "RETURN a.name,b.name"
+    network_edges = tx.run(query, batch=query_edges).data()
+    print(network_edges)
+    network_dict = {x['a.name']: [] for x in network_edges}
+    print(network_dict)
+    for edge in network_edges:
+        network_dict[edge['a.name']].append(edge['b.name'])
+    for pair in paired_edges:
+        total_networks = network_dict[pair['a.name']] + network_dict[pair['b.name']]
+        result = all(elem in total_networks for elem in networks)
+        if result:
+            curated_edges.extend(list(network_dict.keys()))
+    return set(curated_edges)
+
+
 def _write_logic(tx, operation, networks, edges):
     """
     Accesses database to return edge list of intersection of networks.
@@ -287,25 +337,31 @@ def _write_logic(tx, operation, networks, edges):
     return name
 
 
-def _get_intersection_query(networks, weight):
+def _get_intersection_query(networks, weight=True):
     """
     For a list of networks,
     constructs a query that gets edges belonging to all networks.
     Can extract only edges that have the same weight in all networks,
     or edges that have different weights (if weight is false.)
-    :param networks:
+    :param networks: List of networks that edges should be in
+    :param weight: If false, edges are counted if they are separate nodes but have the same partners
     :return:
     """
     queries = list()
+    weighted_query = None
     for node in networks:
-        if weight:
-            queries.append(("MATCH (n:Edge)-[r" + str(networks.index(node)) + "]->(:Network {name: '" +
-                            node + "'}) "))
-        else:
-            queries.append(("MATCH (n:Edge)-->(:Network {name: '" +
-                            node + "'}) "))
-    if weight:
-        queries.append("WHERE " + " = ".join(["r" + str(i) + ".sign" for i in range(len(networks))]))
+        queries.append(("MATCH (n:Edge)-->(:Network {name: '" +
+                        node + "'}) "))
+    if not weight:
+        weighted_query = ("MATCH (m)--(a:Edge)--(n)--(b:Edge)--(m) "
+                          "WHERE (m:Taxon OR m:Property) AND (n:Taxon OR n:Property) "
+                          "WITH a, b MATCH (a)--(c:Network) "
+                          "MATCH (b)--(d:Network) "
+                          "WHERE c.name IN  " + str(list(networks)) +
+                          " AND d.name IN " + str(list(networks)) +
+                          " RETURN a,b,c,d ")
     query = " ".join(queries) + " RETURN n"
-    return query
+    return query, weighted_query
+
+
 
