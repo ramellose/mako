@@ -193,10 +193,23 @@ class MetastatsDriver(ParentDriver):
                    "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r")
         edges = self.query("MATCH (a:Edge)--(:Network {name: '" + source_network +
                            "'}) RETURN a")
-        edges = _get_unique(edges, key='a')
+        edge_weights = dict()
+        for edge in edges:
+            edge_weights[edge['a']['name']] = edge['a']['weight']
+        # Create dictionary with edges to write as batch query
+        edge_names = [{'name': x['a']['name'], 'source': source_network, 'new': new_network, 'uid': str(uuid4())} for x in edges]
         with self._driver.session() as session:
-            for edge in edges:
-                session.write_transaction(self._copy_edge, edge, source_network, new_network)
+            edge_partners = session.read_transaction(self._get_partners, edge_names)
+        try:
+            for edge in edge_names:
+                name = edge['name']
+                edge['a'] = edge_partners[name][0]
+                edge['b'] = edge_partners[name][0]
+                edge['weight'] = edge_weights[name]
+        except Exception:
+            logger.error("Could not include node pairs. \n", exc_info=True)
+        with self._driver.session() as session:
+            session.write_transaction(self._copy_edges, edge_names)
 
     def get_pairlist(self, level, weight, network):
         """
@@ -243,11 +256,11 @@ class MetastatsDriver(ParentDriver):
                     edge_sign = session.read_transaction(self._query, ("MATCH (n:Edge)-[r]-(m:Network) "
                                                                        "WHERE n.name = '" + pair.nodes[0]['name'] +
                                                                        "' AND m.name = '" + network +
-                                                                       "' RETURN r.sign"))
+                                                                       "' RETURN n.weight"))
                 else:
                     edge_sign = None
                 session.write_transaction(self._create_edge, agglom_1, agglom_2, network,
-                                          edge_sign=edge_sign[0]['r.sign'])
+                                          edge_sign=edge_sign[0]['n.weight'])
             with self._driver.session() as session:
                 session.write_transaction(self._delete_old_edges, [pair.nodes[0], pair.nodes[4]])
         except Exception:
@@ -387,9 +400,9 @@ class MetastatsDriver(ParentDriver):
         :return: List of transaction outputs
         """
         if weight:
-            result = tx.run(("MATCH (a:Edge)-[x]-(:Network {name: '" + network +
-                             "'})-[y]-(b:Edge) WHERE (a.name <> b.name) "
-                             "AND (x.sign = y.sign) "
+            result = tx.run(("MATCH (a:Edge)-[]-(:Network {name: '" + network +
+                             "'})-[]-(b:Edge) WHERE (a.name <> b.name) "
+                             "AND (a.weight = b.weight) "
                              "WITH a, b "
                              "MATCH p=(a:Edge)--()--(x:" + level +
                              ")--()--(b:Edge)--()--(y:" + level +
@@ -529,8 +542,8 @@ class MetastatsDriver(ParentDriver):
                 edge_weight = tx.run(("MATCH (a:Taxon)--(b:Edge)-[r]-(:Network {name: '" + network +
                                       "'}) WHERE a.name = '" + node +
                                       "' AND b.name = '" + assoc +
-                                      "' RETURN r.sign")).data()
-                weights.append(edge_weight[0]['r.sign'])
+                                      "' RETURN b.weight")).data()
+                weights.append(edge_weight[0]['b.weight'])
         while len(targets) > 1:
             item = targets[0]
             # write function for finding edges that have both matching
@@ -613,49 +626,90 @@ class MetastatsDriver(ParentDriver):
                     tree.nodes[i].get('name') + "' CREATE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"))
 
     @staticmethod
-    def _copy_edge(tx, edge, source_network, target_network):
+    def _get_partners(tx, edges):
         """
-        Takes a single edge and copies it while adding a connection to the new network.
+        Gets edge partners for all edges in dict.
 
         :param tx: Neo4j transaction
-        :param edge: Edge uuid
+        :param edges: Dictionary with edge uuid and old + new network names
         :param source_network: Name of original network
         :param target_network: Name of network to connect copy to
         :return:
         """
-        edge_partners = tx.run(("MATCH (a)-[:PARTICIPATES_IN]-(:Edge {name: '" + edge +
-                                "'})-[:PARTICIPATES_IN]-(b) WHERE (a.name <> b.name)"
-                                " RETURN a, b LIMIT 1")).data()
-        selfloop = False
-        if len(edge_partners) == 0:
-            selfloop = tx.run(("MATCH (a)-[r:PARTICIPATES_IN]-(:Edge {name: '" + edge +
-                               "'})"
-                               " RETURN a, count(r) LIMIT 1")).data()
-            if selfloop[0]['count(r)'] == 2:
-                edge_partners = selfloop
-            else:
-                logger.error("Detected edge with only 1 interaction partner!", exc_info=True)
-        edge_sign = tx.run(("MATCH (a:Edge {name: '" + edge + "'})-[r]-(:Network {name: '" + source_network +
-                            "'}) RETURN r.sign")).data()
-        uid = str(uuid4())
-        tx.run("CREATE (a:Edge {name: '" + uid +
-               "'}) RETURN a")
-        tx.run("MATCH (a:Edge {name: '" + uid +
-               "'}), (b:Network {name: '" + target_network +
-               "'}) MERGE (a)-[r:PART_OF]->(b) "
-               "SET r.sign = " + str(np.sign(edge_sign[0]['r.sign'])) +
-               " RETURN type(r)")
-        tx.run(("MATCH (a:Edge),(b) "
-                "WHERE a.name = '" + uid + "' AND b.name = '" +
-                edge_partners[0]['a']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
-        if not selfloop:
-            tx.run(("MATCH (a:Edge),(b) "
-                    "WHERE a.name = '" + uid + "' AND b.name = '" +
-                    edge_partners[0]['b']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
-        else:
-            tx.run(("MATCH (a:Edge),(b) "
-                    "WHERE a.name = '" + uid + "' AND b.name = '" +
-                    edge_partners[0]['a']['name'] + "' CREATE (a)-[r:PARTICIPATES_IN]->(b) RETURN type(r)"))
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a)-[:PARTICIPATES_IN]-(n:Edge {name: record.name})-" \
+                "[:PARTICIPATES_IN]-(b) WHERE (a.name <> b.name)" \
+                " RETURN a,b,n"
+        edge_partners = tx.run(query, batch=edges).data()
+        # also return selfloops
+        selfloop = []
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a)-[r:PARTICIPATES_IN]-(n:Edge {name: record.name})" \
+                "-[q:PARTICIPATES_IN]-(a) " \
+                "RETURN a, n"
+        selfloop = tx.run(query, batch=edges).data()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH ()-[r:PARTICIPATES_IN]-(n:Edge {name: record.name}) " \
+                "WITH n, count(r) as rels " \
+                "WHERE rels = 1 " \
+                "RETURN n,rels"
+        singles = tx.run(query, batch=edges).data()
+        if len(singles) > 0:
+            logger.error("Detected edge with only 1 interaction partner!", exc_info=True)
+            for edge in singles:
+                print(edge['a']['name'])
+        edge_dict = dict()
+        for edge in edge_partners:
+            edge_dict[edge['n']['name']] = [edge['a']['name'], edge['b']['name']]
+        for edge in selfloop:
+            edge_dict[edge['n']['name']] = [edge['a']['name'], edge['a']['name']]
+        return edge_dict
+
+    @staticmethod
+    def _copy_edges(tx, edges):
+        """
+        Takes a single edge and copies it while adding a connection to the new network.
+
+        :param tx: Neo4j transaction
+        :param edges: Dictionary with edge uuid, edge partners and network names
+        :return:
+        """
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "CREATE (a: Edge {name: record.uid, weight: record.weight}) " \
+                "RETURN a"
+        tx.run(query, batch=edges).data()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a: Edge {name: record.uid}), " \
+                "(b:Network {name: record.new}) " \
+                "MERGE (a)-[r:PART_OF]->(b) " \
+                "RETURN a"
+        tx.run(query, batch=edges).data()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a: Edge {name: record.uid}), " \
+                "(b:Network {name: record.new}) " \
+                "MERGE (a)-[r:PART_OF]->(b) " \
+                "RETURN a"
+        tx.run(query, batch=edges).data()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a: Edge {name: record.uid}), " \
+                "(b:Taxon {name: record.a}) " \
+                "MERGE (a)-[r:PARTICIPATES_IN]->(b) " \
+                "RETURN a"
+        tx.run(query, batch=edges).data()
+        query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MATCH (a: Edge {name: record.uid}), " \
+                "(b:Taxon {name: record.b}) " \
+                "MERGE (a)-[r:PARTICIPATES_IN]->(b) " \
+                "RETURN a"
+        tx.run(query, batch=edges).data()
 
     @staticmethod
     def _create_edge(tx, agglom_1, agglom_2, network, edge_sign=None):
@@ -683,7 +737,7 @@ class MetastatsDriver(ParentDriver):
             tx.run(("MATCH (a:Edge),(b:Network) "
                     "WHERE a.name = '" + uid + "' AND b.name = '" +
                     network + "' CREATE (a)-[r:PART_OF]->(b) "
-                              "SET r.sign = '" + str(edge_sign) + "' RETURN type(r)"))
+                              "SET a.weight = '" + str(edge_sign) + "' RETURN type(r)"))
         else:
             tx.run(("MATCH (a:Edge),(b:Network) "
                     "WHERE a.name = '" + uid + "' AND b.name = '" +
