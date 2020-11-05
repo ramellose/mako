@@ -241,14 +241,13 @@ testbiom = biom.parse.parse_biom_table(testraw)
 g = nx.Graph()
 nodes = ["GG_OTU_1", "GG_OTU_2", "GG_OTU_3", "GG_OTU_4", "GG_OTU_5"]
 g.add_nodes_from(nodes)
-g.add_edges_from([("GG_OTU_1", "GG_OTU_2"),
-                  ("GG_OTU_2", "GG_OTU_3"), ("GG_OTU_4", "GG_OTU_1")])
-g["GG_OTU_1"]["GG_OTU_2"]['weight'] = 1.0
-g["GG_OTU_2"]["GG_OTU_3"]['weight'] = 1.0
-g["GG_OTU_4"]["GG_OTU_1"]['weight'] = -1.0
-
-f = g.copy(as_view=False)
-g["GG_OTU_1"]["GG_OTU_2"]['weight'] = -1.0
+g.add_edges_from([("GG_OTU_1", "GG_OTU_3"),
+                  ("GG_OTU_2", "GG_OTU_5"), ("GG_OTU_4", "GG_OTU_5"),
+                  ("GG_OTU_2", "GG_OTU_6")])
+g["GG_OTU_1"]["GG_OTU_3"]['weight'] = 1.0
+g["GG_OTU_2"]["GG_OTU_5"]['weight'] = 1.0
+g["GG_OTU_4"]["GG_OTU_5"]['weight'] = -1.0
+g["GG_OTU_2"]["GG_OTU_6"]['weight'] = -1.0
 
 
 class TestMetastats(unittest.TestCase):
@@ -271,7 +270,6 @@ class TestMetastats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='g')
-        driver.convert_networkx(network=f, network_id='f')
 
     @classmethod
     def tearDownClass(cls):
@@ -355,13 +353,36 @@ class TestMetastats(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        genus = driver.query("MATCH (n:Network {name: 'g'})--(a)--(b:Taxon) RETURN b")
+        genus = driver.query("MATCH (n:Network {name: 'Genus_g'})--(a)--(b:Taxon) RETURN b")
         genus = [x['b']['name'] for x in genus]
         family = driver.query("MATCH (n:Network {name: 'Family_g'})--(a)--(b:Taxon) RETURN b")
         family = [x['b']['name'] for x in family]
         driver.delete_network(network_id='Genus_g')
         driver.delete_network(network_id='Family_g')
         self.assertGreater(len(set(genus)), len(set(family)))
+
+    def test_agglomerate_family(self):
+        """
+        Checks if only 1 taxon links to a specific taxonomic family.
+        :return:
+        """
+        driver = MetastatsDriver(user='neo4j',
+                                 password='test',
+                                 uri='bolt://localhost:7688', filepath=_resource_path(''),
+                                 encrypted=False)
+        tax_list = ['Species', 'Genus', 'Family', 'Order', 'Class', 'Phylum', 'Kingdom']
+        networks = ['g']
+        for level in range(0, 2 + 1):
+            # pub.sendMessage('update', msg="Agglomerating edges...")
+            networks = driver.agglomerate_networks(level=tax_list[level], weight=False, networks=networks)
+            # networks assignment contains names of new networks
+        driver = IoDriver(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
+                          encrypted=False)
+        family = driver.query("MATCH (n:Network {name: 'Family_g'})--()--(b:Taxon)--(a:Family {name: 'f__Punk'}) "
+                              "RETURN count(b)")
+        self.assertEqual(family[0]['count(b)'], 1)
 
     def test_agglomerate_phylum(self):
         """

@@ -204,7 +204,7 @@ class MetastatsDriver(ParentDriver):
             for edge in edge_names:
                 name = edge['name']
                 edge['a'] = edge_partners[name][0]
-                edge['b'] = edge_partners[name][0]
+                edge['b'] = edge_partners[name][1]
                 edge['weight'] = edge_weights[name]
         except Exception:
             logger.error("Could not include node pairs. \n", exc_info=True)
