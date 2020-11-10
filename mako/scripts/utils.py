@@ -189,27 +189,46 @@ class ParentDriver:
         """
         self._driver.close()
 
-    def query(self, query):
+    def query(self, query, batch=None):
         """
         Accepts a query and provides the results.
+        For batch queries, the batch parameter should contain
+        a list of dictionaries, where each dictionary contains
+        a key: value pair where the key matches a key in the
+        Cypher query.
+
+        Batch queries should unwind the batch,
+        like so:
+                query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Taxon {name:record.taxon}) RETURN a"
+
+        The string after record (here taxon)
+        needs to match a dictionary key.
+
         :param query: String containing Cypher query
+        :param batch: List of dictionaries for batch queries
         :return: Results of transaction with Cypher query
         """
         output = None
         try:
             with self._driver.session() as session:
-                output = session.read_transaction(self._query, query)
+                output = session.read_transaction(self._query, query, batch)
         except Exception:
             logger.error("Unable to execute query: " + query + '\n', exc_info=True)
         return output
 
     @staticmethod
-    def _query(tx, query):
+    def _query(tx, query, batch):
         """
         Processes custom queries.
         :param tx: Neo4j transaction
         :param query: String of Cypher query
+        :param batch: List of dictionaries for batch queries
         :return: Outcome of transaction
         """
-        results = tx.run(query).data()
+        if batch:
+            results = tx.run(query, batch=batch).data()
+        else:
+            results = tx.run(query).data()
         return results
