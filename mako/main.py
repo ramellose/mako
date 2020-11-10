@@ -338,12 +338,6 @@ parse_netstats.add_argument('-net', '--networks',
                             help='If you only want to carry out set operations on specific networks, list them here. ',
                             type=list,
                             default=None)
-parse_netstats.add_argument('-set', '--set_operation',
-                            dest='set',
-                            required=False,
-                            help='If flagged, adds nodes linking associations to the union, difference and intersection. ',
-                            action='store_true',
-                            default=None)
 parse_netstats.add_argument('-w', '--weight',
                             dest='weight',
                             required=False,

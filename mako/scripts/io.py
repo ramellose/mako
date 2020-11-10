@@ -187,8 +187,7 @@ def add_metadata(filepath, location, driver):
     It uses the column names to define property types.
     If there is a third column, this is added as an edge weight.
     :param filepath: File path string
-    :param location: Folder containing FASTA sequences matching to OTU identifiers.
-    I.e. GreenGenes FASTA files are accepted. Complete file paths are also accepted.
+    :param location: File path of tab-delimited file.
     :param driver: IO driver    :return:
     """
     if os.path.isdir(location):
