@@ -61,15 +61,12 @@ def start_biom(inputs):
     else:
         config = inputs
     encrypted = True
-    if 'encryption' in inputs:
-        # setting for Docker container
-        encrypted = False
     try:
         driver = Biom2Neo(uri=config['address'],
                           user=config['username'],
                           password=config['password'],
                           filepath=inputs['fp'],
-                          encrypted=encrypted)
+                          encrypted=inputs['encryption'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
         exit()

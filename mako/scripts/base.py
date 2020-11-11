@@ -57,9 +57,6 @@ def start_base(inputs):
     pid = config['pid']
     encrypted = True
     driver = None
-    if 'encryption' in inputs:
-        # setting for Docker container
-        encrypted = False
     if pid != 'None':
         pid = int(pid)
         if not pid_exists(pid):
@@ -100,7 +97,7 @@ def start_base(inputs):
             driver = BaseDriver(user=config['username'],
                                 password=config['password'],
                                 uri=config['address'], filepath=inputs['fp'],
-                                encrypted=encrypted)
+                                encrypted=inputs['encryption'])
             driver.add_constraints()
             driver.close()
             logger.info('Started database.  ')
@@ -144,7 +141,7 @@ def start_base(inputs):
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
                             uri=config['address'], filepath=inputs['fp'],
-                            encrypted=encrypted)
+                            encrypted=inputs['encryption'])
         try:
             driver.check_domain_range()
         except Exception:

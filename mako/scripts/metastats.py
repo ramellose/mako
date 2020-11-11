@@ -44,17 +44,13 @@ def start_metastats(inputs):
         config = _read_config(inputs)
     else:
         config = inputs
-    encrypted = True
     driver = None
-    if 'encryption' in inputs:
-        # setting for Docker container
-        encrypted = False
     try:
         driver = MetastatsDriver(uri=config['address'],
                                  user=config['username'],
                                  password=config['password'],
                                  filepath=inputs['fp'],
-                                 encrypted=encrypted)
+                                 encrypted=inputs['encryption'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
         exit()
