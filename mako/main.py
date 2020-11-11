@@ -92,44 +92,61 @@ subparsers = mako_parser.add_subparsers(title="mako modules",
                                                     "as long as the correct settings file "
                                                     "is provided and the Neo4j instance is running. ")
 
-parse_base = subparsers.add_parser('base', description='Start, clear and quit the Neo4j database.',
-                                   help='The base module runs the Neo4j console and carries out '
-                                        'checks to validate the database consistency with the schema. '
-                                        'These checks are especially valuable when you are manually '
-                                        'editing the database.')
-parse_base.add_argument('-fp', '--output_filepath',
+
+def _add_standard_parser(parser):
+    """
+    Adds some standard arguments to the parsers.
+    :param parser: Argparse parser
+    :return:
+    """
+    parser.add_argument('-fp', '--output_filepath',
                         dest='fp',
                         help='File path for importing and / or exporting files. ',
                         default=None)
-parse_base.add_argument('-cf', '--config',
+    parser.add_argument('-cf', '--config',
                         dest='config',
                         action='store_true',
                         help='If true, store config files to reload Neo4j settings. ',
                         required=False,
                         default=None)
+    parser.add_argument('-en', '--encryption',
+                        dest='encryption',
+                        action='store_true',
+                        help='If flagged, the Neo4j database connection is encrypted. Not valid for Docker. ',
+                        required=False,
+                        default=False)
+    parser.add_argument('-u', '--username',
+                        dest='username',
+                        required=False,
+                        help='Username for neo4j database access. ',
+                        type=str,
+                        default='neo4j')
+    parser.add_argument('-p', '--password',
+                        dest='password',
+                        required=False,
+                        type=str,
+                        help='Password for neo4j database access. ')
+    parser.add_argument('-a', '--address',
+                        dest='address',
+                        required=False,
+                        help='Address for neo4j database. ',
+                        type=str,
+                        default='bolt://localhost:7687')
+    return parser
+
+
+parse_base = subparsers.add_parser('base', description='Start, clear and quit the Neo4j database.',
+                                   help='The base module runs the Neo4j console and carries out '
+                                        'checks to validate the database consistency with the schema. '
+                                        'These checks are especially valuable when you are manually '
+                                        'editing the database.')
+parse_base = _add_standard_parser(parse_base)
 parse_base.add_argument('-n', '--neo4j',
                         dest='neo4j',
                         help='Filepath to neo4j folder. ',
                         required=False,
                         type=str,
                         default=None)
-parse_base.add_argument('-u', '--username',
-                        dest='username',
-                        required=False,
-                        help='Username for neo4j database access. ',
-                        type=str,
-                        default='neo4j')
-parse_base.add_argument('-p', '--password',
-                        dest='password',
-                        required=False,
-                        type=str,
-                        help='Password for neo4j database access. ')
-parse_base.add_argument('-a', '--address',
-                        dest='address',
-                        required=False,
-                        help='Address for neo4j database. ',
-                        type=str,
-                        default='bolt://localhost:7687')
 parse_base.add_argument('-start', '--start',
                         dest='start',
                         action='store_true',
@@ -161,33 +178,7 @@ parse_neo4biom = subparsers.add_parser('biom', description='Read/write operation
                                        help='The neo4biom module contains functions that read BIOM files '
                                        'or tab-delimited files and write these to the Neo4j database. '
                                        'It can also delete files by referencing their file name. ')
-parse_neo4biom.add_argument('-fp', '--output_filepath',
-                            dest='fp',
-                            help='File path for importing and / or exporting files. ',
-                            default=None)
-parse_neo4biom.add_argument('-cf', '--config',
-                            dest='config',
-                            action='store_true',
-                            help='If true, store config files to reload Neo4j settings. ',
-                            required=False,
-                            default=None)
-parse_neo4biom.add_argument('-u', '--username',
-                            dest='username',
-                            required=False,
-                            help='Username for neo4j database access. ',
-                            type=str,
-                            default='neo4j')
-parse_neo4biom.add_argument('-p', '--password',
-                            dest='password',
-                            required=False,
-                            type=str,
-                            help='Password for neo4j database access. ')
-parse_neo4biom.add_argument('-a', '--address',
-                            dest='address',
-                            required=False,
-                            help='Address for neo4j database. ',
-                            type=str,
-                            default='bolt://localhost:7687')
+parse_neo4biom = _add_standard_parser(parse_neo4biom)
 parse_neo4biom.add_argument('-biom', '--biom_file',
                             dest='biom',
                             required=False,
@@ -231,33 +222,7 @@ parse_io = subparsers.add_parser('io', description='Read/write operations to dis
                                       ' data storage; for example, reading a network from an edge list to '
                                       'the Neo4j database, or exporting a Neo4j network to Cytoscape. '
                                       'To export to Cytoscape, you need to have started the software first. ')
-parse_io.add_argument('-fp', '--output_filepath',
-                      dest='fp',
-                      help='File path for importing and / or exporting files. ',
-                      default=None)
-parse_io.add_argument('-cf', '--config',
-                      dest='config',
-                      action='store_true',
-                      help='If true, store config files to reload Neo4j settings. ',
-                      required=False,
-                      default=None)
-parse_io.add_argument('-u', '--username',
-                      dest='username',
-                      required=False,
-                      help='Username for neo4j database access. ',
-                      type=str,
-                      default='neo4j')
-parse_io.add_argument('-p', '--password',
-                      dest='password',
-                      required=False,
-                      type=str,
-                      help='Password for neo4j database access. ')
-parse_io.add_argument('-a', '--address',
-                      dest='address',
-                      required=False,
-                      help='Address for neo4j database. ',
-                      type=str,
-                      default='bolt://localhost:7687')
+parse_io = _add_standard_parser(parse_io)
 parse_io.add_argument('-net', '--networks',
                       dest='networks',
                       required=False,
@@ -305,33 +270,7 @@ parse_netstats = subparsers.add_parser('netstats', description='Carry out analys
                                             ' on the networks that does not involve node metadata. '
                                             'For example, set operations and clustering can be '
                                             'carried out from this module. ')
-parse_netstats.add_argument('-fp', '--output_filepath',
-                            dest='fp',
-                            help='File path for importing and / or exporting files. ',
-                            default=None)
-parse_netstats.add_argument('-cf', '--config',
-                            dest='config',
-                            action='store_true',
-                            help='If true, store config files to reload Neo4j settings. ',
-                            required=False,
-                            default=None)
-parse_netstats.add_argument('-u', '--username',
-                            dest='username',
-                            required=False,
-                            help='Username for neo4j database access. ',
-                            type=str,
-                            default='neo4j')
-parse_netstats.add_argument('-p', '--password',
-                            dest='password',
-                            required=False,
-                            type=str,
-                            help='Password for neo4j database access. ')
-parse_netstats.add_argument('-a', '--address',
-                            dest='address',
-                            required=False,
-                            help='Address for neo4j database. ',
-                            type=str,
-                            default='bolt://localhost:7687')
+parse_netstats = _add_standard_parser(parse_netstats)
 parse_netstats.add_argument('-net', '--networks',
                             dest='networks',
                             required=False,
@@ -356,33 +295,8 @@ parse_metastats = subparsers.add_parser('metastats', description='Carry out anal
                                             'form of analysis'
                                             ' on the networks that involve node metadata. '
                                             'For example, metadata assocations can be calculated with this module. ')
-parse_metastats.add_argument('-fp', '--output_filepath',
-                             dest='fp',
-                             help='File path for importing and / or exporting files. ',
-                             default=None)
-parse_metastats.add_argument('-cf', '--config',
-                             dest='config',
-                             action='store_true',
-                             help='If true, store config files to reload Neo4j settings. ',
-                             required=False,
-                             default=None)
-parse_metastats.add_argument('-u', '--username',
-                             dest='username',
-                             required=False,
-                             help='Username for neo4j database access. ',
-                             type=str,
-                             default='neo4j')
-parse_metastats.add_argument('-p', '--password',
-                             dest='password',
-                             required=False,
-                             type=str,
-                             help='Password for neo4j database access. ')
-parse_metastats.add_argument('-a', '--address',
-                             dest='address',
-                             required=False,
-                             help='Address for neo4j database. ',
-                             type=str,
-                             default='bolt://localhost:7687')
+parse_metastats = _add_standard_parser(parse_metastats)
+
 parse_metastats.add_argument('-agglom', '--agglomeration',
                              dest='agglom',
                              required=False,
@@ -402,33 +316,8 @@ parse_metastats.add_argument('-var', '--variable',
 parse_manta = subparsers.add_parser('manta', description='Cluster networks in the database.',
                                              help='The wrapper module can run manta and anuran \n '
                                                   'on networks extracted from the Neo4j database.')
-parse_manta.add_argument('-fp', '--output_filepath',
-                         dest='fp',
-                         help='File path for importing and / or exporting files. ',
-                         default=None)
-parse_manta.add_argument('-cf', '--config',
-                         dest='config',
-                         action='store_true',
-                         help='If true, store config files to reload Neo4j settings. ',
-                         required=False,
-                         default=None)
-parse_manta.add_argument('-u', '--username',
-                         dest='username',
-                         required=False,
-                         help='Username for neo4j database access. ',
-                         type=str,
-                         default='neo4j')
-parse_manta.add_argument('-p', '--password',
-                         dest='password',
-                         required=False,
-                         type=str,
-                         help='Password for neo4j database access. ')
-parse_manta.add_argument('-a', '--address',
-                         dest='address',
-                         required=False,
-                         help='Address for neo4j database. ',
-                         type=str,
-                         default='bolt://localhost:7687')
+parse_manta = _add_standard_parser(parse_manta)
+
 parse_manta.add_argument('-net', '--networks',
                          dest='networks',
                          required=False,
@@ -513,33 +402,8 @@ parse_manta.add_argument('-b', '--binary',
 parse_anuran = subparsers.add_parser('anuran', description='Analyse groups of networks in the database.',
                                                help='The wrapper module can run manta and anuran \n '
                                                     'on networks extracted from the Neo4j database.')
-parse_anuran.add_argument('-fp', '--output_filepath',
-                          dest='fp',
-                          help='File path for importing and / or exporting files. ',
-                          default=None)
-parse_anuran.add_argument('-cf', '--config',
-                          dest='config',
-                          action='store_true',
-                          help='If true, store config files to reload Neo4j settings. ',
-                          required=False,
-                          default=None)
-parse_anuran.add_argument('-u', '--username',
-                          dest='username',
-                          required=False,
-                          help='Username for neo4j database access. ',
-                          type=str,
-                          default='neo4j')
-parse_anuran.add_argument('-p', '--password',
-                          dest='password',
-                          required=False,
-                          type=str,
-                          help='Password for neo4j database access. ')
-parse_anuran.add_argument('-a', '--address',
-                          dest='address',
-                          required=False,
-                          help='Address for neo4j database. ',
-                          type=str,
-                          default='bolt://localhost:7687')
+parse_anuran = _add_standard_parser(parse_anuran)
+
 parse_anuran.add_argument('-net', '--networks',
                           dest='networks',
                           required=False,
