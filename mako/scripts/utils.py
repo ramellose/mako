@@ -238,7 +238,7 @@ class ParentDriver:
         return output
 
     @staticmethod
-    def _query(tx, query, batch):
+    def _query(tx, query, batch=None):
         """
         Processes custom queries.
         :param tx: Neo4j transaction
