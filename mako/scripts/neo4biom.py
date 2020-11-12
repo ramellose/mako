@@ -25,7 +25,7 @@ import numpy as np
 from biom import load_table
 from biom.parse import MetadataMap
 import logging.handlers
-from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path
+from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path, _run_subbatch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -60,7 +60,6 @@ def start_biom(inputs):
         config = _read_config(inputs)
     else:
         config = inputs
-    encrypted = True
     try:
         driver = Biom2Neo(uri=config['address'],
                           user=config['username'],
@@ -253,12 +252,18 @@ class Biom2Neo(ParentDriver):
             tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
             try:
                 taxonomy_table = biomfile.metadata_to_dataframe(axis='observation').drop_duplicates()
-                for i in reversed(range(7)):
+                # default naming scheme filters columns
+                matching_indices = set(taxonomy_table.columns).intersection(['taxonomy_0', 'taxonomy_1', 'taxonomy_2',
+                                                 'taxonomy_3', 'taxonomy_4', 'taxonomy_5',
+                                                 'taxonomy_6'])
+                taxonomy_table = taxonomy_table[matching_indices]
+                taxonomy_table = taxonomy_table.reindex(sorted(taxonomy_table.columns), axis=1)
+                for i in reversed(range(len(matching_indices))):
                     level = tax_levels[i]
                     taxonomy_query_dict = self._create_taxonomy_dict(taxonomy_table, i)
                     with self._driver.session() as session:
                         session.write_transaction(self._create_taxonomy, level, taxonomy_query_dict)
-                for i in reversed(range(1, 7)):
+                for i in reversed(range(1, len(matching_indices))):
                     # Connect each taxonomic label to its higher-level label
                     lower_level = tax_levels[i]
                     upper_level = tax_levels[i-1]
@@ -266,7 +271,7 @@ class Biom2Neo(ParentDriver):
                     with self._driver.session() as session:
                         session.write_transaction(self._connect_taxonomy, lower_level, upper_level,
                                                   taxonomy_query_dict)
-                for i in range(7):
+                for i in range(len(matching_indices)):
                     taxonomy_query_dict = self._add_taxonomy_dict(biomfile, i)
                     if len(taxonomy_query_dict) > 0:
                         with self._driver.session() as session:
@@ -475,10 +480,10 @@ class Biom2Neo(ParentDriver):
         :param taxon_query_dict: Dictionary of taxon IDs
         :return:
         """
-        query = "WITH $batch as batch " \
-                "UNWIND batch as record " \
-                "MERGE (a:Taxon {name:record.taxon}) RETURN a"
-        tx.run(query, batch=taxon_query_dict)
+        query = "WITH $batch as batch \
+        UNWIND batch as record \
+        MERGE (a:Taxon {name:record.taxon}) RETURN a"
+        _run_subbatch(tx, query, taxon_query_dict)
 
     @staticmethod
     def _create_taxonomy(tx, level, taxonomy_query_dict):
@@ -492,7 +497,7 @@ class Biom2Neo(ParentDriver):
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MERGE (a:" + level + " {name:record.label}) RETURN a"
-        tx.run(query, batch=taxonomy_query_dict)
+        _run_subbatch(tx, query, taxonomy_query_dict)
 
     @staticmethod
     def _connect_taxonomy(tx, level1, level2, taxonomy_query_dict):
@@ -509,7 +514,7 @@ class Biom2Neo(ParentDriver):
                 "MATCH (a:" + level1 + " {name:record.label1}), (b:" + level2 + \
                 " {name:record.label2}) " \
                 "MERGE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"
-        tx.run(query, batch=taxonomy_query_dict)
+        _run_subbatch(tx, query, taxonomy_query_dict)
 
     @staticmethod
     def _add_taxonomy(tx, level, taxonomy_query_dict):
@@ -525,7 +530,7 @@ class Biom2Neo(ParentDriver):
                 "MATCH (a:Taxon {name:record.taxon}), (b:" + level + \
                 " {name:record.level}) " \
                 "MERGE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"
-        tx.run(query, batch=taxonomy_query_dict)
+        _run_subbatch(tx, query, taxonomy_query_dict)
 
     @staticmethod
     def _create_sample(tx, sample_query_dict):
@@ -539,12 +544,12 @@ class Biom2Neo(ParentDriver):
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MERGE (a:Specimen {name:record.sample}) RETURN a"
-        tx.run(query, batch=sample_query_dict)
+        _run_subbatch(tx, query, sample_query_dict)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Specimen {name:record.sample}), (b:Experiment {name:record.exp_id}) " \
                 "MERGE (a)-[r:PART_OF]->(b) RETURN type(r)"
-        tx.run(query, batch=sample_query_dict)
+        _run_subbatch(tx, query, sample_query_dict)
 
     @staticmethod
     def _create_property(tx, property_query_dict):
@@ -558,7 +563,7 @@ class Biom2Neo(ParentDriver):
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MERGE (a:Property {name:record.label}) RETURN a"
-        tx.run(query, batch=property_query_dict)
+        _run_subbatch(tx, query, property_query_dict)
 
     @staticmethod
     def _connect_property(tx, property_query_dict, sourcetype=''):
@@ -589,7 +594,7 @@ class Biom2Neo(ParentDriver):
                 "MATCH (a" + sourcetype + " {name:record.source}), (b:Property {name:record.name}) " \
                 "MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
                 "RETURN type(r)"
-        tx.run(query, batch=property_query_dict)
+        _run_subbatch(tx, query, property_query_dict)
 
     @staticmethod
     def _create_observations(tx, observations):
@@ -605,7 +610,7 @@ class Biom2Neo(ParentDriver):
                 "MATCH (a:Taxon {name:record.taxon}), (b:Specimen {name:record.sample}) " \
                 "MERGE (a)-[r:LOCATED_IN {count: record.value}]->(b) " \
                 "RETURN type(r)"
-        tx.run(query, batch=observations)
+        _run_subbatch(tx, query, observations)
 
     @staticmethod
     def _samples_to_delete(tx, exp_id):
@@ -645,7 +650,7 @@ class Biom2Neo(ParentDriver):
                 "UNWIND batch as record " \
                 "MATCH (a:Specimen {name:record.sample})--(b:Experiment {name:record.exp_id}) " \
                 "DETACH DELETE a"
-        tx.run(query, batch=deletion_dict)
+        _run_subbatch(tx, query, deletion_dict)
 
     @staticmethod
     def _delete_taxon(tx, deletion_dict):
@@ -659,9 +664,9 @@ class Biom2Neo(ParentDriver):
                 "UNWIND batch as record " \
                 "MATCH (a:Taxon {name:record.taxon})--(b:Edge) " \
                 "DETACH DELETE b"
-        tx.run(query, batch=deletion_dict)
+        _run_subbatch(tx, query, deletion_dict)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Taxon {name:record.taxon}) " \
                 "DETACH DELETE a"
-        tx.run(query, batch=deletion_dict)
+        _run_subbatch(tx, query, deletion_dict)
