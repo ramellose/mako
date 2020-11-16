@@ -548,7 +548,7 @@ class Biom2Neo(ParentDriver):
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Specimen {name:record.sample}), (b:Experiment {name:record.exp_id}) " \
-                "MERGE (a)-[r:PART_OF]->(b) RETURN type(r)"
+                "CREATE UNIQUE (a)-[r:PART_OF]->(b) RETURN type(r)"
         _run_subbatch(tx, query, sample_query_dict)
 
     @staticmethod
@@ -592,7 +592,7 @@ class Biom2Neo(ParentDriver):
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a" + sourcetype + " {name:record.source}), (b:Property {name:record.name}) " \
-                "MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
+                "CREATE UNIQUE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, property_query_dict)
 
@@ -608,7 +608,7 @@ class Biom2Neo(ParentDriver):
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Taxon {name:record.taxon}), (b:Specimen {name:record.sample}) " \
-                "MERGE (a)-[r:LOCATED_IN {count: record.value}]->(b) " \
+                "CREATE UNIQUE (a)-[r:LOCATED_IN {count: record.value}]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, observations)
 

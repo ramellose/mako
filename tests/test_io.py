@@ -48,9 +48,9 @@ testraw = """{
         {"id":"GG_OTU_1", "metadata":{"taxonomy":["k__Bacteria", "p__Proteoba\
 cteria", "c__Gammaproteobacteria", "o__Enterobacteriales", "f__Enterobacteriac\
 eae", "g__Escherichia", "s__"]}},
-        {"id":"GG_OTU_2", "metadata":{"taxonomy":["k__Bacteria", "p__Cyanobact\
-eria", "c__Nostocophycideae", "o__Nostocales", "f__Nostocaceae", "g__Dolichosp\
-ermum", "s__"]}},
+        {"id":"GG_OTU_2", "metadata":{"taxonomy":["k__Bacteria", "p__Firmicute\
+s", "c__Clostridia", "o__Halanaerobiales", "f__Halobacteroidaceae", "g__Sporoh\
+alobacter", "s__lortetii"]}},
         {"id":"GG_OTU_3", "metadata":{"taxonomy":["k__Archaea", "p__Euryarchae\
 ota", "c__Methanomicrobia", "o__Methanosarcinales", "f__Methanosarcinaceae", "\
 g__Methanosarcina", "s__"]}},
