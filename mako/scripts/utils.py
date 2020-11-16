@@ -164,25 +164,6 @@ def _get_path(path, default):
     return checked_path
 
 
-def _run_subbatch(tx, query, query_dict):
-    """
-    Batch queries can get so big that they cause memory issues.
-    This function splits up the batches so this behaviour is avoided.
-    While the apoc.periodic.commit could also fix this,
-    the apoc JAR needs to be loaded first.
-
-    :param tx: Neo4j handler
-    :param query: String query to run
-    :param query_dict: List of dictonaries that needs to be split to run well
-    :return:
-    """
-    for i in range(0, len(query_dict), 100):
-        if i + 100 > len(query_dict):
-            subdict = query_dict[i:len(query_dict) - 1]
-        else:
-            subdict = query_dict[i:i + 100]
-        tx.run(query, batch=subdict)
-
 class ParentDriver:
     def __init__(self, uri, user, password, filepath, encrypted=True):
         """
