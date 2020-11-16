@@ -4,11 +4,9 @@ so BIOM files or tab-delimited files can be read.
 The BIOM format is a standardized biological format
 that is commonly used to contain biological data.
 Tab-delimited files should be supplied with the BIOM-format specified headers (# prefix).
-
 The software can operate in two manners:
 import all BIOM files in a folder,
 or import separate BIOM files / tab-delimited files
-
 The file also defines a class for a Neo4j driver.
 Given a running database, this driver can upload and delete experiments in the database.
 """
@@ -98,7 +96,6 @@ def check_arguments(inputs):
     Runs some initial checks before importing;
     for example, whether each OTU table has a matching taxonomy table,
     and if there are sample metadata files, whether each OTU table has one.
-
     :param inputs: Arguments with files to import
     :return: True if checks passed, False if failed
     """
@@ -129,7 +126,6 @@ def read_bioms(files, filepath, driver):
         3. Filename of BIOM file(s) stored the current working directory
         4. Filename of BIOM file(s) stored in the filepath directory
     The filename can also be a relative filepath.
-
     :param files: List of BIOM filenames or file directories
     :param filepath: Filepath where files are stored / written
     :param driver: Biom2Neo driver instance
@@ -157,7 +153,6 @@ def read_tabs(inputs, i, driver):
     Reads tab-delimited files from lists of filenames.
     These are then combined into a BIOM file.
     The driver is then called to write the BIOM file to the database.
-
     :param inputs:
     :param i:
     :param driver:
@@ -511,10 +506,9 @@ class Biom2Neo(ParentDriver):
         """
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MERGE (a:" + level1 + \
-                " {name:record.label1})-[r:MEMBER_OF]->(b:" + level2 + \
+                "MATCH (a:" + level1 + " {name:record.label1}), (b:" + level2 + \
                 " {name:record.label2}) " \
-                "RETURN type(r)"
+                "MERGE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"
         _run_subbatch(tx, query, taxonomy_query_dict)
 
     @staticmethod
@@ -528,10 +522,9 @@ class Biom2Neo(ParentDriver):
         """
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MERGE (a:Taxon {name:record.taxon})" \
-                "-[r:MEMBER_OF]->b:" + level + \
+                "MATCH (a:Taxon {name:record.taxon}), (b:" + level + \
                 " {name:record.level}) " \
-                "RETURN type(r)"
+                "MERGE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"
         _run_subbatch(tx, query, taxonomy_query_dict)
 
     @staticmethod
@@ -549,9 +542,8 @@ class Biom2Neo(ParentDriver):
         _run_subbatch(tx, query, sample_query_dict)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MERGE (a:Specimen {name:record.sample})" \
-                "-[r:PART_OF]->(b:Experiment {name:record.exp_id}) " \
-                "RETURN type(r)"
+                "MATCH (a:Specimen {name:record.sample}), (b:Experiment {name:record.exp_id}) " \
+                "MERGE (a)-[r:PART_OF]->(b) RETURN type(r)"
         _run_subbatch(tx, query, sample_query_dict)
 
     @staticmethod
@@ -594,9 +586,8 @@ class Biom2Neo(ParentDriver):
             rel = " {" + val_rel + "}"
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MERGE (a" + sourcetype + \
-                " {name:record.source})-[r:QUALITY_OF" + rel + \
-                "]->(b:Property {name:record.name}) " \
+                "MATCH (a" + sourcetype + " {name:record.source}), (b:Property {name:record.name}) " \
+                "MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, property_query_dict)
 
@@ -611,9 +602,8 @@ class Biom2Neo(ParentDriver):
         """
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MERGE (a:Taxon {name:record.taxon})" \
-                "-[r:LOCATED_IN {count: record.value}]->" \
-                "(b:Specimen {name:record.sample}) " \
+                "MATCH (a:Taxon {name:record.taxon}), (b:Specimen {name:record.sample}) " \
+                "MERGE (a)-[r:LOCATED_IN {count: record.value}]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, observations)
 
