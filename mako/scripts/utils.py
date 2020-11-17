@@ -111,7 +111,7 @@ def _read_config(args):
             config[key] = args[key]
         if config[key] == 'None':
             logger.error('Could not read login information from config or from arguments. \n')
-    with open(args['fp'] + '//' + 'config', 'r') as file:
+    with open(args['fp'] + '//' + 'config', 'w') as file:
         newlines = configfile[:3]
         if args['store_config']:
             for line in configfile[3:]:
