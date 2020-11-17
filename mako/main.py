@@ -102,9 +102,9 @@ def _add_standard_parser(parser):
     parser.add_argument('-fp', '--output_filepath',
                         dest='fp',
                         help='File path for importing and / or exporting files. ',
-                        default=None)
+                        default=os.getcwd())
     parser.add_argument('-cf', '--config',
-                        dest='config',
+                        dest='store_config',
                         action='store_true',
                         help='If true, store config files to reload Neo4j settings. ',
                         required=False,
