@@ -185,37 +185,43 @@ parse_neo4biom.add_argument('-biom', '--biom_file',
                             required=False,
                             help='One or more BIOM files. ',
                             type=list,
-                            default=None)
+                            default=None,
+                            nargs='+')
 parse_neo4biom.add_argument('-count', '--count_table',
                             dest='count',
                             required=False,
                             help='One or more tab-delimited count tables. ',
                             type=list,
-                            default=None)
+                            default=None,
+                            nargs='+')
 parse_neo4biom.add_argument('-tax', '--tax_table',
                             dest='tax',
                             required=False,
                             help='One or more tab-delimited taxonomy tables. ',
                             type=list,
-                            default=None)
+                            default=None,
+                            nargs='+')
 parse_neo4biom.add_argument('-tm', '--taxon_metadata',
                             dest='taxon_meta',
                             required=False,
                             help='One or more tab-delimited taxon metadata tables. ',
                             type=list,
-                            default=None)
+                            default=None,
+                            nargs='+')
 parse_neo4biom.add_argument('-sm', '--sample_metadata',
                             dest='sample_meta',
                             required=False,
                             help='One or more tab-delimited sample metadata tables. ',
                             type=list,
-                            default=None)
+                            default=None,
+                            nargs='+')
 parse_neo4biom.add_argument('-del', '--delete',
                             dest='delete',
                             required=False,
                             help='Names of count tables (without full path) to delete from the database. ',
                             type=list,
-                            default=None)
+                            default=None,
+                            nargs='+')
 
 
 parse_io = subparsers.add_parser('io', description='Read/write operations to disk, Cytoscape and Neo4j.',
@@ -229,7 +235,8 @@ parse_io.add_argument('-net', '--networks',
                       required=False,
                       help='One or more network files. These can be graphml, gml or txt edge lists. ',
                       type=list,
-                      default=None)
+                      default=None,
+                            nargs='+')
 parse_io.add_argument('-del', '--delete',
                       dest='delete',
                       required=False,
@@ -242,7 +249,8 @@ parse_io.add_argument('-fasta', '--fasta_sequences',
                       required=False,
                       help='FASTA files to add to database. ',
                       type=list,
-                      default=None)
+                      default=None,
+                      nargs='+')
 parse_io.add_argument('-cyto', '--cytoscape',
                       dest='cyto',
                       action='store_true',
@@ -255,7 +263,8 @@ parse_io.add_argument('-meta', '--metadata',
                       required=False,
                       help='Locations of metadata, given as an edge list, to add to the database. ',
                       type=list,
-                      default=None)
+                      default=None,
+                      nargs='+')
 parse_io.add_argument('-w', '--write',
                       dest='write',
                       action='store_true',
@@ -277,7 +286,8 @@ parse_netstats.add_argument('-net', '--networks',
                             required=False,
                             help='If you only want to carry out set operations on specific networks, list them here. ',
                             type=list,
-                            default=None)
+                            default=None,
+                            nargs='+')
 parse_netstats.add_argument('-w', '--weight',
                             dest='weight',
                             required=False,
@@ -289,7 +299,8 @@ parse_netstats.add_argument('-frac', '--fraction',
                             required=False,
                             help='List of fractions to use for partial intersections. ',
                             type=list,
-                            default=[1])
+                            default=[1],
+                            nargs='+')
 
 parse_metastats = subparsers.add_parser('metastats', description='Carry out analysis on the networks in the database.',
                                        help='The metastats module contains functions that carry out some '
@@ -312,7 +323,8 @@ parse_metastats.add_argument('-var', '--variable',
                              help='Spearman and hypergeometric test on sample-linked metadata to taxa. \n'
                                   'Specify "all" or one or more specific variable names.',
                              type=list,
-                             default=None)
+                             default=None,
+                             nargs='+')
 
 parse_manta = subparsers.add_parser('manta', description='Cluster networks in the database.',
                                              help='The wrapper module can run manta and anuran \n '
@@ -324,7 +336,8 @@ parse_manta.add_argument('-net', '--networks',
                          required=False,
                          help='If you only want to carry out set operations on specific networks, list them here. ',
                          type=list,
-                         default=None)
+                         default=None,
+                         nargs='+')
 parse_manta.add_argument('-min', '--min_clusters',
                          dest='min',
                          required=False,
@@ -410,7 +423,8 @@ parse_anuran.add_argument('-net', '--networks',
                           required=False,
                           help='If you only want to carry out set operations on specific networks, list them here. ',
                           type=list,
-                          default=None)
+                          default=None,
+                          nargs='+')
 parse_anuran.add_argument('-size', '--intersection_size',
                           dest='size',
                           required=False,
