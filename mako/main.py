@@ -181,7 +181,7 @@ parse_neo4biom = subparsers.add_parser('neo4biom', description='Read/write opera
                                        'It can also delete files by referencing their file name. ')
 parse_neo4biom = _add_standard_parser(parse_neo4biom)
 parse_neo4biom.add_argument('-biom', '--biom_file',
-                            dest='biom',
+                            dest='biom_file',
                             required=False,
                             help='One or more BIOM files. ',
                             type=str,
