@@ -143,6 +143,7 @@ def start_base(inputs):
                             uri=config['address'], filepath=inputs['fp'],
                             encrypted=inputs['encryption'])
         try:
+            driver.add_constraints()
             driver.check_domain_range()
         except Exception:
             logger.warning("Failed to check database.  ", exc_info=True)
@@ -245,10 +246,13 @@ class BaseDriver(ParentDriver):
                         'Property', 'Sample', 'Taxon']
         for name in unique_names:
             constraintname = 'Unique ' + name
-            constraint = "CREATE CONSTRAINT ON (n:" + name + ")" \
-                         " ASSERT (n.name) IS UNIQUE"
+            constraint_name = "CREATE CONSTRAINT ON (n:" + name + ")" \
+                              " ASSERT (n.name) IS UNIQUE"
+            constraint_id = "CREATE CONSTRAINT ON (n:" + name + ")" \
+                            " ASSERT (n.id) IS UNIQUE"
             with self._driver.session() as session:
-                output = session.read_transaction(self._query, constraint)
+                output = session.write_transaction(self._query, constraint_name)
+                output = session.write_transaction(self._query, constraint_id)
 
     def check_only(self):
         """
