@@ -99,6 +99,10 @@ def _read_config(args):
                 config[key] = args[key]
             if config[key] == 'None':
                 logger.error('Could not read login information from config or from arguments. \n')
+        for key in config:
+            # update with args values
+            if args[key]:
+                config[key] = args[key]
         with open(_resource_path('config'), 'w') as file:
             newlines = configfile[:3]
             if args['store_config']:

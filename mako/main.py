@@ -52,6 +52,8 @@ def mako(mako_args):
         info = VersionInfo('anuran')
         logger.info('Version ' + info.version_string())
         sys.exit(0)
+    if (mako_args['store_config'] is False) and (mako_args['username'] is None):
+        logger.exit('No Neo4j configuration supplied, cannot access database.')
     if 'base' in mako_args:
         logger.info('Running base Neo4j module. ')
         start_base(mako_args)
@@ -123,18 +125,19 @@ def _add_standard_parser(parser):
                         required=False,
                         help='Username for neo4j database access. ',
                         type=str,
-                        default='neo4j')
+                        default=None)
     parser.add_argument('-p', '--password',
                         dest='password',
                         required=False,
                         type=str,
-                        help='Password for neo4j database access. ')
+                        help='Password for neo4j database access. ',
+                        default=None)
     parser.add_argument('-a', '--address',
                         dest='address',
                         required=False,
                         help='Address for neo4j database. ',
                         type=str,
-                        default='bolt://localhost:7687')
+                        default=None)
     return parser
 
 
