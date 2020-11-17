@@ -87,49 +87,43 @@ def _read_config(args):
     """
     config = dict()
     try:
-        try:
-            with open(args['fp'] + '//' + 'config', 'r') as file:
-                # read a list of lines into data
-                configfile = file.readlines()
-            for line in configfile[2:]:
-                key = line.split(':')[0]
-                val = line.split(' ')[-1].strip()
-                config[key] = val
-        except FileNotFoundError:
-            config = {'pid': 'None',
-                      'address': 'None',
-                      'password': 'None',
-                      'username': 'None'}
-            configfile = ["# This file contains the PID and login details of the Neo4j console.\n ",
-                       "# If there is no PID specified, the 3rd line should state None.\n"]
-            with open(args['fp'] + '//' + 'config', 'w') as file:
-                for line in config:
-                    newline = line + ': ' + str(config[line]) + '\n'
-                    configfile.append(newline)
-                file.writelines(configfile)
-        for key in set(config.keys()).intersection(args.keys()):
-            if key in args:
-                config[key] = args[key]
-            if config[key] == 'None':
-                logger.error('Could not read login information from config or from arguments. \n')
         with open(args['fp'] + '//' + 'config', 'r') as file:
-            newlines = configfile[:3]
-            if args['store_config']:
-                for line in configfile[3:]:
-                    key = line.split(':')[0]
-                    newline = key + ': ' + config[key] + '\n'
-                    newlines.append(newline)
-            else:
-                for line in configfile[3:]:
-                    key = line.split(':')[0]
-                    newline = key + ': None' + '\n'
-                    newlines.append(newline)
-            file.writelines(newlines)
+            # read a list of lines into data
+            configfile = file.readlines()
+        for line in configfile[2:]:
+            key = line.split(':')[0]
+            val = line.split(' ')[-1].strip()
+            config[key] = val
     except FileNotFoundError:
         config = {'pid': 'None',
                   'address': 'None',
                   'password': 'None',
                   'username': 'None'}
+        configfile = ["# This file contains the PID and login details of the Neo4j console.\n ",
+                   "# If there is no PID specified, the 3rd line should state None.\n"]
+        with open(args['fp'] + '//' + 'config', 'w') as file:
+            for line in config:
+                newline = line + ': ' + str(config[line]) + '\n'
+                configfile.append(newline)
+            file.writelines(configfile)
+    for key in set(config.keys()).intersection(args.keys()):
+        if key in args:
+            config[key] = args[key]
+        if config[key] == 'None':
+            logger.error('Could not read login information from config or from arguments. \n')
+    with open(args['fp'] + '//' + 'config', 'r') as file:
+        newlines = configfile[:3]
+        if args['store_config']:
+            for line in configfile[3:]:
+                key = line.split(':')[0]
+                newline = key + ': ' + config[key] + '\n'
+                newlines.append(newline)
+        else:
+            for line in configfile[3:]:
+                key = line.split(':')[0]
+                newline = key + ': None' + '\n'
+                newlines.append(newline)
+        file.writelines(newlines)
     return config
 
 
