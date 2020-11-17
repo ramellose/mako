@@ -99,16 +99,19 @@ def _read_config(args):
                   'address': 'None',
                   'password': 'None',
                   'username': 'None'}
-        configfile = ["# This file contains the PID and login details of the Neo4j console.\n ",
+        configfile = ["# This file contains the PID and login details of the Neo4j console.\n",
                    "# If there is no PID specified, the 3rd line should state None.\n"]
         with open(args['fp'] + '//' + 'config', 'w') as file:
             for line in config:
                 newline = line + ': ' + str(config[line]) + '\n'
                 configfile.append(newline)
             file.writelines(configfile)
+    if len(config) == 0:
+        logger.error('Config file is empty. \n')
     for key in set(config.keys()).intersection(args.keys()):
         if key in args:
-            config[key] = args[key]
+            if args[key]:
+                config[key] = args[key]
         if config[key] == 'None':
             logger.error('Could not read login information from config or from arguments. \n')
     with open(args['fp'] + '//' + 'config', 'w') as file:
