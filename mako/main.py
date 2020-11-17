@@ -173,7 +173,7 @@ parse_base.add_argument('-check', '--check_schema',
                         default=None)
 
 
-parse_neo4biom = subparsers.add_parser('biom', description='Read/write operations for standard '
+parse_neo4biom = subparsers.add_parser('neo4biom', description='Read/write operations for standard '
                                                            'microbial abundance data formats.',
                                        help='The neo4biom module contains functions that read BIOM files '
                                        'or tab-delimited files and write these to the Neo4j database. '
