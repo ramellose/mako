@@ -67,8 +67,11 @@ def mako(mako_args):
     if 'metastats' in mako_args:
         logger.info('Performing metadata analysis on Neo4j database. ')
         start_metastats(mako_args)
-    if 'manta' or 'anuran' in mako_args:
-        logger.info('Running tools on Neo4j database. ')
+    if 'manta' in mako_args:
+        logger.info('Running manta on Neo4j database. ')
+        start_wrapper(mako_args)
+    if 'anuran' in mako_args:
+        logger.info('Running anuran on Neo4j database. ')
         start_wrapper(mako_args)
     logger.info('Completed tasks! ')
 
