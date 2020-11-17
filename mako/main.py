@@ -242,7 +242,7 @@ parse_io.add_argument('-net', '--networks',
                       help='One or more network files. These can be graphml, gml or txt edge lists. ',
                       type=str,
                       default=None,
-                            nargs='+')
+                      nargs='+')
 parse_io.add_argument('-del', '--delete',
                       dest='delete',
                       required=False,
