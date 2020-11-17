@@ -241,6 +241,7 @@ class Biom2Neo(ParentDriver):
             with self._driver.session() as session:
                 session.write_transaction(self._create_experiment, exp_id)
             taxon_query_dict = self._create_taxon_dict(biomfile)
+            print(taxon_query_dict)
             with self._driver.session() as session:
                 # Add taxon nodes
                 session.write_transaction(self._create_taxon, taxon_query_dict)
