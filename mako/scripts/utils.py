@@ -87,22 +87,24 @@ def _read_config(args):
     """
     config = dict()
     try:
-        with open(_resource_path('config'), 'r') as file:
-            # read a list of lines into data
-            configfile = file.readlines()
-        for line in configfile[2:]:
-            key = line.split(':')[0]
-            val = line.split(' ')[-1].strip()
-            config[key] = val
+        try:
+            with open(args['fp'] + '//' + 'config', 'r') as file:
+                # read a list of lines into data
+                configfile = file.readlines()
+            for line in configfile[2:]:
+                key = line.split(':')[0]
+                val = line.split(' ')[-1].strip()
+                config[key] = val
+        except FileNotFoundError:
+            config = {'pid': 'None',
+                      'address': 'None',
+                      'password': 'None',
+                      'username': 'None'}
         for key in set(config.keys()).intersection(args.keys()):
-            if args[key]:
+            if key in args:
                 config[key] = args[key]
             if config[key] == 'None':
                 logger.error('Could not read login information from config or from arguments. \n')
-        for key in config:
-            # update with args values
-            if args[key]:
-                config[key] = args[key]
         with open(_resource_path('config'), 'w') as file:
             newlines = configfile[:3]
             if args['store_config']:
