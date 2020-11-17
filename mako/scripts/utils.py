@@ -188,10 +188,11 @@ def _run_subbatch(tx, query, query_dict):
     """
     for i in range(0, len(query_dict), 100):
         if i + 100 > len(query_dict):
-            subdict = query_dict[i:len(query_dict) - 1]
+            subdict = query_dict[i:len(query_dict)]
         else:
             subdict = query_dict[i:i + 100]
         tx.run(query, batch=subdict)
+
 
 class ParentDriver:
     def __init__(self, uri, user, password, filepath, encrypted=True):
