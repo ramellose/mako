@@ -106,7 +106,8 @@ def _read_config(args):
             if config[key] == 'None':
                 logger.error('Could not read login information from config or from arguments. \n')
         with open(_resource_path('config'), 'w') as file:
-            newlines = configfile[:3]
+            newlines = "# This file contains the PID and login details of the Neo4j console.\n " \
+                       "# If there is no PID specified, the 3rd line should state None.\n"
             if args['store_config']:
                 for line in configfile[3:]:
                     key = line.split(':')[0]
