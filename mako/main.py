@@ -52,6 +52,7 @@ def mako(mako_args):
         info = VersionInfo('anuran')
         logger.info('Version ' + info.version_string())
         sys.exit(0)
+    print(mako_args)
     if 'base' in mako_args:
         logger.info('Running base Neo4j module. ')
         start_base(mako_args)
