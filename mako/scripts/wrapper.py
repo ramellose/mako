@@ -130,6 +130,7 @@ def run_anuran(inputs, networks, driver):
     grouped_networks = [(name, networks[name]) for name in networks]
     args = inputs.copy()
     args['fp'] += '/anuran'
+    args['network'] = args['graph']
     centralities = model_calcs(networks={'Neo4j': grouped_networks}, args=args)
     # add a node with the different centrality
     # give node properties with comparison value

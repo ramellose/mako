@@ -485,8 +485,8 @@ parse_anuran.add_argument('-c', '--centrality',
                           help='If true, extracts centrality ranking from networks \n'
                                'and compares these to rankings extracted from null models. ',
                           default=False)
-parse_anuran.add_argument('-net', '--network',
-                          dest='network',
+parse_anuran.add_argument('-g', '--graph',
+                          dest='graph',
                           required=False,
                           action='store_true',
                           help='If true, extracts network-level properties \n'
