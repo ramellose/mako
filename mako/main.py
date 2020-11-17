@@ -69,7 +69,7 @@ def mako(mako_args):
         logger.info('Performing metadata analysis on Neo4j database. ')
         start_metastats(mako_args)
     if 'manta' or 'anuran' in mako_args:
-        logger.info('Performing metadata analysis on Neo4j database. ')
+        logger.info('Running tools on Neo4j database. ')
         start_wrapper(mako_args)
     logger.info('Completed tasks! ')
 
@@ -172,6 +172,7 @@ parse_base.add_argument('-check', '--check_schema',
                         help='If true, checks whether Neo4j database violates the schema.',
                         required=False,
                         default=None)
+parse_base.set_defaults(base=True)
 
 
 parse_neo4biom = subparsers.add_parser('neo4biom', description='Read/write operations for standard '
@@ -222,7 +223,7 @@ parse_neo4biom.add_argument('-del', '--delete',
                             type=str,
                             default=None,
                             nargs='+')
-
+parse_neo4biom.set_defaults(neo4biom=True)
 
 parse_io = subparsers.add_parser('io', description='Read/write operations to disk, Cytoscape and Neo4j.',
                                  help='The io module contains functions that change the type of'
@@ -272,7 +273,7 @@ parse_io.add_argument('-w', '--write',
                       help='If true and network or set names are given, these are written to graphml files.'
                            'Otherwise, all networks and sets are exported. ',
                       default=None)
-
+parse_io.set_defaults(io=True)
 
 parse_netstats = subparsers.add_parser('netstats', description='Carry out analysis on the networks in the database.',
                                        help='The netstats module contains functions that carry out some '
@@ -301,6 +302,7 @@ parse_netstats.add_argument('-frac', '--fraction',
                             type=int,
                             default=[1],
                             nargs='+')
+parse_netstats.set_defaults(netstats=True)
 
 parse_metastats = subparsers.add_parser('metastats', description='Carry out analysis on the networks in the database.',
                                        help='The metastats module contains functions that carry out some '
@@ -325,6 +327,7 @@ parse_metastats.add_argument('-var', '--variable',
                              type=str,
                              default=None,
                              nargs='+')
+parse_metastats.set_defaults(metastats=True)
 
 parse_manta = subparsers.add_parser('manta', description='Cluster networks in the database.',
                                              help='The wrapper module can run manta and anuran \n '
@@ -412,6 +415,7 @@ parse_manta.add_argument('-b', '--binary',
                          required=False,
                          default=False,
                          help='If flagged, edge weights are converted to 1 and -1. ')
+parse_manta.set_defaults(manta=True)
 
 parse_anuran = subparsers.add_parser('anuran', description='Analyse groups of networks in the database.',
                                                help='The wrapper module can run manta and anuran \n '
@@ -537,6 +541,7 @@ parse_anuran.add_argument('-core', '-processor_cores',
                           help='Number of processing cores to use. \n '
                                'By default, CPU count - 2. ',
                           default=os.cpu_count() - 2)
+parse_anuran.set_defaults(anuran=True)
 
 
 def main():
