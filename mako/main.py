@@ -323,6 +323,12 @@ parse_metastats.add_argument('-net', '--networks',
                              type=str,
                              default=None,
                              nargs='+')
+parse_metastats.add_argument('-w', '--weight',
+                             dest='weight',
+                             required=False,
+                             help='If flagged, edge weight is not taken into account for agglomerating. ',
+                             action='store_false',
+                             default=True)
 parse_metastats.add_argument('-agglom', '--agglomeration',
                              dest='agglom',
                              required=False,
