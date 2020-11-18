@@ -873,18 +873,12 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         name = str(np.round(prob, 3))
-        tx.run(("MERGE (a:Property {name: 'hypergeom_" + categ[1] +
-                "'}) RETURN a"))
         tx.run(("MATCH (a:Taxon {name: '" + taxon +
-                "'}), (b:Property {name: 'hypergeom_" + categ[1] +
+                "'}), (b:Property {name:" + categ[0] +
                 "'}) MERGE (a)-[r:HYPERGEOM]->(b)" +
                 " SET r.value = " + name +
+                " SET r.name = " + categ[1] +
                 " RETURN type(r)"))
-        tx.run(("MATCH (a:Property), (b:Property) "
-                "WHERE a.name = 'hypergeom_" + categ[1] +
-                "' AND b.name = '" + categ[0] +
-                "' MERGE (a)-[r:STAT]->(b) "
-                "RETURN type(r)"))
 
     @staticmethod
     def _shortcut_continuous(tx, taxon, var_dict):
@@ -897,16 +891,8 @@ class MetastatsDriver(ParentDriver):
         """
         var_id = list(var_dict.keys())[0]
         name = str(np.round(var_dict[var_id], 3))
-        # first check if property already exists
-        tx.run(("MERGE (a:Property {name: 'spearman_" + var_id +
-                "'}) RETURN a"))
         tx.run(("MATCH (a:Taxon {name: '" + taxon +
-                "'}), (b:Property {name: 'spearman_" + var_id +
-                "'}) MERGE (a)-[r:SPEARMAN]->(b)" +
+                "'}), (b:Property {name:" + var_id +
+                "'}) MERGE (a)-[r:HYPERGEOM]->(b)" +
                 " SET r.value = " + name +
                 " RETURN type(r)"))
-        tx.run(("MATCH (a:Property), (b:Property) "
-                "WHERE a.name = 'spearman_" + var_id +
-                "' AND b.name = '" + var_id +
-                "' MERGE (a)-[r:STAT]->(b) "
-                "RETURN type(r)"))
