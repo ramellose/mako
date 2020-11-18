@@ -57,7 +57,13 @@ def start_metastats(inputs):
     if inputs['agglom']:
         tax_list = ['Species', 'Genus', 'Family', 'Order', 'Class', 'Phylum', 'Kingdom']
         level_id = tax_list.index(inputs['agglom'].capitalize())
-        networks = inputs['networks']
+        if not inputs['networks']:
+            networks = list()
+            hits = driver.query("MATCH (n:Network) RETURN n")
+            for hit in hits:
+                networks.append(hit['n'].get('name'))
+        else:
+            networks = inputs['networks']
         for level in range(0, level_id + 1):
             # pub.sendMessage('update', msg="Agglomerating edges...")
             logger.info("Checking " + tax_list[level] + " level...")

@@ -315,7 +315,14 @@ parse_metastats = subparsers.add_parser('metastats', description='Carry out anal
                                             ' on the networks that involve node metadata. '
                                             'For example, metadata assocations can be calculated with this module. ')
 parse_metastats = _add_standard_parser(parse_metastats)
-
+parse_metastats.add_argument('-net', '--networks',
+                             dest='networks',
+                             required=False,
+                             help='If you only want to carry out taxonomic operations on specific networks, '
+                                  'list them here. ',
+                             type=str,
+                             default=None,
+                             nargs='+')
 parse_metastats.add_argument('-agglom', '--agglomeration',
                              dest='agglom',
                              required=False,
@@ -324,6 +331,7 @@ parse_metastats.add_argument('-agglom', '--agglomeration',
                              choices=['species', 'genus', 'family',
                                       'order', 'class', 'phylum'],
                              default=None)
+
 parse_metastats.add_argument('-var', '--variable',
                              dest='variable',
                              required=False,
