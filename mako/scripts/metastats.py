@@ -874,7 +874,7 @@ class MetastatsDriver(ParentDriver):
         """
         name = str(np.round(prob, 3))
         tx.run(("MATCH (a:Taxon {name: '" + taxon +
-                "'}), (b:Property {name:" + categ[0] +
+                "'}), (b:Property {name: '" + categ[0] +
                 "'}) MERGE (a)-[r:HYPERGEOM]->(b)" +
                 " SET r.value = " + name +
                 " SET r.name = " + categ[1] +
