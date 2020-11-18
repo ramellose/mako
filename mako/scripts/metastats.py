@@ -892,7 +892,7 @@ class MetastatsDriver(ParentDriver):
         var_id = list(var_dict.keys())[0]
         name = str(np.round(var_dict[var_id], 3))
         tx.run(("MATCH (a:Taxon {name: '" + taxon +
-                "'}), (b:Property {name:" + var_id +
+                "'}), (b:Property {name: '" + var_id +
                 "'}) MERGE (a)-[r:HYPERGEOM]->(b)" +
                 " SET r.value = " + name +
                 " RETURN type(r)"))
