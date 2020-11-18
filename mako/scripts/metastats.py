@@ -877,8 +877,8 @@ class MetastatsDriver(ParentDriver):
                 "'}), (b:Property {name: '" + categ[0] +
                 "'}) MERGE (a)-[r:HYPERGEOM]->(b)" +
                 " SET r.value = " + name +
-                " SET r.name = " + categ[1] +
-                " RETURN type(r)"))
+                " SET r.name = '" + categ[1] +
+                "' RETURN type(r)"))
 
     @staticmethod
     def _shortcut_continuous(tx, taxon, var_dict):
