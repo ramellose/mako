@@ -914,14 +914,14 @@ class IoDriver(ParentDriver):
         tx.run(query, batch=edge_query_dict)
 
     @staticmethod
-    def _delete_disconnected_taxon(tx):
+    def _delete_disconnected_taxon(tx, taxon_query_dict):
         """
         After deleting a network, some agglomerated nodes may not be represented in the database.
         These disconnected nodes are deleted.
         :param tx:
         :return:
         """
-        names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Edge) RETURN a").data()
+        names = tx.run("MATCH (a:Taxon) WHERE NOT (a)--(:Specimen) RETURN a").data()
         del_dict = list()
         for name in names:
             del_dict.append({'label': name['a']['name']})
