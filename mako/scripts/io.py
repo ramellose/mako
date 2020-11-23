@@ -297,6 +297,7 @@ class IoDriver(ParentDriver):
                     session.read_transaction(self._create_edge_dict, network_id, network)
             with self._driver.session() as session:
                 session.write_transaction(self._create_network, network_id)
+            with self._driver.session() as session:
                 session.write_transaction(self._create_edges, tt=edge_dict_tt,
                                           tm=edge_dict_tm, mm=edge_dict_mm, missing_no=missing_no)
         except Exception:
