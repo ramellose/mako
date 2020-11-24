@@ -10,7 +10,7 @@ __license__ = 'Apache 2.0'
 from threading import Thread
 import wx
 from wx.lib.pubsub import pub
-from mako.scripts.base import start_base
+from mako.scripts.base import start_base, BaseDriver
 from mako.scripts.utils import _resource_path, query
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
@@ -43,7 +43,8 @@ class BasePanel(wx.Panel):
                          'clear': False,
                          'quit': False,
                          'store_config': False,
-                         'check': False}
+                         'check': False,
+                         'encryption': False}
 
         # defines columns
         self.rightsizer = wx.BoxSizer(wx.VERTICAL)
@@ -54,8 +55,8 @@ class BasePanel(wx.Panel):
         self.paddingsizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # local database grid
-        self.local_txt = wx.StaticText(self, label='Only use this section if you\n'
-                                                   'want to run the database locally.')
+        self.local_txt = wx.StaticText(self, label='Only use this section if you '
+                                                   'want to run\n the database locally, without Docker.')
         # Opening neo4j folder
         self.neo_btn = wx.Button(self, label="Select Neo4j folder", size=btnsize)
         self.neo_btn.Bind(wx.EVT_BUTTON, self.open_neo)
@@ -77,6 +78,11 @@ class BasePanel(wx.Panel):
         self.test_button = wx.Button(self, label='Test connection', size=btnsize)
         self.test_button.Bind(wx.EVT_MOTION, self.update_help)
         self.test_button.Bind(wx.EVT_BUTTON, self.test)
+
+        # encrypted database
+        self.encrypt_button = wx.CheckBox(self, label='Encrypted', size=btnsize)
+        self.encrypt_button.Bind(wx.EVT_MOTION, self.update_help)
+        self.encrypt_button.Bind(wx.EVT_BUTTON, self.update_encryption)
 
         # clear database
         self.clear_button = wx.Button(self, label='Clear database', size=btnsize)
@@ -125,6 +131,8 @@ class BasePanel(wx.Panel):
         self.leftsizer.AddSpacer(20)
         self.leftsizer.Add(self.data_button, flag=wx.ALIGN_LEFT)
         self.leftsizer.Add(self.close_button, flag=wx.ALIGN_LEFT)
+        self.leftsizer.Add(self.test_button, flag=wx.ALIGN_LEFT)
+        self.leftsizer.Add(self.encrypt_button, flag=wx.ALIGN_CENTER_HORIZONTAL)
         self.leftsizer.AddSpacer(20)
 
         self.rightsizer.AddSpacer(20)
@@ -135,7 +143,6 @@ class BasePanel(wx.Panel):
         self.rightsizer.Add(self.username_box, flag=wx.ALIGN_LEFT)
         self.rightsizer.Add(self.pass_box, flag=wx.ALIGN_LEFT)
         self.rightsizer.AddSpacer(20)
-        self.rightsizer.Add(self.test_button, flag=wx.ALIGN_LEFT)
         self.rightsizer.Add(self.clear_button, flag=wx.ALIGN_LEFT)
         self.rightsizer.Add(self.data_browser, flag=wx.ALIGN_LEFT)
         self.rightsizer.Add(self.check_button, flag=wx.ALIGN_LEFT)
@@ -175,7 +182,8 @@ class BasePanel(wx.Panel):
                         self.test_button: 'Test connection through a Cypher Query. '
                                           'The returned number is the number of nodes.',
                         self.clear_button: 'Clear all nodes from the database. ',
-                        self.check_button: 'Checks whether database conforms to the data scheme. '
+                        self.check_button: 'Checks whether database conforms to the data scheme. ',
+                        self.encrypt_button: 'Uncheck this for Docker databases.'
                         }
 
     def update_help(self, event):
@@ -222,6 +230,16 @@ class BasePanel(wx.Panel):
         """
         text = self.address_box.GetValue()
         self.settings['address'] = text
+        self.send_config()
+
+    def update_encryption(self, event):
+        """
+        Registers text input in address field
+        :param event: Text input
+        :return:
+        """
+        text = self.encrypt_button.GetValue()
+        self.settings['encryption'] = text
         self.send_config()
 
     def update_username(self, event):
@@ -272,14 +290,18 @@ class BasePanel(wx.Panel):
 
     def test(self, event):
         """
-        Tests the Neo4j database with supplied credentials
+        Tests the Neo4j database with supplied credentials.
+        Only works if database is started with the left section.
         :param event: Button event
         :return:
         """
         self.logbox.AppendText("Starting operation...\n")
-        eg = ThreadPoolExecutor()
-        worker = eg.submit(query, self.settings, 'MATCH (n) RETURN count(n)')
-        result = worker.result()
+        driver = BaseDriver(user=self.settings['username'],
+                            password=self.settings['password'],
+                            uri=self.settings['address'],
+                            filepath=self.settings['fp'],
+                            encrypted=self.settings['encryption'])
+        result = driver.query('MATCH (n) RETURN count(n)')
         self.logbox.AppendText(str(result[0]['count(n)']) + ' nodes in database. \n')
 
     def clear(self, event):
@@ -324,7 +346,8 @@ class BasePanel(wx.Panel):
         config = {'address': self.settings['address'],
                   'username': self.settings['username'],
                   'password': self.settings['password'],
-                  'neo4j': self.settings['neo4j']}
+                  'neo4j': self.settings['neo4j'],
+                  'encryption': self.settings['encryption']}
         pub.sendMessage('config', msg=config)
 
 
