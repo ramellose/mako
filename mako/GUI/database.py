@@ -307,10 +307,10 @@ class BasePanel(wx.Panel):
         :return:
         """
         self.logbox.AppendText("Starting operation...\n")
-        self.settings['clear'] = True
-        eg = Thread(target=start_base, args=(self.settings,))
-        eg.start()
-        eg.join()
+        eg = ThreadPoolExecutor()
+        worker = eg.submit(query, self.settings, 'MATCH (n) DETACH DELETE n')
+        result = worker.result()
+        self.logbox.AppendText("Cleared database.\n")
         self.settings['clear'] = False
 
     def open_browser(self, event):

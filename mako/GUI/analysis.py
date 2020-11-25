@@ -227,7 +227,7 @@ class AnalysisPanel(wx.Panel):
         :return:
         """
         eg = ThreadPoolExecutor()
-        worker = eg.submit(query, self.settings, 'MATCH (n:Property) RETURN n.type')
+        worker = eg.submit(query, self.settings, 'MATCH (n:Property) RETURN n.name')
         result = worker.result()
         property_types = set([x[key] for x in result for key in x])
         self.property_list.Set(list(property_types))

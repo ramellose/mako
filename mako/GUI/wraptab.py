@@ -431,7 +431,7 @@ class WrapPanel(wx.Panel):
             self.settings['core'] = self.core_slider.GetValue()
             self.settings['cs'] = get_number_list(numberstring=self.core_ctrl.GetValue())
             self.settings['n'] = get_number_list(numberstring=self.n_box.GetValue())
-            self.settings['network'] = self.network_btn.GetValue()
+            self.settings['graph'] = self.network_btn.GetValue()
             self.settings['nperm'] = self.nperm_ctrl.GetValue()
             self.settings['perm'] = self.perm_ctrl.GetValue()
             self.settings['prev'] = get_number_list(numberstring=self.prev_ctrl.GetValue())
