@@ -350,7 +350,6 @@ class BiomPanel(wx.Panel):
         :param event: Button event.
         :return:
         """
-        self.logbox.AppendText(str(self.settings))
         self.logbox.AppendText("Starting operation...\n")
         if self.settings['biom_file']:
             for file in self.settings['biom_file']:
