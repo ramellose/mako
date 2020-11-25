@@ -142,7 +142,8 @@ def query(args, query):
     driver = ParentDriver(uri=args['address'],
                           user=args['username'],
                           password=args['password'],
-                          filepath=_resource_path(''))
+                          filepath=_resource_path(''),
+                          encrypted=args['encryption'])
     result = driver.query(query)
     logger.info(result)
     driver.close()

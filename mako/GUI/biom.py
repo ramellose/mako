@@ -13,8 +13,8 @@ from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
 from wx.lib.pubsub import pub
 import os
-from mako.scripts.neo4biom import start_biom, Biom2Neo
-from mako.scripts.utils import _resource_path, query, _get_unique
+from mako.scripts.neo4biom import start_biom
+from mako.scripts.utils import _resource_path, _get_unique, query
 import logging
 import logging.handlers
 
@@ -324,13 +324,9 @@ class BiomPanel(wx.Panel):
         :param event: Button event.
         :return:
         """
-        driver = Biom2Neo(user=self.settings['username'],
-                          password=self.settings['password'],
-                          uri=self.settings['address'],
-                          filepath=self.settings['fp'],
-                          encrypted=self.settings['encryption'])
-        results = driver.query('MATCH (n:Experiment) RETURN n')
-        del_values = _get_unique(results, key='n')
+        eg = ThreadPoolExecutor()
+        worker = eg.submit(query, self.settings, 'MATCH (n:Experiment) RETURN n')
+        del_values = _get_unique(worker.result(), key='n')
         self.file_list.Set(list(del_values))
 
     def delete_files(self, event):

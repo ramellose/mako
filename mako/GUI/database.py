@@ -10,7 +10,7 @@ __license__ = 'Apache 2.0'
 from threading import Thread
 import wx
 from wx.lib.pubsub import pub
-from mako.scripts.base import start_base, BaseDriver
+from mako.scripts.base import start_base
 from mako.scripts.utils import _resource_path, query
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
@@ -296,13 +296,9 @@ class BasePanel(wx.Panel):
         :return:
         """
         self.logbox.AppendText("Starting operation...\n")
-        driver = BaseDriver(user=self.settings['username'],
-                            password=self.settings['password'],
-                            uri=self.settings['address'],
-                            filepath=self.settings['fp'],
-                            encrypted=self.settings['encryption'])
-        result = driver.query('MATCH (n) RETURN count(n)')
-        self.logbox.AppendText(str(result[0]['count(n)']) + ' nodes in database. \n')
+        eg = Thread(target=query, args=(self.settings, 'MATCH (n) RETURN count(n)'))
+        eg.start()
+        eg.join()
 
     def clear(self, event):
         """

@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from wx.lib.pubsub import pub
 import os
 from mako.scripts.io import start_io
-from mako.scripts.utils import _resource_path, query, _get_unique
+from mako.scripts.utils import _resource_path, _get_unique, query
 import logging
 import logging.handlers
 
