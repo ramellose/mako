@@ -17,7 +17,7 @@ __email__ = 'lisa.rottjers@kuleuven.be'
 __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
-import owlready2
+#import owlready2
 from neo4j.v1 import GraphDatabase
 from mako.scripts.utils import ParentDriver, _create_logger, _resource_path, _read_config
 import logging
@@ -27,7 +27,6 @@ from subprocess import Popen
 from psutil import Process, pid_exists
 from signal import CTRL_C_EVENT
 from time import sleep
-from pubsub import pub
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -179,20 +178,38 @@ class BaseDriver(ParentDriver):
         except Exception:
             logger.error("Unable to start driver. \n", exc_info=True)
             sys.exit()
+        """
+        # I can't load the owlready2 each time,
+        # it takes a lot of time and cannot be packaged easily.
+        # instead the code below constructs a dictionary
+        # from the OWL file
         # load the ontology that defines the schema
-        # load the ontology that defines the schema
+        self.properties = dict()
         onto = owlready2.get_ontology(_resource_path("MAO.owl"))
         onto.load()
-
         # since the MAO file is small, we can load the objects into lists
-        self.objects = list(onto.classes())
-        self.properties = list(onto.object_properties())
-
+        object_classes = list(onto.classes())
+        object_properties = list(onto.object_properties())
         # replace all label spaces with underscores
-        for val in self.objects:
+        for val in object_classes:
             val.label = [x.replace(" ", "_") for x in val.label]
-        for val in self.properties:
+        for val in object_properties:
             val.label = [x.replace(" ", "_") for x in val.label]
+        for prop in object_properties:
+            rel = prop.label[0]
+            domains = [x.label[0] for x in prop.get_domain()]
+            ranges = [x.label[0] for x in prop.get_range()]
+            neighbours = domains + ranges
+            self.properties[rel] = neighbours
+        """
+        self.properties = {'has_supporting_method': ['Network', 'Computational_Technique'],
+                           'located_in': ['Taxon', 'Specimen'],
+                           'member_of': ['Phylum', 'Class', 'Order', 'Family',
+                                         'Genus', 'Species', 'Taxon', 'Kingdom', 'Phylum',
+                                         'Class', 'Order', 'Family', 'Genus', 'Species'],
+                           'part_of': ['Specimen', 'Edge', 'Experiment', 'Network'],
+                           'participates_in': ['Taxon', 'Edge'],
+                           'quality_of': ['Property', 'Specimen', 'Taxon']}
 
     def clear_database(self):
         """
@@ -216,20 +233,16 @@ class BaseDriver(ParentDriver):
         """
         error = False
         for prop in self.properties:
-            rel = prop.label[0]
-            domains = [x.label[0] for x in prop.get_domain()]
-            ranges = [x.label[0] for x in prop.get_range()]
-            neighbours = domains + ranges
-            if len(neighbours) > 0:
-                query = "MATCH (n)-[r:" + rel.upper() + "]-() WHERE NOT "
-                for i in range(len(neighbours)):
+            if len(self.properties[prop]) > 0:
+                query = "MATCH (n)-[r:" + prop.upper() + "]-() WHERE NOT "
+                for i in range(len(self.properties[prop])):
                     if i != 0:
                         query += " AND NOT "
-                    query += ("n:" + neighbours[i])
+                    query += ("n:" + self.properties[prop][i])
                 query += " RETURN count(n) as count"
             count = self.query(query)
             if count[0]['count'] != 0:
-                logger.error("Relationship " + rel + " is connected to the wrong nodes!")
+                logger.error("Relationship " + prop + " is connected to the wrong nodes!")
                 error = True
         if not error:
             logger.info("No forbidden relationship connections.")
