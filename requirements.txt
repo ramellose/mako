@@ -9,3 +9,6 @@ psutil
 pubsub
 pandas
 requests
+# if you want to wrap other tools
+# manta
+# anuran
