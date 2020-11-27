@@ -18,7 +18,7 @@ __license__ = 'Apache 2.0'
 import wx
 import os
 from mako.scripts.utils import _resource_path
-from wx.lib.pubsub import pub
+from pubsub import pub
 from mako.GUI.intro import IntroPanel
 from mako.GUI.database import BasePanel
 from mako.GUI.biom import BiomPanel

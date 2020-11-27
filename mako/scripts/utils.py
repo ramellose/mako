@@ -15,7 +15,7 @@ import wx.lib.newevent
 import mako
 import logging
 import logging.handlers
-from neo4j.v1 import GraphDatabase
+from neo4j import GraphDatabase
 logger = logging.getLogger(__name__)
 
 wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()

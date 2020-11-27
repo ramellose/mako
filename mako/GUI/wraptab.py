@@ -12,7 +12,7 @@ __license__ = 'Apache 2.0'
 import wx
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
-from wx.lib.pubsub import pub
+from pubsub import pub
 import os
 from mako.scripts.wrapper import start_wrapper
 from mako.scripts.utils import _resource_path, query, _get_unique

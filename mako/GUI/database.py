@@ -9,7 +9,7 @@ __license__ = 'Apache 2.0'
 
 from threading import Thread
 import wx
-from wx.lib.pubsub import pub
+from pubsub import pub
 from mako.scripts.base import start_base
 from mako.scripts.utils import _resource_path, query
 import webbrowser
