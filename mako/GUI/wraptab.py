@@ -307,9 +307,9 @@ class WrapPanel(wx.Panel):
         self.anuransizer.AddSpacer(50)
         self.anuransizer.Add(self.anuranrightsizer, flag=wx.ALIGN_CENTER)
 
-        self.topsizer.Add(self.leftsizer, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.topsizer.Add(self.leftsizer, flag=wx.ALIGN_CENTER_VERTICAL)
         self.topsizer.AddSpacer(50)
-        self.topsizer.Add(self.rightsizer, flag=wx.ALIGN_CENTER_HORIZONTAL)
+        self.topsizer.Add(self.rightsizer, flag=wx.ALIGN_CENTER_VERTICAL)
 
         self.fullsizer.Add(self.topsizer, flag=wx.ALIGN_CENTER)
         self.fullsizer.Add(self.mantasizer, flag=wx.ALIGN_CENTER)

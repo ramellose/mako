@@ -28,7 +28,7 @@ class IntroPanel(wx.Panel):
 
         self.htmlbox = wx.html.HtmlWindow(self, -1, size=(800,1500))
         self.htmlbox.SetPage(welcome)
-        self.topsizer.Add(self.htmlbox, 1, wx.ALIGN_CENTER_HORIZONTAL | wx.EXPAND | wx.ALL, 40)
+        self.topsizer.Add(self.htmlbox, 1, wx.EXPAND | wx.ALL, 40)
 
         self.ico = wx.StaticBitmap(self, -1, wx.Bitmap(_resource_path("mako.png"), wx.BITMAP_TYPE_ANY))
 

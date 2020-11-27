@@ -70,6 +70,8 @@ def _resource_path(relative_path):
         base_path = sys._MEIPASS
     # if running the GUI, we need to set the path one dir higher
     splitpath = base_path.split(sep='\\')
+    if len(splitpath) == 1:
+        splitpath = splitpath[0].split(sep='/')
     if splitpath[-1] == splitpath[-2]:
         base_path = os.path.abspath(base_path + "\\..")
     return os.path.join(base_path, relative_path)
