@@ -13,7 +13,6 @@ import sys
 from itertools import combinations
 from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
 import logging.handlers
-from random import sample
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

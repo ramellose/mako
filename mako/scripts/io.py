@@ -19,14 +19,12 @@ __license__ = 'Apache 2.0'
 from uuid import uuid4  # generates unique IDs for edges + observations
 import networkx as nx
 from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config, _get_path
-import numpy as np
 import pandas as pd
 import logging
 import sys
 import os
 import json
 import requests
-import re
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

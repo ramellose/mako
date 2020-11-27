@@ -17,15 +17,15 @@ __email__ = 'lisa.rottjers@kuleuven.be'
 __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
-#import owlready2
-from neo4j.v1 import GraphDatabase
+# import owlready2
+from neo4j import GraphDatabase
 from mako.scripts.utils import ParentDriver, _create_logger, _resource_path, _read_config
 import logging
 import sys
 from platform import system
 from subprocess import Popen
 from psutil import Process, pid_exists
-from signal import CTRL_C_EVENT
+import signal
 from time import sleep
 
 logger = logging.getLogger(__name__)
@@ -125,7 +125,10 @@ def start_base(inputs):
                     data[2] = 'pid: None'+ '\n'
                     file.writelines(data)
                 parent = Process(pid)
-                parent.send_signal(CTRL_C_EVENT)
+                if system() == 'Windows':
+                    parent.send_signal(signal.CTRL_C_EVENT)
+                else:
+                    parent.send_signal(signal.SIGINT)
                 # kills the powershell started to run the Neo4j console
                 for child in parent.children():
                     child.kill()

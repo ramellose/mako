@@ -1,0 +1,11 @@
+numpy
+scipy
+h5py
+neo4j
+networkx
+biom-format
+wxPython
+psutil
+pubsub
+pandas
+requests

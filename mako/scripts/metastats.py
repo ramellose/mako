@@ -13,7 +13,6 @@ __status__ = 'Development'
 __license__ = 'Apache 2.0'
 
 import sys
-import re
 from uuid import uuid4
 import numpy as np
 from mako.scripts.utils import ParentDriver, _get_unique, _create_logger, _read_config
