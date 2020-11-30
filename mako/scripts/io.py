@@ -291,13 +291,13 @@ class IoDriver(ParentDriver):
         """
         try:
             with self._driver.session() as session:
-                missing_no, edge_dict_tt, edge_dict_tm, edge_dict_mm = \
+                missing_no, mn, edge_dict_tt, edge_dict_tm, edge_dict_mm = \
                     session.read_transaction(self._create_edge_dict, network_id, network)
             with self._driver.session() as session:
                 session.write_transaction(self._create_network, network_id)
             with self._driver.session() as session:
                 session.write_transaction(self._create_edges, tt=edge_dict_tt,
-                                          tm=edge_dict_tm, mm=edge_dict_mm, missing_no=missing_no)
+                                          tm=edge_dict_tm, mm=edge_dict_mm, missing_no=missing_no, mn=mn)
         except Exception:
             logger.error("Could not write networkx object to database. \n", exc_info=True)
 
@@ -589,9 +589,13 @@ class IoDriver(ParentDriver):
         hits = [x['a.name'] for x in hits]
         missing_no = [{'missingno': x} for x in list(network.nodes) if x not in hits]
         label_dict = {y: 'Taxon' for y in network.nodes}
-        for entry in network.nodes:
-            if entry in missing_no:
-                label_dict[entry] = 'Property'
+        # if most nodes are missing, assume that no OTU file is uploaded
+        missingno_property = False
+        if len(missing_no) < 0.5 * len(network.nodes):
+            for entry in network.nodes:
+                if entry in missing_no:
+                    label_dict[entry] = 'Property'
+            missingno_property = True
         edge_query_dict = list()
         for edge in network.edges:
             taxon1 = edge[0]
@@ -633,10 +637,10 @@ class IoDriver(ParentDriver):
                     new_query['taxon1'] = query_dict['taxon2']
                     new_query['taxon2'] = query_dict['taxon1']
                 edge_dict_tm.append(new_query)
-        return missing_no, edge_dict_tt, edge_dict_tm, edge_dict_mm
+        return missing_no, missingno_property, edge_dict_tt, edge_dict_tm, edge_dict_mm
 
     @staticmethod
-    def _create_edges(tx, tt, tm=list(), mm=list(), missing_no=list()):
+    def _create_edges(tx, tt, tm=list(), mm=list(), missing_no=list(), mn=False):
         """
         Generates all the edges contained in a network and
         connects them to the related network node.
@@ -648,14 +652,21 @@ class IoDriver(ParentDriver):
         :param tm: Dictionary of edges between metadata and taxa
         :param tm: Dictionary of edges between only metadata
         :param tm: Dictionary of edges between missing nodes
+        :param mn: If true, missing nodes are uploaded as Property nodes and not Taxon nodes
         :return:
         """
         if len(missing_no) > 0:
             # first create missing nodes
-            query = "WITH $batch as batch " \
-                    "UNWIND batch as record " \
-                    "MERGE (a:Property {name:record.missingno}) " \
-                    "RETURN a"
+            if mn:
+                query = "WITH $batch as batch " \
+                        "UNWIND batch as record " \
+                        "MERGE (a:Property {name:record.missingno}) " \
+                        "RETURN a"
+            else:
+                query = "WITH $batch as batch " \
+                        "UNWIND batch as record " \
+                        "MERGE (a:Taxon {name:record.missingno}) " \
+                        "RETURN a"
             tx.run(query, batch=missing_no)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
