@@ -90,7 +90,7 @@ def start_biom(inputs):
             for x in inputs['tax_table']:
                 logger.info('Working on uploading separate taxonomy table ' + x + '...')
                 name, taxtab = read_taxonomy(filename=x, filepath=inputs['fp'])
-                driver.convert_taxonomy(taxfile=taxtab, exp_id=name)
+                driver.convert_taxonomy(taxonomy_table=taxtab, exp_id=name)
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
     if inputs['delete']:
@@ -113,9 +113,7 @@ def check_arguments(inputs):
     if inputs['count_table'] is not None:
         logger.info('Tab-delimited OTU table(s) to process: \n' + ", \n".join(inputs['count_table']))
     if inputs['tax_table'] is not None:
-        if len(inputs['count_table']) is not len(inputs['tax_table']):
-            logger.error("Add a taxonomy table for every OTU table!", exc_info=True)
-            exit()
+        logger.info('Tab-delimited taxonomy table(s) to process: \n' + ", \n".join(inputs['tax_table']))
     if inputs['sample_meta'] is not None:
         if len(inputs['count_table']) is not len(inputs['sample_data']):
             logger.error("Add a sample data table for every OTU table!", exc_info=True)
@@ -370,6 +368,11 @@ class Biom2Neo(ParentDriver):
                     if len(taxonomy_query_dict) > 0:
                         with self._driver.session() as session:
                             session.write_transaction(self._add_taxonomy, tax_levels[i], taxonomy_query_dict)
+                with self._driver.session() as session:
+                    session.write_transaction(self._create_ref_sample, exp_id)
+                observations = self._create_obs_dict_alt(taxonomy_table, exp_id)
+                with self._driver.session() as session:
+                    session.write_transaction(self._create_observations, observations)
             except KeyError:
                 pass
         except Exception:
@@ -486,7 +489,7 @@ class Biom2Neo(ParentDriver):
         :return:
         """
         taxonomy_query_dict = list()
-        for j in len(taxonomy_table.index):
+        for j in range(len(taxonomy_table.index)):
             tax_name = list(taxonomy_table.index)[j]
             tax_label = taxonomy_table.iloc[j][i]
             if len(tax_label) > 4:
@@ -562,6 +565,19 @@ class Biom2Neo(ParentDriver):
         return observations
 
     @staticmethod
+    def _create_obs_dict_alt(taxonomy_table, exp_id):
+        """
+        Creates a dictionary that can be used to connect taxa to samples via observation values.
+        :param taxonomy_table: Taxonomy table.
+        :param exp_id: Name of experiment node
+        :return:
+        """
+        observations = list()
+        for taxon in taxonomy_table.index:
+            observations.append({'taxon': taxon, 'sample': exp_id, 'value': 0})
+        return observations
+
+    @staticmethod
     def _create_experiment(tx, exp_id):
         """
         Creates a node that represents the Experiment ID.
@@ -570,6 +586,19 @@ class Biom2Neo(ParentDriver):
         :return:
         """
         tx.run("MERGE (a:Experiment {name: '" + exp_id + "'}) RETURN a")
+
+    @staticmethod
+    def _create_ref_sample(tx, exp_id):
+        """
+        Creates a fake sample used to match the data schema
+        for taxonomy tables uploaded without observational data.
+        :param exp_id: Name of Experiment node
+        :return:
+        """
+        tx.run("MERGE (a:Specimen {name: '" + exp_id + "'}) RETURN a")
+        tx.run(("MATCH (a:Specimen {name:'" + exp_id +
+                "'}), (b:Experiment {name:'" + exp_id +
+                "'}) MERGE (a)-[r:PART_OF]->(b) RETURN type(r)"))
 
     @staticmethod
     def _create_taxon(tx, taxon_query_dict):

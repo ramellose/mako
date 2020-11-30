@@ -10,7 +10,7 @@ import time
 import os
 import biom
 from biom.cli.util import write_biom_table
-from mako.scripts.neo4biom import start_biom, Biom2Neo
+from mako.scripts.neo4biom import start_biom, Biom2Neo, read_taxonomy
 from mako.scripts.utils import _resource_path
 
 __author__ = 'Lisa Rottjers'
@@ -132,6 +132,8 @@ class TestNeo4Biom(unittest.TestCase):
             data = original.read()
         with open(_resource_path('test.tsv'), 'w') as modified:
             modified.write("#" + data)
+        taxdata = testbiom.metadata_to_dataframe(axis='observation')
+        taxdata.to_csv(_resource_path('test_tax.tsv'), sep='\t')
         time.sleep(20)
 
     @classmethod
@@ -139,6 +141,7 @@ class TestNeo4Biom(unittest.TestCase):
         os.system('docker stop neo4j')
         os.remove(_resource_path('test.hdf5'))
         os.remove(_resource_path('test.tsv'))
+        os.remove(_resource_path('test_tax.tsv'))
 
     def test_start_biom(self):
         """
@@ -190,6 +193,60 @@ class TestNeo4Biom(unittest.TestCase):
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
         test = driver.query("MATCH (n:Experiment) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['n']['name'], 'test')
+
+    def test_start_taxonomy(self):
+        """
+        Checks if the taxonomy file is correctly uploaded to the database.
+        :return:
+        """
+        inputs = {'biom_file': None,
+                  'fp': _resource_path(''),
+                  'count_table': None,
+                  'tax_table': [_resource_path('test_tax.tsv')],
+                  'sample_meta': None,
+                  'taxon_meta': None,
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'delete': None,
+                  'encryption': False}
+        start_biom(inputs)
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        test = driver.query("MATCH (n:Experiment) RETURN n")
+        driver.query("MATCH (n) DETACH DELETE n")
+        self.assertEqual(test[0]['n']['name'], 'test_tax')
+
+    def test_taxonomy(self):
+        """
+        Checks if the taxonomy file is correctly uploaded to the database.
+        :return:
+        """
+        inputs = {'biom_file': None,
+                  'fp': _resource_path(''),
+                  'count_table': None,
+                  'tax_table': [_resource_path('test_tax.tsv')],
+                  'sample_meta': None,
+                  'taxon_meta': None,
+                  'username': 'neo4j',
+                  'password': 'test',
+                  'address': 'bolt://localhost:7688',
+                  'store_config': False,
+                  'delete': None,
+                  'encryption': False}
+        driver = Biom2Neo(user=inputs['username'],
+                          password=inputs['password'],
+                          uri=inputs['address'], filepath=inputs['fp'],
+                          encrypted=False)
+        name, taxtab = read_taxonomy(inputs['tax_table'][0], inputs['fp'])
+        driver.convert_taxonomy(taxtab, name)
+        test = driver.query("MATCH (n:Order {name: 'o__Enterobacteriales'})"
+                            "--(:Taxon) RETURN n")
         driver.query("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['n']['name'], 'test')
 
