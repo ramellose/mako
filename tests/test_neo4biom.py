@@ -248,7 +248,7 @@ class TestNeo4Biom(unittest.TestCase):
         test = driver.query("MATCH (n:Order {name: 'o__Enterobacteriales'})"
                             "--(:Taxon) RETURN n")
         driver.query("MATCH (n) DETACH DELETE n")
-        self.assertEqual(test[0]['n']['name'], 'test')
+        self.assertEqual(test[0]['n']['name'], 'o__Enterobacteriales')
 
     def test_delete_correct_biom(self):
         """

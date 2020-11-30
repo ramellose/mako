@@ -924,7 +924,7 @@ class IoDriver(ParentDriver):
         tx.run(query, batch=edge_query_dict)
 
     @staticmethod
-    def _delete_disconnected_taxon(tx, taxon_query_dict):
+    def _delete_disconnected_taxon(tx):
         """
         After deleting a network, some agglomerated nodes may not be represented in the database.
         These disconnected nodes are deleted.

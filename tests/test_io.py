@@ -173,7 +173,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': None,
-                  'encryption': True}
+                  'encryption': False}
         start_io(inputs)
         driver = IoDriver(user=inputs['username'],
                           password=inputs['password'],
@@ -205,7 +205,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': None,
-                  'encryption': True}
+                  'encryption': False}
         start_io(inputs)
         inputs = {'networks': None,
                   'fp': _resource_path(''),
@@ -218,7 +218,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': None,
-                  'encryption': True}
+                  'encryption': False}
         start_io(inputs)
         driver = IoDriver(user=inputs['username'],
                           password=inputs['password'],
@@ -249,7 +249,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': None,
-                  'encryption': True}
+                  'encryption': False}
         driver = IoDriver(user=inputs['username'],
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
@@ -317,7 +317,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': None,
-                  'encryption': True}
+                  'encryption': False}
         driver = IoDriver(user=inputs['username'],
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
@@ -350,7 +350,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': None,
-                  'encryption': True}
+                  'encryption': False}
         driver = IoDriver(user=inputs['username'],
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
@@ -380,7 +380,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': True,
-                  'encryption': True}
+                  'encryption': False}
         driver = IoDriver(user=inputs['username'],
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
@@ -414,7 +414,7 @@ class TestIo(unittest.TestCase):
                   'fasta': None,
                   'meta': None,
                   'write': True,
-                  'encryption': True}
+                  'encryption': False}
         driver = IoDriver(user=inputs['username'],
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
