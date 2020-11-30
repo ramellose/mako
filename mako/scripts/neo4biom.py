@@ -22,6 +22,7 @@ import sys
 import numpy as np
 from biom import load_table
 from biom.parse import MetadataMap
+import pandas as pd
 import logging.handlers
 from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path, _run_subbatch
 
@@ -80,8 +81,16 @@ def start_biom(inputs):
     if inputs['count_table'] is not None:
         try:
             for i in range(len(inputs['count_table'])):
-                name, biomtab = read_tabs(inputs=inputs, i=i, driver=driver)
+                name, biomtab = read_tabs(inputs=inputs, i=i)
                 driver.convert_biom(biomfile=biomtab, exp_id=name)
+        except Exception:
+            logger.warning("Failed to combine input files.", exc_info=True)
+    if inputs['tax_table'] is not None and inputs['count_table'] is None:
+        try:
+            for x in inputs['tax_table']:
+                logger.info('Working on uploading separate taxonomy table ' + x + '...')
+                name, taxtab = read_taxonomy(filename=x, filepath=inputs['fp'])
+                driver.convert_taxonomy(taxfile=taxtab, exp_id=name)
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
     if inputs['delete']:
@@ -148,7 +157,7 @@ def read_bioms(files, filepath, driver):
         driver.convert_biom(biomfile=biomtab, exp_id=name)
 
 
-def read_tabs(inputs, i, driver):
+def read_tabs(inputs, i):
     """
     Reads tab-delimited files from lists of filenames.
     These are then combined into a BIOM file.
@@ -172,6 +181,7 @@ def read_tabs(inputs, i, driver):
         elif os.path.isfile(filepath + '/' + input_fp):
             file_prefix = filepath + '/'
     else:
+        logger.warning("Failed to combine input files.", exc_info=True)
         exit()
     name = input_fp.split('/')[-1]
     name = name.split('\\')[-1]
@@ -217,6 +227,27 @@ def read_tabs(inputs, i, driver):
         obs_f.close()
         biomtab.add_metadata(obs_data, axis='observation')
     return name, biomtab
+
+
+def read_taxonomy(filename, filepath):
+    """
+    Reads tab-delimited file representing a taxonomy table.
+    :param filename: Full or incomplete filepath to taxonomy
+    :param filepath: Extra filepath
+    :return:
+    """
+    taxtab = None
+    checked_path = _get_path(path=filename, default=filepath)
+    if checked_path:
+        taxtab = pd.read_csv(checked_path, sep='\t', index_col=0)
+    else:
+        logger.warning("Failed to read taxonomy table.", exc_info=True)
+        exit()
+    name = filename.split('/')[-1]
+    name = name.split('\\')[-1]
+    name = name.split(".")[0]
+    # sample metadata is not mandatory, catches None
+    return name, taxtab
 
 
 class Biom2Neo(ParentDriver):
@@ -300,6 +331,50 @@ class Biom2Neo(ParentDriver):
         except Exception:
             logger.error("Could not write BIOM file to database. \n", exc_info=True)
 
+    def convert_taxonomy(self, taxonomy_table, exp_id):
+        """
+        Stores a taxonomy dataframe in the database.
+        To speed up this process, all data from the taxonomy table is first converted to
+        dictionaries or lists that can be used in parameterized batch queries.
+        Labels need to be set statically,
+        which is done as part of the static functions.
+        :param taxonomy_table: Pandas dataframe of taxonomy
+        :param exp_id: Label of experiment used to generate taxonomy file.
+        :return:
+        """
+        try:
+            # first check if sample metadata exists
+            with self._driver.session() as session:
+                session.write_transaction(self._create_experiment, exp_id)
+            taxon_query_dict = self._create_taxon_dict_alt(taxonomy_table)
+            with self._driver.session() as session:
+                # Add taxon nodes
+                session.write_transaction(self._create_taxon, taxon_query_dict)
+            tax_levels = ['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']
+            try:
+                for i in reversed(range(len(taxonomy_table.columns))):
+                    level = tax_levels[i]
+                    taxonomy_query_dict = self._create_taxonomy_dict(taxonomy_table, i)
+                    with self._driver.session() as session:
+                        session.write_transaction(self._create_taxonomy, level, taxonomy_query_dict)
+                for i in reversed(range(1, len(taxonomy_table.columns))):
+                    # Connect each taxonomic label to its higher-level label
+                    lower_level = tax_levels[i]
+                    upper_level = tax_levels[i-1]
+                    taxonomy_query_dict = self._connect_taxonomy_dict(taxonomy_table, i)
+                    with self._driver.session() as session:
+                        session.write_transaction(self._connect_taxonomy, lower_level, upper_level,
+                                                  taxonomy_query_dict)
+                for i in range(len(taxonomy_table.columns)):
+                    taxonomy_query_dict = self._add_taxonomy_dict_alt(taxonomy_table, i)
+                    if len(taxonomy_query_dict) > 0:
+                        with self._driver.session() as session:
+                            session.write_transaction(self._add_taxonomy, tax_levels[i], taxonomy_query_dict)
+            except KeyError:
+                pass
+        except Exception:
+            logger.error("Could not write taxonomy file to database. \n", exc_info=True)
+
     def delete_biom(self, exp_id):
         """
         Takes the experiment ID to remove all samples linked to the experiment.
@@ -335,6 +410,19 @@ class Biom2Neo(ParentDriver):
         """
         taxon_query_dict = list()
         for taxon in biomfile.ids(axis='observation'):
+            taxon_query_dict.append({'taxon': taxon})
+        return taxon_query_dict
+
+    @staticmethod
+    def _create_taxon_dict_alt(taxtab):
+        """
+        Creates a taxon dictionary to use for batch Neo4j queries.
+        This dictionary creates taxon nodes.
+        :param taxtab: Pandas dataframe of taxonomy
+        :return:
+        """
+        taxon_query_dict = list()
+        for taxon in taxtab.index:
             taxon_query_dict.append({'taxon': taxon})
         return taxon_query_dict
 
@@ -387,6 +475,22 @@ class Biom2Neo(ParentDriver):
             tax_labels = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
             if len(tax_labels[i]) > 4:
                 taxonomy_query_dict.append({'taxon': taxon, 'level': tax_labels[i]})
+        return taxonomy_query_dict
+
+    @staticmethod
+    def _add_taxonomy_dict_alt(taxonomy_table, i):
+        """
+        Creates a taxonomy dictionary to connect taxa to taxonomy nodes.
+        :param taxonomy_table: Pandas dataframe
+        :param i: Index of taxonomy level
+        :return:
+        """
+        taxonomy_query_dict = list()
+        for j in len(taxonomy_table.index):
+            tax_name = list(taxonomy_table.index)[j]
+            tax_label = taxonomy_table.iloc[j][i]
+            if len(tax_label) > 4:
+                taxonomy_query_dict.append({'taxon': tax_name, 'level': tax_label})
         return taxonomy_query_dict
 
     @staticmethod
