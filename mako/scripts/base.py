@@ -54,7 +54,6 @@ def start_base(inputs):
         if not 'pid' in config:
             config['pid'] = 'None'
     pid = config['pid']
-    encrypted = True
     driver = None
     if pid != 'None':
         pid = int(pid)
@@ -109,7 +108,7 @@ def start_base(inputs):
         driver = BaseDriver(user=config['username'],
                             password=config['password'],
                             uri=config['address'], filepath=inputs['fp'],
-                            encrypted=encrypted)
+                            encrypted=inputs['encryption'])
         try:
             driver.clear_database()
             logger.info('Cleared database.')
