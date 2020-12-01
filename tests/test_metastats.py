@@ -243,11 +243,11 @@ nodes = ["GG_OTU_1", "GG_OTU_2", "GG_OTU_3", "GG_OTU_4", "GG_OTU_5"]
 g.add_nodes_from(nodes)
 g.add_edges_from([("GG_OTU_1", "GG_OTU_3"),
                   ("GG_OTU_2", "GG_OTU_5"), ("GG_OTU_4", "GG_OTU_5"),
-                  ("GG_OTU_2", "GG_OTU_6")])
+                  ("GG_OTU_2", "GG_OTU_4")])
 g["GG_OTU_1"]["GG_OTU_3"]['weight'] = 1.0
 g["GG_OTU_2"]["GG_OTU_5"]['weight'] = 1.0
 g["GG_OTU_4"]["GG_OTU_5"]['weight'] = -1.0
-g["GG_OTU_2"]["GG_OTU_6"]['weight'] = -1.0
+g["GG_OTU_2"]["GG_OTU_4"]['weight'] = -1.0
 
 
 class TestMetastats(unittest.TestCase):
@@ -381,8 +381,9 @@ class TestMetastats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         family = driver.query("MATCH (n:Network {name: 'Family_g'})--()--(b:Taxon)--(a:Family {name: 'f__Punk'}) "
-                              "RETURN count(b)")
-        self.assertEqual(family[0]['count(b)'], 1)
+                              "RETURN b")
+        family_names = set([family[x]['b']['name'] for x in family])
+        self.assertEqual(len(family_names), 1)
 
     def test_agglomerate_phylum(self):
         """
@@ -422,8 +423,8 @@ class TestMetastats(unittest.TestCase):
         for var in variables:
             driver.associate_samples(label=var)
         test = driver.query("MATCH (n:Taxon)-[r:HYPERGEOM]-(:Property) RETURN count(r) as count")
-        driver.query("MATCH (n:Taxon)-[r]-(b:Property) DETACH DELETE b")
-        self.assertEqual(test[0]['count'], 3)
+        driver.query("MATCH (n:Taxon)-[r]-(b:Property) DETACH DELETE r")
+        self.assertEqual(test[0]['count'], 4)
 
     def test_quant_variable(self):
         """
@@ -434,11 +435,9 @@ class TestMetastats(unittest.TestCase):
                                  password='test',
                                  uri='bolt://localhost:7688', filepath=_resource_path(''),
                                  encrypted=False)
-        variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.name") for y in x])
-        for var in variables:
-            driver.associate_samples(label=var)
+        driver.associate_samples(label='pH')
         test = driver.query("MATCH (n:Taxon)-[r:SPEARMAN]-(:Property) RETURN count(r) as count")
-        driver.query("MATCH (n:Taxon)-[r]-(b:Property) DETACH DELETE b")
+        driver.query("MATCH (n:Taxon)-[r]-(b:Property) DETACH DELETE r")
         self.assertEqual(test[0]['count'], 1)
 
 
