@@ -382,7 +382,7 @@ class TestMetastats(unittest.TestCase):
                           encrypted=False)
         family = driver.query("MATCH (n:Network {name: 'Family_g'})--()--(b:Taxon)--(a:Family {name: 'f__Punk'}) "
                               "RETURN b")
-        family_names = set([family[x]['b']['name'] for x in family])
+        family_names = set([family[x]['b']['name'] for x in range(len(family))])
         self.assertEqual(len(family_names), 1)
 
     def test_agglomerate_phylum(self):
