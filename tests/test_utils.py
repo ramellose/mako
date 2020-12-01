@@ -176,7 +176,8 @@ class TestUtils(unittest.TestCase):
         Checks if the config in the test location contains 5 keys.
         :return:
         """
-        config = _read_config({'store_config': True})
+        config = _read_config({'store_config': True,
+                               'fp': os.getcwd()})
         self.assertEqual(len(config), 5)
 
     def test_get_path(self):

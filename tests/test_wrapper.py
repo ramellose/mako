@@ -339,6 +339,7 @@ class TestWrapper(unittest.TestCase):
         :return:
         """
         inputs = {'networks': None,
+                  'graph': None,
                   'fp': _resource_path(''),
                   'username': 'neo4j',
                   'password': 'test',

@@ -424,7 +424,7 @@ class TestMetastats(unittest.TestCase):
             driver.associate_samples(label=var)
         test = driver.query("MATCH (n:Taxon)-[r:HYPERGEOM]-(:Property) RETURN count(r) as count")
         driver.query("MATCH (n:Taxon)-[r]-(b:Property) DETACH DELETE r")
-        self.assertEqual(test[0]['count'], 4)
+        self.assertEqual(test[0]['count'], 3)
 
     def test_quant_variable(self):
         """
