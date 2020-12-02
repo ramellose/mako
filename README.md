@@ -12,6 +12,8 @@ This API contains drivers for interacting with a Neo4j database.
 Many of these drivers have functions that allow for BIOM files,
 network files and other microbiome-related files to be ported to the database.
 
+For more instructions on how to use mako and Neo4j, please take a look at the manual: [Neo4j for biologists](https://github.com/ramellose/mako/blob/master/docs/Neo4j_for_biologists.pdf).
+
 Contact the author at lisa.rottjers (at) kuleuven.be. Your feedback is much appreciated!
 This version is still in early alpha and has been tested for Python 3.6.
 
@@ -40,22 +42,19 @@ If you have both Python 2.7 and Python 3 installed, you may need to change the c
 python3 -m pip install git+https://github.com/ramellose/mako.git
 ```
 
-At the moment, the CLI is not very well documented, since _mako_ is in early development.
 You can run the _mako_ script and read the help docs with the following command.
 To get more information for specific modules, please specify the module before _-h_.
+More details are available in Chapter 6 of [Neo4j for biologists](https://github.com/ramellose/mako/blob/master/docs/Neo4j_for_biologists.pdf).
 
 ```
 mako -h
 ```
 
 For interacting with your Neo4j database, you will first need to start or connect to an instance of a Neo4j database.
-You can do so through the _base_ module. The _biom_ and _io_ modules allow you to upload BIOM files and networks respectively, or to write networks.
+Instructions on how to set up Neo4j can be found in Chapter 1 of [Neo4j for biologists](https://github.com/ramellose/mako/blob/master/docs/Neo4j_for_biologists.pdf). 
+The _biom_ and _io_ modules allow you to upload BIOM files and networks respectively, or to write networks.
 The _netstats_ module runs Neo4j queries to extract sets from specified networks.
 The _metastats_ module can do some basic statistics, or agglomerate networks by taxonomic level.
-
-Before you can use mako, you need to be able to access a Neo4j database.
-For getting acquainted with the Neo4j technology, the [Neo4j Desktop version](https://neo4j.com/docs/operations-manual/current/installation/neo4j-desktop/) is very helpful.
-Neo4j comes with a [browser interface](https://neo4j.com/developer/neo4j-browser/) that can be used to access the database.
 
 ### Contributions
 
