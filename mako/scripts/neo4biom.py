@@ -75,7 +75,7 @@ def start_biom(inputs):
             for x in inputs['biom_file']:
                 # first check if it is a file or path
                 logger.info('Working on ' + x + '...')
-                read_bioms(files=x, filepath=inputs['fp'], driver=driver)
+                read_bioms(files=x, filepath=inputs['fp'], driver=driver, obs=inputs['obs'])
         except Exception:
             logger.error("Failed to import BIOM files.", exc_info=True)
     if inputs['count_table'] is not None:
@@ -124,7 +124,7 @@ def check_arguments(inputs):
             exit()
 
 
-def read_bioms(files, filepath, driver):
+def read_bioms(files, filepath, driver, obs=True):
     """
     Reads BIOM files from a list and calls the driver for each file.
     4 ways of giving the filepaths are possible:
@@ -135,6 +135,7 @@ def read_bioms(files, filepath, driver):
     The filename can also be a relative filepath.
     :param files: List of BIOM filenames or file directories
     :param filepath: Filepath where files are stored / written
+    :param obs: If false, counts aren't uploaded.
     :param driver: Biom2Neo driver instance
     :return:
     """
@@ -325,6 +326,8 @@ class Biom2Neo(ParentDriver):
             if len(sampleproperty_query_dict2) > 0:
                 with self._driver.session() as session:
                     session.write_transaction(self._create_property, sampleproperty_query_dict2)
+            with self._driver.session() as session:
+                session.write_transaction(self._create_indices)
             if len(sampleproperty_query_dict3) > 0:
                 with self._driver.session() as session:
                     session.write_transaction(self._connect_property, sampleproperty_query_dict3, sourcetype='Specimen')
@@ -728,8 +731,7 @@ class Biom2Neo(ParentDriver):
             rel = " {" + val_rel + "}"
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MATCH (a" + sourcetype + \
-                " {name: record.source}), (b:Property {name: record:name}) " \
+                "MATCH (a" + sourcetype + " {name:record.source}), (b:Property {name:record.name}) " \
                 "MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, property_query_dict)
@@ -808,3 +810,18 @@ class Biom2Neo(ParentDriver):
                 "MATCH (a:Taxon {name:record.taxon}) " \
                 "DETACH DELETE a"
         _run_subbatch(tx, query, deletion_dict)
+
+    @staticmethod
+    def _create_indices(tx):
+        """
+        Creates indices for specimen, taxon and property nodes.
+        This speeds up queries that connect such nodes.
+        :param tx:
+        :return:
+        """
+        tx.run("DROP INDEX on :Property(name)")
+        tx.run("DROP INDEX on :Specimen(name)")
+        tx.run("DROP INDEX on :Taxon(name)")
+        tx.run("CREATE INDEX on :Property(name)")
+        tx.run("CREATE INDEX on :Specimen(name)")
+        tx.run("CREATE INDEX on :Taxon(name)")
