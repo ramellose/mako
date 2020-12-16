@@ -720,9 +720,8 @@ class Biom2Neo(ParentDriver):
             rel = " {" + val_rel + "}"
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MATCH (a" + sourcetype + ") " \
-                "MATCH (b:Property) " \
-                "WHERE a.name = record.source AND b.name = record.name " \
+                "MATCH (a" + sourcetype + \
+                " {name: record.source}), (b:Property {name: record:name}) " \
                 "MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, property_query_dict)
@@ -738,9 +737,7 @@ class Biom2Neo(ParentDriver):
         """
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MATCH (a:Taxon) " \
-                "MATCH (b:Specimen) " \
-                "WHERE a.name = record.taxon AND b.name = record.sample " \
+                "MATCH (a:Taxon {name: record.taxon}), (b:Specimen {name: record.sample}) " \
                 "MERGE (a)-[r:LOCATED_IN {count: record.value}]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, observations)
