@@ -159,7 +159,8 @@ class TestNeo4Biom(unittest.TestCase):
                   'address': 'bolt://localhost:7688',
                   'store_config': False,
                   'delete': None,
-                  'encryption': False}
+                  'encryption': False,
+                  'obs': True}
         start_biom(inputs)
         driver = Biom2Neo(user=inputs['username'],
                           password=inputs['password'],
@@ -186,7 +187,8 @@ class TestNeo4Biom(unittest.TestCase):
                   'address': 'bolt://localhost:7688',
                   'store_config': False,
                   'delete': None,
-                  'encryption': False}
+                  'encryption': False,
+                  'obs': True}
         start_biom(inputs)
         driver = Biom2Neo(user=inputs['username'],
                           password=inputs['password'],
@@ -212,7 +214,8 @@ class TestNeo4Biom(unittest.TestCase):
                   'address': 'bolt://localhost:7688',
                   'store_config': False,
                   'delete': None,
-                  'encryption': False}
+                  'encryption': False,
+                  'obs': True}
         start_biom(inputs)
         driver = Biom2Neo(user=inputs['username'],
                           password=inputs['password'],
@@ -266,7 +269,8 @@ class TestNeo4Biom(unittest.TestCase):
                   'address': 'bolt://localhost:7688',
                   'store_config': False,
                   'delete': ['test1'],
-                  'encryption': False}
+                  'encryption': False,
+                  'obs': True}
         driver = Biom2Neo(user=inputs['username'],
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
