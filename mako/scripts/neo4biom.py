@@ -819,9 +819,9 @@ class Biom2Neo(ParentDriver):
         :param tx:
         :return:
         """
-        tx.run("DROP INDEX on :Property(name) IF EXISTS")
-        tx.run("DROP INDEX on :Specimen(name) IF EXISTS")
-        tx.run("DROP INDEX on :Taxon(name) IF EXISTS")
+        tx.run("DROP INDEX on :Property(name)")
+        tx.run("DROP INDEX on :Specimen(name)")
+        tx.run("DROP INDEX on :Taxon(name)")
         tx.run("CREATE INDEX on :Property(name)")
         tx.run("CREATE INDEX on :Specimen(name)")
         tx.run("CREATE INDEX on :Taxon(name)")
