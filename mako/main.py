@@ -228,6 +228,12 @@ parse_neo4biom.add_argument('-del', '--delete',
                             type=str,
                             default=None,
                             nargs='+')
+parse_neo4biom.add_argument('-o', '--observations',
+                            dest='obs',
+                            required=False,
+                            help='If flagged, BIOM file counts are not uploaded. ',
+                            action='store_false',
+                            default=True)
 parse_neo4biom.set_defaults(neo4biom=True)
 
 parse_io = subparsers.add_parser('io', description='Read/write operations to disk, Cytoscape and Neo4j.',

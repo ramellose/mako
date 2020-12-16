@@ -82,7 +82,7 @@ def start_biom(inputs):
         try:
             for i in range(len(inputs['count_table'])):
                 name, biomtab = read_tabs(inputs=inputs, i=i)
-                driver.convert_biom(biomfile=biomtab, exp_id=name)
+                driver.convert_biom(biomfile=biomtab, exp_id=name, obs=inputs['obs'])
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
     if inputs['tax_table'] is not None and inputs['count_table'] is None:
@@ -254,15 +254,20 @@ class Biom2Neo(ParentDriver):
     This driver contains functions for uploading BIOM files to the database,
     and also for writing BIOM files from the database to disk.
     """
-    def convert_biom(self, biomfile, exp_id):
+    def convert_biom(self, biomfile, exp_id, obs=True):
         """
         Stores a BIOM object in the database.
         To speed up this process, all data from the BIOM object is first converted to
         dictionaries or lists that can be used in parameterized batch queries.
         Labels need to be set statically,
         which is done as part of the static functions.
+        If obs is set to false, all taxa are only connected to a single "mock" sample.
+        This can lead to a rapid speed-up for data set uploading,
+        if sample counts are not necessary.
+
         :param biomfile: BIOM file.
         :param exp_id: Label of experiment used to generate BIOM file.
+        :param obs: Relationships between samples and taxa are only created if obs is set to True.
         :return:
         """
         try:
@@ -323,7 +328,10 @@ class Biom2Neo(ParentDriver):
             if len(sampleproperty_query_dict3) > 0:
                 with self._driver.session() as session:
                     session.write_transaction(self._connect_property, sampleproperty_query_dict3, sourcetype='Specimen')
-            observations = self._create_obs_dict(biomfile)
+            if obs:
+                observations = self._create_obs_dict(biomfile)
+            else:
+                observations = self._create_obs_dict_alt(tax_meta, exp_id)
             with self._driver.session() as session:
                 session.write_transaction(self._create_observations, observations)
         except Exception:
