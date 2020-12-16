@@ -655,8 +655,9 @@ class Biom2Neo(ParentDriver):
         """
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MATCH (a:Taxon {name:record.taxon}), (b:" + level + \
-                " {name:record.level}) " \
+                "MATCH (a:Taxon) " \
+                "MATCH (b:" + level + ") " \
+                "WHERE a.name = record.taxon AND b.name = record.level " \
                 "MERGE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"
         _run_subbatch(tx, query, taxonomy_query_dict)
 
@@ -719,7 +720,9 @@ class Biom2Neo(ParentDriver):
             rel = " {" + val_rel + "}"
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MATCH (a" + sourcetype + " {name:record.source}), (b:Property {name:record.name}) " \
+                "MATCH (a" + sourcetype + ") " \
+                "MATCH (b:Property) " \
+                "WHERE a.name = record.source AND b.name = record.name " \
                 "MERGE (a)-[r:QUALITY_OF" + rel + "]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, property_query_dict)
@@ -735,7 +738,9 @@ class Biom2Neo(ParentDriver):
         """
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "MATCH (a:Taxon {name:record.taxon}), (b:Specimen {name:record.sample}) " \
+                "MATCH (a:Taxon) " \
+                "MATCH (b:Specimen) " \
+                "WHERE a.name = record.taxon AND b.name = record.sample " \
                 "MERGE (a)-[r:LOCATED_IN {count: record.value}]->(b) " \
                 "RETURN type(r)"
         _run_subbatch(tx, query, observations)
