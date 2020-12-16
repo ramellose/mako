@@ -24,6 +24,7 @@ from biom import load_table
 from biom.parse import MetadataMap
 import pandas as pd
 import logging.handlers
+from neo4j import CypherError
 from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path, _run_subbatch
 
 logger = logging.getLogger(__name__)
@@ -819,9 +820,12 @@ class Biom2Neo(ParentDriver):
         :param tx:
         :return:
         """
-        tx.run("DROP INDEX on :Property(name)")
-        tx.run("DROP INDEX on :Specimen(name)")
-        tx.run("DROP INDEX on :Taxon(name)")
+        try:
+            tx.run("DROP INDEX on :Property(name)")
+            tx.run("DROP INDEX on :Specimen(name)")
+            tx.run("DROP INDEX on :Taxon(name)")
+        except CypherError:
+            pass
         tx.run("CREATE INDEX on :Property(name)")
         tx.run("CREATE INDEX on :Specimen(name)")
         tx.run("CREATE INDEX on :Taxon(name)")
