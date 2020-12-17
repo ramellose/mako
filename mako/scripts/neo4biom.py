@@ -820,12 +820,16 @@ class Biom2Neo(ParentDriver):
         :param tx:
         :return:
         """
-        try:
+        constraints = tx.run("CALL db.indexes() YIELD labelsOrTypes, properties "
+                             "RETURN labelsOrTypes, properties").data()
+        constraint_tuples = [(x['labelsOrTypes'][0],
+                              x['properties'][0]) for x in constraints]
+        if ('Property', 'name') in constraint_tuples:
             tx.run("DROP INDEX on :Property(name)")
+        if ('Specimen', 'name') in constraint_tuples:
             tx.run("DROP INDEX on :Specimen(name)")
+        if ('Taxon', 'name') in constraint_tuples:
             tx.run("DROP INDEX on :Taxon(name)")
-        except CypherError:
-            pass
         tx.run("CREATE INDEX on :Property(name)")
         tx.run("CREATE INDEX on :Specimen(name)")
         tx.run("CREATE INDEX on :Taxon(name)")

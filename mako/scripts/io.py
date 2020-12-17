@@ -298,6 +298,8 @@ class IoDriver(ParentDriver):
             with self._driver.session() as session:
                 session.write_transaction(self._create_edges, tt=edge_dict_tt,
                                           tm=edge_dict_tm, mm=edge_dict_mm, missing_no=missing_no, mn=mn)
+            with self._driver.session() as session:
+                session.write_transaction(self._create_indices)
         except Exception:
             logger.error("Could not write networkx object to database. \n", exc_info=True)
 
@@ -940,6 +942,20 @@ class IoDriver(ParentDriver):
                 "MERGE (a:Taxon {name:record.label}) DETACH DELETE a"
         tx.run(query, batch=del_dict)
 
-
+    @staticmethod
+    def _create_indices(tx):
+        """
+        (Re)creates indices for edge nodes.
+        This speeds up queries that connect such nodes.
+        :param tx:
+        :return:
+        """
+        constraints = tx.run("CALL db.indexes() YIELD labelsOrTypes, properties "
+                             "RETURN labelsOrTypes, properties").data()
+        constraint_tuples = [(x['labelsOrTypes'][0],
+                              x['properties'][0]) for x in constraints]
+        if ('Edge', 'name') in constraint_tuples:
+            tx.run("DROP INDEX on :Edge(name)")
+        tx.run("CREATE INDEX on :Edge(name)")
 
 
