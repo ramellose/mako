@@ -328,6 +328,7 @@ class IoDriver(ParentDriver):
             with self._driver.session() as session:
                 networks = session.read_transaction(self._query,
                                                     "MATCH (n:Network) RETURN n")
+            with self._driver.session() as session:
                 networks.extend(session.read_transaction(self._query,
                                                          "MATCH (n:Set) RETURN n"))
             networks = list(_get_unique(networks, key='n'))
@@ -359,6 +360,7 @@ class IoDriver(ParentDriver):
             tax_nodes = [{'name': x} for x in g.nodes]
             with self._driver.session() as session:
                 tax_dict = session.read_transaction(self._tax_query_dict, tax_nodes)
+            with self._driver.session() as session:
                 tax_properties = session.read_transaction(self._tax_properties, tax_nodes, tax_property_dict)
             for item in tax_dict:
                 nx.set_node_attributes(g, tax_dict[item], item)
