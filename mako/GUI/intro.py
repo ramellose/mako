@@ -51,7 +51,7 @@ class IntroPanel(wx.Panel):
 
     # write documentation in PDF and link
     def link_docs(self, event):
-        url = "https://github.com/ramellose/mako/"
+        url = "https://github.com/ramellose/mako/raw/master/docs/Neo4j_for_biologists.pdf"
         webbrowser.open(url)
 
 
