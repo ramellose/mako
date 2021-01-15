@@ -12,7 +12,7 @@ This API contains drivers for interacting with a Neo4j database.
 Many of these drivers have functions that allow for BIOM files,
 network files and other microbiome-related files to be ported to the database.
 
-For more instructions on how to use mako and Neo4j, please take a look at the manual: [Neo4j for biologists](https://github.com/ramellose/mako/blob/master/docs/Neo4j_for_biologists.pdf).
+For more instructions on how to use mako and Neo4j, please take a look at the manual: [Neo4j for biologists](https://github.com/ramellose/mako/raw/master/docs/Neo4j_for_biologists.pdf).
 
 Contact the author at lisa.rottjers (at) kuleuven.be. Your feedback is much appreciated!
 This version is still in early alpha and has been tested for Python 3.6.
