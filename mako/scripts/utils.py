@@ -10,15 +10,11 @@ __license__ = 'Apache 2.0'
 
 import sys
 import os
-import wx
-import wx.lib.newevent
 import mako
 import logging
 import logging.handlers
 from neo4j import GraphDatabase
 logger = logging.getLogger(__name__)
-
-wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
 
 
 def _get_unique(node_list, key, mode=None):
