@@ -25,7 +25,6 @@ from mako.scripts.neo4biom import start_biom
 from mako.scripts.io import start_io
 from mako.scripts.netstats import start_netstats
 from mako.scripts.metastats import start_metastats
-from mako.scripts.wrapper import start_wrapper
 import logging.handlers
 
 logger = logging.getLogger(__name__)
@@ -71,9 +70,11 @@ def mako(mako_args):
         start_metastats(mako_args)
     if 'manta' in mako_args:
         logger.info('Running manta on Neo4j database. ')
+        from mako.scripts.wrapper import start_wrapper
         start_wrapper(mako_args)
     if 'anuran' in mako_args:
         logger.info('Running anuran on Neo4j database. ')
+        from mako.scripts.wrapper import start_wrapper
         start_wrapper(mako_args)
     logger.info('Completed tasks! ')
 
