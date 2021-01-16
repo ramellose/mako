@@ -9,8 +9,7 @@ pubsub
 pbr
 pandas
 requests
-git+git://github.com/ramellose/manta.git
-git+git://github.com/ramellose/anuran.git
-# anuran
+git+https://github.com/ramellose/manta.git
+git+https://github.com/ramellose/anuran.git
 # If you want to run the GUI directly
 # wxPython
