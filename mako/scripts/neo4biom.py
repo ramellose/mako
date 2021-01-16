@@ -24,7 +24,6 @@ from biom import load_table
 from biom.parse import MetadataMap
 import pandas as pd
 import logging.handlers
-from neo4j import CypherError
 from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path, _run_subbatch
 
 logger = logging.getLogger(__name__)
