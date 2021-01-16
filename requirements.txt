@@ -9,8 +9,8 @@ pubsub
 pbr
 pandas
 requests
-# if you want to wrap other tools
-# manta
+git+git://github.com/ramellose/manta.git
+git+git://github.com/ramellose/anuran.git
 # anuran
 # If you want to run the GUI directly
 # wxPython
