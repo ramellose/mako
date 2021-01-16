@@ -4,7 +4,6 @@ h5py
 neo4j
 networkx
 biom-format
-wxPython
 psutil
 pubsub
 pbr
@@ -13,3 +12,5 @@ requests
 # if you want to wrap other tools
 # manta
 # anuran
+# If you want to run the GUI directly
+# wxPython
