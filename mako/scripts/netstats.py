@@ -302,9 +302,7 @@ def _curate_weighted_edges(tx, weighted_edges, networks):
             "MATCH (a:Edge {name: record.name})--(b:Network) " \
             "RETURN a.name,b.name"
     network_edges = tx.run(query, batch=query_edges).data()
-    print(network_edges)
     network_dict = {x['a.name']: [] for x in network_edges}
-    print(network_dict)
     for edge in network_edges:
         network_dict[edge['a.name']].append(edge['b.name'])
     for pair in paired_edges:
