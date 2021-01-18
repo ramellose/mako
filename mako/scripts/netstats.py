@@ -82,11 +82,16 @@ class NetstatsDriver(ParentDriver):
         union = None
         try:
             with self._driver.session() as session:
-                union = session.read_transaction(self._get_union, networks)
+                union_edges = session.read_transaction(self._get_union, networks)
+
+            with self._driver.session() as session:
+                setname = session.read_transaction(_write_logic, operation='Union',
+                                                   networks=networks, edges=union_edges)
                 logger.info("The union set operation for networks " + str(networks) +
                             " has been added to "
-                            "the database\nwith name " + union + ". ")
-                size = session.read_transaction(self._get_size, union)
+                            "the database\nwith name " + setname + ". ")
+            with self._driver.session() as session:
+                size = session.read_transaction(self._get_size, setname)
                 logger.info("This union contains " + str(size) + " edges. ")
         except Exception:
             logger.error("Could not obtain graph union. ", exc_info=True)
@@ -109,11 +114,15 @@ class NetstatsDriver(ParentDriver):
         else:
             try:
                 with self._driver.session() as session:
-                    intersection = session.read_transaction(self._get_intersection, networks, weight=weight, n=n)
-                    logger.info("The intersection set operation for networks " + str(networks) +
-                                " has been added to "
-                                "the database\nwith name " + intersection + ". ")
-                    size = session.read_transaction(self._get_size, intersection)
+                    intersection_edges = session.read_transaction(self._get_intersection, networks, weight=weight, n=n)
+                with self._driver.session() as session:
+                    setname = session.read_transaction(_write_logic, operation='Intersection' + '_' + str(n),
+                                                       networks=networks, edges=intersection_edges)
+                logger.info("The intersection set operation for networks " + str(networks) +
+                            " has been added to "
+                            "the database\nwith name " + setname + ". ")
+                with self._driver.session() as session:
+                    size = session.read_transaction(self._get_size, setname)
                     logger.info("This intersection contains " + str(size) + " edges. ")
             except Exception:
                 logger.error("Could not obtain graph intersection. ", exc_info=True)
@@ -130,11 +139,19 @@ class NetstatsDriver(ParentDriver):
         difference = None
         try:
             with self._driver.session() as session:
-                difference = session.read_transaction(self._get_difference, networks, weight=weight)
+                difference_edges = session.read_transaction(self._get_difference, networks, weight=weight)
+
+            with self._driver.session() as session:
+                name = 'Difference'
+                if weight:
+                    name += '_weight'
+                setname = session.read_transaction(_write_logic, operation=name,
+                                                   networks=networks, edges=difference_edges)
                 logger.info("The difference set operation for networks " + str(networks) +
                             " has been added to "
-                            "the database \nwith name " + difference + ". ")
-                size = session.read_transaction(self._get_size, difference)
+                            "the database \nwith name " + setname + ". ")
+            with self._driver.session() as session:
+                size = session.read_transaction(self._get_size, setname)
                 logger.info("This difference contains " + str(size) + " edges. ")
         except Exception:
             logger.error("Could not obtain graph difference. ", exc_info=True)
@@ -166,8 +183,7 @@ class NetstatsDriver(ParentDriver):
                         " as names MATCH (n:Edge)-->(b:Network) "
                         "WHERE b.name in names RETURN n")).data()
         edges = _get_unique(edges, 'n')
-        setname = _write_logic(tx, operation='Union', networks=networks, edges=edges)
-        return setname
+        return edges
 
     @staticmethod
     def _get_intersection(tx, networks, weight, n):
@@ -211,8 +227,7 @@ class NetstatsDriver(ParentDriver):
             name += '_weight'
         if n:
             name = name + '_' + str(n)
-        setname = _write_logic(tx, operation=name, networks=networks, edges=edges)
-        return setname
+        return edges
 
     @staticmethod
     def _get_difference(tx, networks, weight):
@@ -247,8 +262,7 @@ class NetstatsDriver(ParentDriver):
         name = 'Difference'
         if weight:
             name += '_weight'
-        setname = _write_logic(tx, operation=name, networks=networks, edges=edges)
-        return setname
+        return edges
 
     @staticmethod
     def _get_size(tx, operation):
