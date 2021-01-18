@@ -85,7 +85,7 @@ class NetstatsDriver(ParentDriver):
                 union_edges = session.read_transaction(self._get_union, networks)
 
             with self._driver.session() as session:
-                setname = session.read_transaction(_write_logic, operation='Union',
+                setname = session.write_transaction(_write_logic, operation='Union',
                                                    networks=networks, edges=union_edges)
                 logger.info("The union set operation for networks " + str(networks) +
                             " has been added to "
@@ -116,7 +116,7 @@ class NetstatsDriver(ParentDriver):
                 with self._driver.session() as session:
                     intersection_edges = session.read_transaction(self._get_intersection, networks, weight=weight, n=n)
                 with self._driver.session() as session:
-                    setname = session.read_transaction(_write_logic, operation='Intersection' + '_' + str(n),
+                    setname = session.write_transaction(_write_logic, operation='Intersection' + '_' + str(n),
                                                        networks=networks, edges=intersection_edges)
                 logger.info("The intersection set operation for networks " + str(networks) +
                             " has been added to "
@@ -145,7 +145,7 @@ class NetstatsDriver(ParentDriver):
                 name = 'Difference'
                 if weight:
                     name += '_weight'
-                setname = session.read_transaction(_write_logic, operation=name,
+                setname = session.write_transaction(_write_logic, operation=name,
                                                    networks=networks, edges=difference_edges)
                 logger.info("The difference set operation for networks " + str(networks) +
                             " has been added to "
