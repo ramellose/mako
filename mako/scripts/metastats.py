@@ -188,6 +188,7 @@ class MetastatsDriver(ParentDriver):
         :param new_network: New network name
         :return:
         """
+        print(new_network, source_network)
         self.query("MERGE (a:Network {name: '" + new_network + "'}) RETURN a")
         self.query("MATCH (a:Network {name: '" + new_network +
                    "'}), (b:Network {name: '" + source_network +
