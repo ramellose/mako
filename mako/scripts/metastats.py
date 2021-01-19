@@ -390,11 +390,11 @@ class MetastatsDriver(ParentDriver):
             with self._driver.session() as session:
                 agglom_1 = session.write_transaction(self._create_agglom)
             with self._driver.session() as session:
-                session.write_transaction(self._taxonomy, agglom_1, pair.nodes[0], level)
+                session.write_transaction(self._taxonomy, agglom_1, pair[0], level)
             with self._driver.session() as session:
                 session.write_transaction(self._rewire_edges, agglom_1, pair, weight)
             with self._driver.session() as session:
-                session.write_transaction(self._delete_old_agglomerations, ([pair.nodes[1]] + [pair.nodes[5]]))
+                session.write_transaction(self._delete_old_agglomerations, ([pair[1]] + [pair.nodes[5]]))
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
 
