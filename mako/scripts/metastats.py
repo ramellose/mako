@@ -72,7 +72,6 @@ def start_metastats(inputs):
         logger.info("Associating samples...  ")
         # sys.stdout.write("Associating samples...")
         variables = inputs['variable']
-        print(variables)
         if inputs['variable'][0] == 'all':
             variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.name") for y in x])
         for var in variables:
@@ -174,7 +173,7 @@ class MetastatsDriver(ParentDriver):
                     num = self.query("MATCH (n:Network {name: '" + network + "'})-"
                                      "[r:PART_OF]-() RETURN count(r) as count")
                     logger.info("The agglomerated network " + network +
-                                " contains " + str(num) + " edges.")
+                                " contains " + str(num[0]['count']) + " edges.")
         except Exception:
             logger.error("Could not agglomerate edges to higher taxonomic levels. \n", exc_info=True)
         return new_networks
@@ -389,8 +388,11 @@ class MetastatsDriver(ParentDriver):
         try:
             with self._driver.session() as session:
                 agglom_1 = session.write_transaction(self._create_agglom)
+            with self._driver.session() as session:
                 session.write_transaction(self._taxonomy, agglom_1, pair.nodes[0], level)
+            with self._driver.session() as session:
                 session.write_transaction(self._rewire_edges, agglom_1, pair, weight)
+            with self._driver.session() as session:
                 session.write_transaction(self._delete_old_agglomerations, ([pair.nodes[1]] + [pair.nodes[5]]))
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
