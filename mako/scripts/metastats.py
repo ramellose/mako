@@ -72,6 +72,7 @@ def start_metastats(inputs):
         logger.info("Associating samples...  ")
         # sys.stdout.write("Associating samples...")
         variables = inputs['variable']
+        print(variables)
         if inputs['variable'][0] == 'all':
             variables = set([x[y] for x in driver.query("MATCH (n:Property) RETURN n.name") for y in x])
         for var in variables:
@@ -313,6 +314,8 @@ class MetastatsDriver(ParentDriver):
                             "'}) RETURN n, r LIMIT 1"
                     rel = session.read_transaction(self._query, query)
                 try:
+                    print(query)
+                    print(rel)
                     value = rel[0]['r'].get('value')
                 except IndexError:
                     # no value to do statistics with
@@ -340,16 +343,18 @@ class MetastatsDriver(ParentDriver):
             for categ_val in categs:
                 with self._driver.session() as session:
                     hypergeom_vals = session.read_transaction(self._hypergeom_population, taxon, categ_val)
-                    prob = hypergeom.cdf(hypergeom_vals['success_taxon'], hypergeom_vals['total_pop'],
-                                         hypergeom_vals['success_pop'], hypergeom_vals['total_taxon'])
-                    if prob < 0.05:
+                prob = hypergeom.cdf(hypergeom_vals['success_taxon'], hypergeom_vals['total_pop'],
+                                     hypergeom_vals['success_pop'], hypergeom_vals['total_taxon'])
+                if prob < 0.05:
+                    with self._driver.session() as session:
                         session.write_transaction(self._shortcut_categorical, taxon, categ_val, prob)
             for cont_val in conts:
                 with self._driver.session() as session:
                     spearman_result = session.read_transaction(self._spearman_test,
                                                                taxon, cont_val)
-                    if spearman_result.pvalue < 0.05:
-                        var_dict = {cont_val: spearman_result.correlation}
+                if spearman_result.pvalue < 0.05:
+                    var_dict = {cont_val: spearman_result.correlation}
+                    with self._driver.session() as session:
                         session.write_transaction(self._shortcut_continuous, taxon, var_dict)
         except Exception:
             logger.error("Could not associate a specific taxon to sample variables. \n", exc_info=True)
