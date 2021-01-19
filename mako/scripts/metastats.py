@@ -188,19 +188,21 @@ class MetastatsDriver(ParentDriver):
         :param new_network: New network name
         :return:
         """
-        print(new_network, source_network)
-        self.query("MERGE (a:Network {name: '" + new_network + "'}) RETURN a")
+        new_node = self.query("MERGE (a:Network {name: '" + new_network + "'}) RETURN a")
+        if len(new_node) == 0:
+            exit()
         self.query("MATCH (a:Network {name: '" + new_network +
                    "'}), (b:Network {name: '" + source_network +
                    "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r")
         edges = self.query("MATCH (a:Edge)--(:Network {name: '" + source_network +
                            "'}) RETURN a")
-        print(edges)
         edge_weights = dict()
         for edge in edges:
             edge_weights[edge['a']['name']] = edge['a']['weight']
         # Create dictionary with edges to write as batch query
-        edge_names = [{'name': x['a']['name'], 'source': source_network, 'new': new_network, 'uid': str(uuid4())} for x in edges]
+        edge_names = [{'name': x['a']['name'], 'source': source_network,
+                       'new': new_network, 'uid': str(uuid4())} for x in edges]
+        print(edge_names)
         with self._driver.session() as session:
             edge_partners = session.read_transaction(self._get_partners, edge_names)
         try:
