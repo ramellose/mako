@@ -689,7 +689,7 @@ class MetastatsDriver(ParentDriver):
         :param source:
         :return:
         """
-        tx.query(query=("MERGE (a:Network {name: '" + new + "'}) RETURN a"))
+        tx.run(query=("MERGE (a:Network {name: '" + new + "'}) RETURN a"))
 
     @staticmethod
     def _connect_network(tx, new, source):
@@ -701,7 +701,7 @@ class MetastatsDriver(ParentDriver):
         :param source:
         :return:
         """
-        tx.query(query=("MATCH (a:Network {name: '" + new +
+        tx.run(query=("MATCH (a:Network {name: '" + new +
                         "'}), (b:Network {name: '" + source +
                         "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r"))
 
