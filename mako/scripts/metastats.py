@@ -188,12 +188,10 @@ class MetastatsDriver(ParentDriver):
         :param new_network: New network name
         :return:
         """
-        new_node = self.query("MERGE (a:Network {name: '" + new_network + "'}) RETURN a")
-        if len(new_node) == 0:
-            exit()
-        self.query("MATCH (a:Network {name: '" + new_network +
-                   "'}), (b:Network {name: '" + source_network +
-                   "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r")
+        with self._driver.session() as session:
+            session.write_transaction(self._copy_network, new=new_network, source=source_network)
+        with self._driver.session() as session:
+            session.write_transaction(self._connect_network, new=new_network, source=source_network)
         edges = self.query("MATCH (a:Edge)--(:Network {name: '" + source_network +
                            "'}) RETURN a")
         edge_weights = dict()
@@ -202,7 +200,6 @@ class MetastatsDriver(ParentDriver):
         # Create dictionary with edges to write as batch query
         edge_names = [{'name': x['a']['name'], 'source': source_network,
                        'new': new_network, 'uid': str(uuid4())} for x in edges]
-        print(edge_names)
         with self._driver.session() as session:
             edge_partners = session.read_transaction(self._get_partners, edge_names)
         try:
@@ -681,6 +678,32 @@ class MetastatsDriver(ParentDriver):
         for edge in selfloop:
             edge_dict[edge['n']['name']] = [edge['a']['name'], edge['a']['name']]
         return edge_dict
+
+    @staticmethod
+    def _copy_network(tx, new, source):
+        """
+        Takes a pre-existing network node and creates a new one.
+
+        :param tx:
+        :param new:
+        :param source:
+        :return:
+        """
+        tx.query("MERGE (a:Network {name: '" + new + "'}) RETURN a")
+
+    @staticmethod
+    def _connect_network(tx, new, source):
+        """
+        Takes a pre-existing network node and creates a new one.
+
+        :param tx:
+        :param new:
+        :param source:
+        :return:
+        """
+        tx.query("MATCH (a:Network {name: '" + new +
+                 "'}), (b:Network {name: '" + source +
+                 "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r")
 
     @staticmethod
     def _copy_edges(tx, edges):
