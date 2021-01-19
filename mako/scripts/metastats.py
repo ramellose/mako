@@ -864,12 +864,12 @@ class MetastatsDriver(ParentDriver):
         for sample in sample_names:
             query = "MATCH (:Specimen {name: '" + sample + \
                     "'})<-[r:LOCATED_IN]-(:Taxon {name: '" + taxon + \
-                    "'}) RETURN r.value"
+                    "'}) RETURN r.count"
             counts = tx.run(query).data()
             if len(counts) == 0:
                 count = 0
             else:
-                count = float(counts[0]['r.value'])
+                count = float(counts[0]['r.count'])
             taxon_values.append(count)
         result = spearmanr(taxon_values, sample_values)
         return result
