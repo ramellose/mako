@@ -195,6 +195,7 @@ class MetastatsDriver(ParentDriver):
                    "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r")
         edges = self.query("MATCH (a:Edge)--(:Network {name: '" + source_network +
                            "'}) RETURN a")
+        print(edges)
         edge_weights = dict()
         for edge in edges:
             edge_weights[edge['a']['name']] = edge['a']['weight']
