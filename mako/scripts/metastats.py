@@ -189,7 +189,7 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         with self._driver.session() as session:
-            session.write_transaction(self._copy_network, new=new_network, source=source_network)
+            session.write_transaction(self._copy_network, new=new_network)
         with self._driver.session() as session:
             session.write_transaction(self._connect_network, new=new_network, source=source_network)
         edges = self.query("MATCH (a:Edge)--(:Network {name: '" + source_network +
@@ -680,7 +680,7 @@ class MetastatsDriver(ParentDriver):
         return edge_dict
 
     @staticmethod
-    def _copy_network(tx, new, source):
+    def _copy_network(tx, new):
         """
         Takes a pre-existing network node and creates a new one.
 
@@ -689,7 +689,7 @@ class MetastatsDriver(ParentDriver):
         :param source:
         :return:
         """
-        tx.query("MERGE (a:Network {name: '" + new + "'}) RETURN a")
+        tx.query(query=("MERGE (a:Network {name: '" + new + "'}) RETURN a"))
 
     @staticmethod
     def _connect_network(tx, new, source):
@@ -701,9 +701,9 @@ class MetastatsDriver(ParentDriver):
         :param source:
         :return:
         """
-        tx.query("MATCH (a:Network {name: '" + new +
-                 "'}), (b:Network {name: '" + source +
-                 "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r")
+        tx.query(query=("MATCH (a:Network {name: '" + new +
+                        "'}), (b:Network {name: '" + source +
+                        "'}) MERGE (a)-[r:AGGLOMERATED]->(b) RETURN r"))
 
     @staticmethod
     def _copy_edges(tx, edges):
