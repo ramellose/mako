@@ -313,13 +313,14 @@ class MetastatsDriver(ParentDriver):
                             "'})-->(:Specimen)-[r]->(n:Property {name: '" + property + \
                             "'}) RETURN n, r LIMIT 1"
                     rel = session.read_transaction(self._query, query)
-                try:
                     print(query)
                     print(rel)
+                try:
                     value = rel[0]['r'].get('value')
                 except IndexError:
                     # no value to do statistics with
-                    continue
+                    #continue
+                    exit(1)
                 if value == null_input:
                     break
                 # try to convert value to float; if successful, adds type to continous vars
