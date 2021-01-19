@@ -311,12 +311,11 @@ class MetastatsDriver(ParentDriver):
                 with self._driver.session() as session:
                     query = "MATCH (:Taxon {name: '" + taxon + \
                             "'})-->(:Specimen)-[r]->(n:Property {name: '" + property + \
-                            "'}) RETURN n, r LIMIT 1"
+                            "'}) RETURN r.value LIMIT 1"
                     rel = session.read_transaction(self._query, query)
-                    print(query)
                     print(rel)
                 try:
-                    value = rel[0]['r'].get('value')
+                    value = rel[0]['r.value']
                 except IndexError:
                     # no value to do statistics with
                     #continue
