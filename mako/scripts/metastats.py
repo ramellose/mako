@@ -514,9 +514,9 @@ class MetastatsDriver(ParentDriver):
                        path[5].get('name') + "' RETURN p")).data()
         old_links = list()
         for item in old1:
-            old_links.append(item['p'][1].get('name'))
+            old_links.append(item['p'][2].get('name'))
         for item in old2:
-            old_links.append(item['p'][1].get('name'))
+            old_links.append(item['p'][2].get('name'))
         tx.run(("MATCH p=(a)-[r:PARTICIPATES_IN]-(:Edge)--(:Network {name: '" + network +
                 "'}) WHERE a.name = '" +
                 path[1].get('name') + "' DELETE r"))
