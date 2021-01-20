@@ -66,7 +66,6 @@ def start_metastats(inputs):
         for level in range(0, level_id + 1):
             # pub.sendMessage('update', msg="Agglomerating edges...")
             logger.info("Checking " + tax_list[level] + " level...")
-            print(tax_list[level])
             networks = driver.agglomerate_networks(level=tax_list[level], weight=inputs['weight'], networks=networks)
             # networks assignment contains names of new networks
     if inputs['variable']:
@@ -156,7 +155,7 @@ class MetastatsDriver(ParentDriver):
                         # limit is necessary to prevent excessively long queries
                         pairs = self.get_pairlist(level=level, weight=weight, network=network)
                         if pairs:
-                            pair = pairs[0]['p']
+                            pair = pairs[0]['p'][0::2]
                             self.agglomerate_pair(pair, level=level, weight=weight, network=network)
                         else:
                             stop_condition = True
@@ -167,7 +166,7 @@ class MetastatsDriver(ParentDriver):
                         # this rewires the network
                         tax_nodes = self.get_taxlist(level=level, network=network)
                         if tax_nodes:
-                            tax_nodes = tax_nodes[0]['p']
+                            tax_nodes = tax_nodes[0]['p'][0::2]
                             self.agglomerate_taxa(tax_nodes, level=level, weight=weight)
                         else:
                             stop_condition = True
@@ -250,14 +249,14 @@ class MetastatsDriver(ParentDriver):
             with self._driver.session() as session:
                 agglom_1 = session.write_transaction(self._create_agglom)
                 agglom_2 = session.write_transaction(self._create_agglom)
-                session.write_transaction(self._chainlinks, agglom_1, pair.nodes[1], pair.nodes[3])
-                session.write_transaction(self._chainlinks, agglom_2, pair.nodes[5], pair.nodes[7])
-                session.write_transaction(self._taxonomy, agglom_1, pair.nodes[2], level)
-                session.write_transaction(self._taxonomy, agglom_2, pair.nodes[6], level)
+                session.write_transaction(self._chainlinks, agglom_1, pair[1], pair[3])
+                session.write_transaction(self._chainlinks, agglom_2, pair[5], pair[7])
+                session.write_transaction(self._taxonomy, agglom_1, pair[2], level)
+                session.write_transaction(self._taxonomy, agglom_2, pair[6], level)
             with self._driver.session() as session:
                 if weight:
                     edge_sign = session.read_transaction(self._query, ("MATCH (n:Edge)-[r]-(m:Network) "
-                                                                       "WHERE n.name = '" + pair.nodes[0]['name'] +
+                                                                       "WHERE n.name = '" + pair[0]['name'] +
                                                                        "' AND m.name = '" + network +
                                                                        "' RETURN n.weight"))
                 else:
@@ -265,7 +264,7 @@ class MetastatsDriver(ParentDriver):
                 session.write_transaction(self._create_edge, agglom_1, agglom_2, network,
                                           edge_sign=edge_sign[0]['n.weight'])
             with self._driver.session() as session:
-                session.write_transaction(self._delete_old_edges, [pair.nodes[0], pair.nodes[4]])
+                session.write_transaction(self._delete_old_edges, [pair[0], pair[4]])
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
 
@@ -388,15 +387,14 @@ class MetastatsDriver(ParentDriver):
         :return:
         """
         try:
-            print(pair)
             with self._driver.session() as session:
                 agglom_1 = session.write_transaction(self._create_agglom)
             with self._driver.session() as session:
-                session.write_transaction(self._taxonomy, agglom_1, pair.nodes[0], level)
+                session.write_transaction(self._taxonomy, agglom_1, pair[0], level)
             with self._driver.session() as session:
                 session.write_transaction(self._rewire_edges, agglom_1, pair, weight)
             with self._driver.session() as session:
-                session.write_transaction(self._delete_old_agglomerations, ([pair.nodes[1]] + [pair.nodes[5]]))
+                session.write_transaction(self._delete_old_agglomerations, ([pair[1]] + [pair[5]]))
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
             exit()
@@ -498,7 +496,7 @@ class MetastatsDriver(ParentDriver):
     @staticmethod
     def _rewire_edges(tx, node, path, weight):
         """
-        Each aglommerated Taxon node is linked to the Taxon node
+        Each agglomerated Taxon node is linked to the Taxon node
         it originated from. If it was generated from an agglomerated Taxon node,
         that source node's relationships to Taxon nodes are copied to the new node.
         :param tx: Neo4j transaction
@@ -507,24 +505,24 @@ class MetastatsDriver(ParentDriver):
         :param weight: If false, merges edges with different weights
         :return:
         """
-        network = path.nodes[3]['name']
+        network = path[3]['name']
         old1 = tx.run(("MATCH p=(a)--(:Edge)--(:Network {name: '" + network +
                        "'}) WHERE a.name = '" +
-                       path.nodes[1].get('name') + "' RETURN p")).data()
+                       path[1].get('name') + "' RETURN p")).data()
         old2 = tx.run(("MATCH p=(a)--(:Edge)--(:Network {name: '" + network +
                        "'}) WHERE a.name = '" +
-                       path.nodes[5].get('name') + "' RETURN p")).data()
+                       path[5].get('name') + "' RETURN p")).data()
         old_links = list()
         for item in old1:
-            old_links.append(item['p'].nodes[1].get('name'))
+            old_links.append(item['p'][1].get('name'))
         for item in old2:
-            old_links.append(item['p'].nodes[1].get('name'))
+            old_links.append(item['p'][1].get('name'))
         tx.run(("MATCH p=(a)-[r:PARTICIPATES_IN]-(:Edge)--(:Network {name: '" + network +
                 "'}) WHERE a.name = '" +
-                path.nodes[1].get('name') + "' DELETE r"))
+                path[1].get('name') + "' DELETE r"))
         tx.run(("MATCH p=(a)-[r:PARTICIPATES_IN]-(:Edge)--(:Network {name: '" + network +
                 "'}) WHERE a.name = '" +
-                path.nodes[5].get('name') + "' DELETE r"))
+                path[5].get('name') + "' DELETE r"))
         old_links = list(set(old_links))  # issue with self loops causing deletion issues
         targets = list()
         if weight:
@@ -635,9 +633,10 @@ class MetastatsDriver(ParentDriver):
         query = query_list[level_id]
         tree = tx.run(query).data()[0]['p']
         for i in range(7-level_id):
+            tree = tree[0::2]
             tx.run(("MATCH (a:Taxon),(b:" + tax_list[i+level_id] + ") "
                     "WHERE a.name = '" + node + "' AND b.name = '" +
-                    tree.nodes[i].get('name') + "' CREATE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"))
+                    tree[i].get('name') + "' CREATE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"))
 
     @staticmethod
     def _get_partners(tx, edges):
