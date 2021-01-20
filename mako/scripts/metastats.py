@@ -632,8 +632,8 @@ class MetastatsDriver(ParentDriver):
                       "MATCH p=(:Kingdom {name: '" + tax.get('name') + "'}) RETURN p"]
         query = query_list[level_id]
         tree = tx.run(query).data()[0]['p']
+        tree = tree[0::2]
         for i in range(7-level_id):
-            tree = tree[0::2]
             tx.run(("MATCH (a:Taxon),(b:" + tax_list[i+level_id] + ") "
                     "WHERE a.name = '" + node + "' AND b.name = '" +
                     tree[i].get('name') + "' CREATE (a)-[r:MEMBER_OF]->(b) RETURN type(r)"))
