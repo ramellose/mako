@@ -66,6 +66,7 @@ def start_metastats(inputs):
         for level in range(0, level_id + 1):
             # pub.sendMessage('update', msg="Agglomerating edges...")
             logger.info("Checking " + tax_list[level] + " level...")
+            print(tax_list[level])
             networks = driver.agglomerate_networks(level=tax_list[level], weight=inputs['weight'], networks=networks)
             # networks assignment contains names of new networks
     if inputs['variable']:
@@ -398,7 +399,7 @@ class MetastatsDriver(ParentDriver):
                 session.write_transaction(self._delete_old_agglomerations, ([pair.nodes[1]] + [pair.nodes[5]]))
         except Exception:
             logger.error("Could not agglomerate a pair of matching edges. \n", exc_info=True)
-            exit(1)
+            exit()
 
     @staticmethod
     def _pair_list(tx, level, weight, network):
