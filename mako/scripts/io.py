@@ -302,8 +302,10 @@ class IoDriver(ParentDriver):
             logger.error("Could not write networkx object to database. \n", exc_info=True)
 
     def delete_network(self, network_id):
-        with self._driver.session() as session:
-            edges = session.read_transaction(self._assocs_to_delete, network_id).data()
+        query = ("MATCH (a:Edge)--(b:Network) "
+                        "WHERE b.name = '" + network_id +
+                        "' RETURN a.name")
+        edges = self.query(query)
         edge_query_dict = list()
         for edge in edges:
             edge_query_dict.append({'label': edge['a.name']})
@@ -899,18 +901,6 @@ class IoDriver(ParentDriver):
             fasta_string += '>' + key + '\n' + fasta_dict[key] + '\n'
         return fasta_string
 
-    @staticmethod
-    def _assocs_to_delete(tx, network_id):
-        """
-        Generates a list of edge nodes linked to the network node that needs to be deleted.
-        :param tx: Neo4j transaction
-        :param network_id: ID of network node
-        :return:
-        """
-        names = tx.run(("MATCH (a:Edge)--(b:Network) "
-                        "WHERE b.name = '" + network_id +
-                        "' RETURN a.name"))
-        return names
 
     @staticmethod
     def _delete_assoc(tx, edge_query_dict):
