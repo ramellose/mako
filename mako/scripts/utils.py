@@ -247,6 +247,35 @@ class ParentDriver:
             logger.error("Unable to execute query: " + query + '\n', exc_info=True)
         return output
 
+    def write(self, query, batch=None):
+        """
+        Accepts a query to write to a database.
+        For batch queries, the batch parameter should contain
+        a list of dictionaries, where each dictionary contains
+        a key: value pair where the key matches a key in the
+        Cypher query.
+
+        Batch queries should unwind the batch,
+        like so:
+                query = "WITH $batch as batch " \
+                "UNWIND batch as record " \
+                "MERGE (a:Taxon {name:record.taxon}) RETURN a"
+
+        The string after record (here taxon)
+        needs to match a dictionary key.
+
+        :param query: String containing Cypher query
+        :param batch: List of dictionaries for batch queries
+        :return: Results of transaction with Cypher query
+        """
+        output = None
+        try:
+            with self._driver.session() as session:
+                output = session.write_transaction(self._query, query, batch)
+        except Exception:
+            logger.error("Unable to execute query: " + query + '\n', exc_info=True)
+        return output
+
     @staticmethod
     def _query(tx, query, batch=None):
         """

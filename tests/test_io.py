@@ -180,7 +180,7 @@ class TestIo(unittest.TestCase):
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
         test = driver.query("MATCH (n:Network) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['n']['name'], 'test')
 
     def test_start_delete_network(self):
@@ -224,8 +224,8 @@ class TestIo(unittest.TestCase):
                           password=inputs['password'],
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
-        test = driver.query("MATCH (n:Network) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        test = driver.query("MATCH (n:Network {name: 'Test'}) RETURN n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(len(test), 0)
 
     def test_delete_correct_network(self):
@@ -259,7 +259,7 @@ class TestIo(unittest.TestCase):
         before_deletion = driver.query("MATCH (:Edge)-[r]-(:Network) RETURN count(r) as count")
         driver.delete_network(network_id='test2')
         after_deletion = driver.query("MATCH (:Edge)-[r]-(:Network) RETURN count(r) as count")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertGreater(before_deletion[0]['count'], after_deletion[0]['count'])
 
     def test_add_metadata_from_file(self):
@@ -292,7 +292,7 @@ class TestIo(unittest.TestCase):
         driver.convert_networkx(network=g, network_id='test')
         start_io(inputs)
         test = driver.query("MATCH (:Taxon)-[r]-(:Property {name: 'Fruit'}) RETURN count(r) as count")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 5)
 
     def test_add_metadata(self):
@@ -325,7 +325,7 @@ class TestIo(unittest.TestCase):
         driver.convert_networkx(network=g, network_id='test')
         driver.include_nodes(nodes=testdict, name='Fruit', label='Taxon')
         test = driver.query("MATCH (:Taxon)-[r]-(:Property {name: 'Fruit'}) RETURN count(r) as count")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 5)
 
     def test_export_network(self):
@@ -357,6 +357,7 @@ class TestIo(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
         result = driver.export_network(_resource_path(''), networks=['test'])
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertTrue('test' in result)
 
     def test_write_network(self):
@@ -381,9 +382,9 @@ class TestIo(unittest.TestCase):
                   'meta': None,
                   'write': True,
                   'encryption': False}
-        driver = IoDriver(user=inputs['username'],
-                          password=inputs['password'],
-                          uri=inputs['address'], filepath=inputs['fp'],
+        driver = IoDriver(user='neo4j',
+                          password='test',
+                          uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
         driver.query("MATCH (n:Taxon {name: 'GG_OTU_1'})--(b:Edge) DETACH DELETE b")
@@ -391,6 +392,7 @@ class TestIo(unittest.TestCase):
         start_io(inputs)
         network = nx.read_graphml(_resource_path('test.graphml'))
         nx.write_graphml(g, _resource_path('test.graphml'))
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertFalse('GG_OTU_1' in network.nodes)
 
     def test_import_network(self):
@@ -421,7 +423,7 @@ class TestIo(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
         test = driver.query("MATCH (n:Network) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(len(test), 1)
 
 

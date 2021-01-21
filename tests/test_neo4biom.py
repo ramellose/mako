@@ -167,7 +167,7 @@ class TestNeo4Biom(unittest.TestCase):
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
         test = driver.query("MATCH (n:Experiment) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['n']['name'], 'test')
 
     def test_start_biom_tabs(self):
@@ -195,7 +195,7 @@ class TestNeo4Biom(unittest.TestCase):
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
         test = driver.query("MATCH (n:Experiment) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['n']['name'], 'test')
 
     def test_start_taxonomy(self):
@@ -222,7 +222,7 @@ class TestNeo4Biom(unittest.TestCase):
                           uri=inputs['address'], filepath=inputs['fp'],
                           encrypted=False)
         test = driver.query("MATCH (n:Experiment) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['n']['name'], 'test_tax')
 
     def test_taxonomy(self):
@@ -250,7 +250,7 @@ class TestNeo4Biom(unittest.TestCase):
         driver.convert_taxonomy(taxtab, name)
         test = driver.query("MATCH (n:Order {name: 'o__Enterobacteriales'})"
                             "--(:Taxon) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['n']['name'], 'o__Enterobacteriales')
 
     def test_delete_correct_biom(self):
@@ -279,7 +279,7 @@ class TestNeo4Biom(unittest.TestCase):
         driver.convert_biom(testbiom, 'test2')
         start_biom(inputs)
         test = driver.query("MATCH (n:Experiment {name: 'test2'}) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(len(test), 1)
 
     def test_convert_biom(self):
@@ -306,7 +306,7 @@ class TestNeo4Biom(unittest.TestCase):
                           encrypted=False)
         driver.convert_biom(testbiom, 'test')
         test = driver.query("MATCH (n:Specimen) RETURN count(n) as count")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 6)
 
     def test_delete_biom(self):
@@ -335,7 +335,7 @@ class TestNeo4Biom(unittest.TestCase):
         driver.convert_biom(testbiom, 'test2')
         driver.delete_biom(exp_id='test1')
         test = driver.query("MATCH (n:Experiment {name: 'test1'}) RETURN n")
-        driver.query("MATCH (n) DETACH DELETE n")
+        driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(len(test), 0)
 
     def test_biom_property(self):
