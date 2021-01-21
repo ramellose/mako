@@ -770,11 +770,11 @@ class IoDriver(ParentDriver):
                     "UNWIND batch as record " \
                     "MATCH p=(a:Taxon {name: record.name})" \
                     "-[r]-(b:Property {name: '" + property + "'}) " \
-                    "RETURN p"
+                    "RETURN a, r.value"
             query_results = tx.run(query, batch=nodes).data()
             for result in query_results:
-                tax = result['p'].nodes[0]['name']
-                rel = result['p'].relationships[0]['value']
+                tax = result['a']['name']
+                rel = result['r.value']
                 tax_property_dict[property][tax] = rel
         return tax_property_dict
 
