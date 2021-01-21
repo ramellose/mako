@@ -9,6 +9,7 @@ import unittest
 import time
 import os
 import biom
+import pandas as pd
 from biom.cli.util import write_biom_table
 from mako.scripts.neo4biom import start_biom, Biom2Neo, read_taxonomy
 from mako.scripts.utils import _resource_path
@@ -126,8 +127,11 @@ class TestNeo4Biom(unittest.TestCase):
     def setUpClass(cls):
         os.system(docker_command)
         write_biom_table(testbiom, filepath=_resource_path('test.hdf5'), fmt='hdf5')
-        data = testbiom.to_dataframe()
-        data.to_csv(_resource_path('test.tsv'), sep='\t')
+        obs_data = testbiom.matrix_data
+        data = [pd.SparseSeries(obs_data[i].toarray().ravel()) for i in np.arange(obs_data.shape[0])]
+        obs_data = pd.SparseDataFrame(data, index=testbiom.ids('observation'),
+                                      columns=testbiom.ids('sample'))
+        obs_data.to_csv(_resource_path('test.tsv'), sep='\t')
         with open(_resource_path('test.tsv'), 'r') as original:
             data = original.read()
         with open(_resource_path('test.tsv'), 'w') as modified:
