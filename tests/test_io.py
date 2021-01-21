@@ -33,7 +33,7 @@ docker_command = "docker run \
 --rm \
 -d \
 --publish=7475:7474 --publish=7688:7687 \
---name=neo4j \
+--name=neo4j_test \
 --env NEO4J_AUTH=neo4j/test \
 neo4j:latest"
 
