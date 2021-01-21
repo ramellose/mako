@@ -209,7 +209,7 @@ class TestNetstats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         test = driver.query("MATCH (n:Set) RETURN count(n) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
+        driver.write("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 3)
 
     def test_intersection(self):
@@ -228,7 +228,7 @@ class TestNetstats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
+        driver.write("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 2)
 
     def test_intersection_weight(self):
@@ -247,7 +247,7 @@ class TestNetstats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
+        driver.write("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 4)
 
     def test_difference(self):
@@ -265,7 +265,7 @@ class TestNetstats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
+        driver.write("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 1)
 
     def test_difference(self):
@@ -283,7 +283,7 @@ class TestNetstats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
+        driver.write("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 3)
 
     def test_union(self):
@@ -301,7 +301,7 @@ class TestNetstats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         test = driver.query("MATCH (:Set)-[]-(r) RETURN count(r) as count")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
+        driver.write("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 5)
 
     def test_set_name(self):
@@ -319,7 +319,7 @@ class TestNetstats(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         test = driver.query("MATCH (a:Set) RETURN a")
-        driver.query("MATCH (n:Set) DETACH DELETE n")
+        driver.write("MATCH (n:Set) DETACH DELETE n")
         self.assertEqual(test[0]['a']['name'], 'Intersection_weight_2')
 
 
