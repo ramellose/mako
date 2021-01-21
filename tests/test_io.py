@@ -148,7 +148,7 @@ class TestIo(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        os.system('docker stop neo4j')
+        os.system('docker stop neo4j_test')
         os.remove(_resource_path('test.graphml'))
         os.remove(_resource_path('test.tsv'))
 

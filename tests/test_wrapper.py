@@ -290,7 +290,7 @@ class TestWrapper(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         driver.query('MATCH (n) DETACH DELETE n')
-        os.system('docker stop neo4j')
+        os.system('docker stop neo4j_test')
 
     def test_start_wrapper(self):
         """

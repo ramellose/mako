@@ -138,7 +138,7 @@ class TestNeo4Biom(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        os.system('docker stop neo4j')
+        os.system('docker stop neo4j_test')
         os.remove(_resource_path('test.hdf5'))
         os.remove(_resource_path('test.tsv'))
         os.remove(_resource_path('test_tax.tsv'))

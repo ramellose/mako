@@ -49,7 +49,7 @@ class TestBase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        os.system('docker stop neo4j')
+        os.system('docker stop neo4j_test')
 
     @unittest.SkipTest  # This test only works on desktop instance, not Docker
     def test_start_base_pid(self):
@@ -192,7 +192,7 @@ class TestBase(unittest.TestCase):
                      "CREATE (n)-[r:PART_OF]->(m) return type(r)")
         outcome = driver.check_domain_range()
         start_base(inputs)
-        self.assertTrue(outcome)
+        self.assertFalse(outcome)
 
 
 if __name__ == '__main__':
