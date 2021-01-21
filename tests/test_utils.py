@@ -206,7 +206,7 @@ class TestUtils(unittest.TestCase):
                               password='test',
                               uri='bolt://localhost:7688', filepath=_resource_path(''),
                               encrypted=False)
-        driver.query("CREATE (n:Node {name: 'Test'}) RETURN n")
+        driver.write("CREATE (n:Node {name: 'Test'}) RETURN n")
         test = driver.query("MATCH (n:Node {name: 'Test'}) RETURN n")
         self.assertEqual(len(test), 1)
 
