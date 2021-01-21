@@ -387,8 +387,8 @@ class TestIo(unittest.TestCase):
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
-        driver.query("MATCH (n:Taxon {name: 'GG_OTU_1'})--(b:Edge) DETACH DELETE b")
-        driver.query("MATCH (n:Taxon {name: 'GG_OTU_1'}) DETACH DELETE n")
+        driver.write("MATCH (n:Taxon {name: 'GG_OTU_1'})--(b:Edge) DETACH DELETE b")
+        driver.write("MATCH (n:Taxon {name: 'GG_OTU_1'}) DETACH DELETE n")
         start_io(inputs)
         network = nx.read_graphml(_resource_path('test.graphml'))
         nx.write_graphml(g, _resource_path('test.graphml'))
