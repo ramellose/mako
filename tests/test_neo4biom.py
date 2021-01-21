@@ -10,6 +10,7 @@ import time
 import os
 import biom
 import pandas as pd
+import numpy as np
 from biom.cli.util import write_biom_table
 from mako.scripts.neo4biom import start_biom, Biom2Neo, read_taxonomy
 from mako.scripts.utils import _resource_path
