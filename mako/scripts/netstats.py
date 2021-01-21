@@ -116,8 +116,13 @@ class NetstatsDriver(ParentDriver):
                 with self._driver.session() as session:
                     intersection_edges = session.read_transaction(self._get_intersection, networks, weight=weight, n=n)
                 with self._driver.session() as session:
-                    setname = session.write_transaction(_write_logic, operation='Intersection' + '_' + str(n),
-                                                       networks=networks, edges=intersection_edges)
+                    name = 'Intersection'
+                    if weight:
+                        name += '_weight'
+                    if n:
+                        name = name + '_' + str(n)
+                    setname = session.write_transaction(_write_logic, operation=name,
+                                                        networks=networks, edges=intersection_edges)
                 logger.info("The intersection set operation for networks " + str(networks) +
                             " has been added to "
                             "the database\nwith name " + setname + ". ")
