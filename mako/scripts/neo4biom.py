@@ -20,9 +20,9 @@ __license__ = 'Apache 2.0'
 import os
 import sys
 import numpy as np
+import pandas as pd
 from biom import load_table
 from biom.parse import MetadataMap
-import pandas as pd
 import logging.handlers
 from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path, _run_subbatch
 
@@ -567,7 +567,10 @@ class Biom2Neo(ParentDriver):
         :param biomfile: BIOM object.
         :return:
         """
-        obs_data = biomfile.to_dataframe()
+        obs_data = biomfile.matrix_data
+        data = [pd.SparseSeries(obs_data[i].toarray().ravel()) for i in np.arange(obs_data.shape[0])]
+        obs_data = pd.SparseDataFrame(data, index=biomfile.ids('observation'),
+                                 columns=biomfile.ids('sample'))
         rows, cols = np.where(obs_data.values != 0)
         observations = list()
         for taxon, sample in list(zip(obs_data.index[rows], obs_data.columns[cols])):
