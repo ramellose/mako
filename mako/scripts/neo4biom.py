@@ -411,7 +411,7 @@ class Biom2Neo(ParentDriver):
         with self._driver.session() as session:
                 session.write_transaction(self._delete_taxon, deletion_dict)
         logger.info('Removed disconnected taxa...')
-        self.query(("MATCH (a:Experiment {name: '" + exp_id + "'}) DETACH DELETE a"))
+        self.write(("MATCH (a:Experiment {name: '" + exp_id + "'}) DETACH DELETE a"))
         logger.info('Finished deleting ' + exp_id + '.')
 
     @staticmethod

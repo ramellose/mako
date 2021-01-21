@@ -78,7 +78,7 @@ def start_io(inputs):
         for name in names:
             logger.info("Deleting " + name + "...")
             driver.delete_network(name)
-        driver.query("MATCH (a:Set) DETACH DELETE a")
+        driver.write("MATCH (a:Set) DETACH DELETE a")
     if inputs['write']:
         try:
             driver.export_network(path=inputs['fp'], networks=inputs['networks'])
@@ -312,7 +312,7 @@ class IoDriver(ParentDriver):
         with self._driver.session() as session:
             session.write_transaction(self._delete_assoc, edge_query_dict)
         logger.info('Detached edges...')
-        self.query(("MATCH (a:Network) WHERE a.name = '" + network_id + "' DETACH DELETE a"))
+        self.write(("MATCH (a:Network) WHERE a.name = '" + network_id + "' DETACH DELETE a"))
         with self._driver.session() as session:
             session.write_transaction(self._delete_disconnected_taxon)
         logger.info('Finished deleting ' + network_id + '.')
