@@ -402,14 +402,14 @@ class TestWrapper(unittest.TestCase):
                           password='test',
                           uri='bolt://localhost:7688', filepath=_resource_path(''),
                           encrypted=False)
-        test = driver.query("MATCH p=(n:Property {name: 'Cluster'})-[r]-(:Taxon) RETURN p")
+        test = driver.query("MATCH p=(n:Property {name: 'Cluster'})-[r]-(m:Taxon) RETURN r.value, m")
         cluster0 = []
         cluster1 = []
         for pattern in test:
-            if pattern['p'].relationships[0]['value'][0] == 'i' and pattern['p'].relationships[0]['value'][-3:] == '0.0':
-                cluster0.append(pattern['p'].nodes[1]['name'])
-            elif pattern['p'].relationships[0]['value'][0]  == 'i' and pattern['p'].relationships[0]['value'][-3:] == '1.0':
-                cluster1.append(pattern['p'].nodes[1]['name'])
+            if pattern['r.value'][0] == 'i' and pattern['r.value'][-3:] == '0.0':
+                cluster0.append(pattern['m']['name'])
+            elif pattern['r.value'][0]  == 'i' and pattern['r.value'][-3:] == '1.0':
+                cluster1.append(pattern['m']['name'])
         driver.query("MATCH (n:Property) DETACH DELETE n")
         self.assertEqual(max(len(cluster0), len(cluster1)), 3)
 

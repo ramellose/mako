@@ -568,9 +568,9 @@ class Biom2Neo(ParentDriver):
         :return:
         """
         obs_data = biomfile.matrix_data
-        data = [pd.SparseSeries(obs_data[i].toarray().ravel()) for i in np.arange(obs_data.shape[0])]
-        obs_data = pd.SparseDataFrame(data, index=biomfile.ids('observation'),
-                                 columns=biomfile.ids('sample'))
+        data = [pd.Series(obs_data[i].toarray().ravel()) for i in np.arange(obs_data.shape[0])]
+        obs_data = pd.DataFrame(data, index=biomfile.ids(axis='observation'))
+        obs_data.columns = biomfile.ids(axis='sample')
         rows, cols = np.where(obs_data.values != 0)
         observations = list()
         for taxon, sample in list(zip(obs_data.index[rows], obs_data.columns[cols])):
