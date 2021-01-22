@@ -129,9 +129,9 @@ class TestNeo4Biom(unittest.TestCase):
         os.system(docker_command)
         write_biom_table(testbiom, filepath=_resource_path('test.hdf5'), fmt='hdf5')
         obs_data = testbiom.matrix_data
-        data = [pd.SparseSeries(obs_data[i].toarray().ravel()) for i in np.arange(obs_data.shape[0])]
-        obs_data = pd.SparseDataFrame(data, index=testbiom.ids('observation'),
-                                      columns=testbiom.ids('sample'))
+        data = [pd.Series(obs_data[i].toarray().ravel()) for i in np.arange(obs_data.shape[0])]
+        obs_data = pd.DataFrame(data, index=testbiom.ids(axis='observation'))
+        obs_data.columns = testbiom.ids(axis='sample')
         obs_data.to_csv(_resource_path('test.tsv'), sep='\t')
         with open(_resource_path('test.tsv'), 'r') as original:
             data = original.read()
