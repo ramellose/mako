@@ -10,6 +10,7 @@ __license__ = 'Apache 2.0'
 
 
 import wx
+import wx.lib.newevent as NE
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
 from pubsub import pub
@@ -20,7 +21,7 @@ import logging
 import logging.handlers
 
 logger = logging.getLogger()
-wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
+wxLogEvent, EVT_WX_LOG_EVENT = NE.NewEvent()
 
 
 class WrapPanel(wx.Panel):

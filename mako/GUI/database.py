@@ -9,6 +9,7 @@ __license__ = 'Apache 2.0'
 
 from threading import Thread
 import wx
+import wx.lib.newevent as NE
 from pubsub import pub
 from mako.scripts.base import start_base
 from mako.scripts.utils import _resource_path, query
@@ -18,7 +19,7 @@ from concurrent.futures import ThreadPoolExecutor
 import logging.handlers
 
 logger = logging.getLogger()
-wxLogEvent, EVT_WX_LOG_EVENT = wx.lib.newevent.NewEvent()
+wxLogEvent, EVT_WX_LOG_EVENT = NE.NewEvent()
 
 
 class BasePanel(wx.Panel):
