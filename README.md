@@ -70,6 +70,6 @@ See also the list of [contributors](https://github.com/ramellose/manta/contribut
 
 ## License
 
-This project is licensed under the Apache License - see the [LICENSE.txt](LICENSE.txt) file for details
+This project is licensed under the Apache License - see the [LICENSE](LICENSE) file for details
 
 
