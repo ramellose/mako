@@ -1,5 +1,7 @@
 # _mako_ ![mako](https://github.com/ramellose/mako/blob/master/mako.png)
 
+[![HitCount](http://hits.dwyl.com/ramellose/mako.svg)](http://hits.dwyl.com/ramellose/mako)
+
 Microbial Associations Katalog. _mako_ helps you structure data from multiple networks to carry out better meta-analysis.
 This package contains functions for importing BIOM and network files into a Neo4j database according to an OWL database model.
 Neo4j is a native graph database and therefore the natural match for linked biological data.
