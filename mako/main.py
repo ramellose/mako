@@ -311,7 +311,7 @@ parse_netstats.add_argument('-frac', '--fraction',
                             dest='fraction',
                             required=False,
                             help='List of fractions to use for partial intersections. ',
-                            type=int,
+                            type=float,
                             default=[1],
                             nargs='+')
 parse_netstats.set_defaults(netstats=True)
