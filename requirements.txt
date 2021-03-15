@@ -1,4 +1,5 @@
 numpy
+Cython
 scipy
 h5py
 neo4j
