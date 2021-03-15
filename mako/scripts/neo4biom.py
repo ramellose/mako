@@ -149,7 +149,7 @@ def read_bioms(files, filepath, driver, obs=True):
         if checked_path:
             biomtab = load_table(checked_path)
         else:
-            os.exit()
+            sys.exit()
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
         name = name.split(".")[0]
