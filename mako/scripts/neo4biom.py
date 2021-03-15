@@ -149,6 +149,7 @@ def read_bioms(files, filepath, driver, obs=True):
         if checked_path:
             biomtab = load_table(checked_path)
         else:
+            logger.error("Unable to read BIOM file.")
             sys.exit()
         name = files.split('/')[-1]
         name = name.split('\\')[-1]
