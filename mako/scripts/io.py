@@ -474,7 +474,7 @@ class IoDriver(ParentDriver):
         # first step:
         # check whether key values in node dictionary exist in network
         with self._driver.session() as session:
-            network_query = [{'name': x} for x in nodes.keys()]
+            network_query = [{'name': str(x)} for x in nodes.keys()]
             matches = session.read_transaction(self._find_nodes, network_query)
             found_nodes = sum([matches[x] for x in matches])
             if found_nodes == 0:
