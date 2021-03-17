@@ -192,10 +192,12 @@ def add_metadata(filepath, location, driver):
                 driver.include_nodes(nodes=value_dict, name=target, label=source)
     else:
         checked_path = _get_path(path=location, default=filepath)
-    if checked_path:
-        source, target, value_dict = _convert_table(checked_path)
-        logger.info("Uploading " + str(len(value_dict)) + " values.")
-        driver.include_nodes(nodes=value_dict, name=target, label=source)
+        if checked_path:
+            source, target, value_dict = _convert_table(checked_path)
+            logger.info("Uploading " + str(len(value_dict)) + " values.")
+            driver.include_nodes(nodes=value_dict, name=target, label=source)
+        else:
+            logger.error("Unable to read metadata file.")
 
 
 def _convert_fasta(filename):
