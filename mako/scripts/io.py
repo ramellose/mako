@@ -482,11 +482,11 @@ class IoDriver(ParentDriver):
                 sys.exit()
             elif verbose:
                 logger.info(str(found_nodes) + ' out of ' + str(len(matches)) + ' values found in database.')
-        found_nodes = {x: v for x, v in nodes.items() if matches[x]}
+        found_nodes = {x: v for x, v in nodes.items() if matches[str(x)]}
         node_query_dict = list()
         if type(found_nodes[list(found_nodes.keys())[0]]) == dict:
             for node in found_nodes:
-                single_query = {'source': node,
+                single_query = {'source': str(node),
                                 'target': str(nodes[node]['target']),
                                 'name': name}
                 for property in found_nodes[node]:
@@ -500,7 +500,7 @@ class IoDriver(ParentDriver):
                                               node_query_dict, sourcetype=label)
         else:
             for node in found_nodes:
-                node_query_dict.append({'source': node,
+                node_query_dict.append({'source': str(node),
                                         'target': str(nodes[node]['target']),
                                         'name': name})
             with self._driver.session() as session:
