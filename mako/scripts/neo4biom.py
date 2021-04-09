@@ -22,9 +22,15 @@ import sys
 import numpy as np
 import pandas as pd
 from biom import load_table
+import zipfile
+import yaml
+import tempfile
+import shutil
+from pathlib import Path
 from biom.parse import MetadataMap
 import logging.handlers
-from mako.scripts.utils import ParentDriver, _create_logger, _read_config, _get_path, _run_subbatch
+from mako.scripts.utils import ParentDriver, _create_logger, \
+    _read_config, _get_path, _run_subbatch
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -67,7 +73,7 @@ def start_biom(inputs):
                           encrypted=inputs['encryption'])
     except KeyError:
         logger.error("Login information not specified in arguments.", exc_info=True)
-        exit()
+        sys.exit()
     check_arguments(inputs)
     # Only process count files if present
     if inputs['biom_file'] is not None:
@@ -117,11 +123,11 @@ def check_arguments(inputs):
     if inputs['sample_meta'] is not None:
         if len(inputs['count_table']) is not len(inputs['sample_data']):
             logger.error("Add a sample data table for every OTU table!", exc_info=True)
-            exit()
+            sys.exit()
     if inputs['taxon_meta'] is not None:
         if len(inputs['count_table']) is not len(inputs['taxon_meta']):
             logger.error("Add a metadata table for every OTU table!", exc_info=True)
-            exit()
+            sys.exit()
 
 
 def read_bioms(files, filepath, driver, obs=True):
@@ -182,7 +188,7 @@ def read_tabs(inputs, i):
             file_prefix = filepath + '/'
     else:
         logger.warning("Failed to combine input files.", exc_info=True)
-        exit()
+        sys.exit()
     name = input_fp.split('/')[-1]
     name = name.split('\\')[-1]
     name = name.split(".")[0]
@@ -242,12 +248,88 @@ def read_taxonomy(filename, filepath):
         taxtab = pd.read_csv(checked_path, sep='\t', index_col=0)
     else:
         logger.warning("Failed to read taxonomy table.", exc_info=True)
-        exit()
+        sys.exit()
     name = filename.split('/')[-1]
     name = name.split('\\')[-1]
     name = name.split(".")[0]
     # sample metadata is not mandatory, catches None
     return name, taxtab
+
+
+def read_qiime2(files, filepath, driver):
+    """
+    Reads a qza Qiime2 artifact and writes this to the Neo4j database.
+    The type information is used to create a new node label in the Neo4j database.
+    The uuid is used to create an Experiment node that links the artifact data.
+
+    If the artifact is an OTU table, the import proceeds as if it was a BIOM file.
+    If not -- design
+
+    To avoid installing all of Qiime 2 as a dependency,
+    mako contains some utility functions that handle the unzipping
+    and reading of the Artifact files.
+
+    :param files: List of BIOM filenames or file directories
+    :param filepath: Filepath where files are stored / written
+    :param driver: Biom2Neo driver instance
+    :return:
+    """
+    if os.path.isdir(files):
+        for y in os.listdir(files):
+            artifact, biomtab = _load_qiime2(files + '/' + y)
+            name = artifact['uuid']
+            driver.convert_biom(biomfile=biomtab, exp_id=name)
+            driver.query("MATCH (n:Experiment {name: '" + name +
+                         "'}) SET n.type = '" + artifact['type'] +
+                         "' SET n.format = '" + artifact['format'] +
+                         "' RETURN n.format")
+    else:
+        checked_path = _get_path(path=files, default=filepath)
+        if checked_path:
+            artifact, biomtab = _load_qiime2(checked_path)
+        else:
+            logger.error("Unable to read BIOM file.")
+            sys.exit()
+        name = artifact['uuid']
+        driver.convert_biom(biomfile=biomtab, exp_id=name)
+        driver.query("MATCH (n:Experiment {name: '" + name +
+                     "'}) SET n.type = '" + artifact['type'] +
+                     "' SET n.format = '" + artifact['format'] +
+                     "' RETURN n.format")
+        driver.convert_biom(biomfile=biomtab, exp_id=name)
+
+
+def _load_qiime2(filepath):
+    """
+    Loads a Qiime2 Artifact object and
+    returns this object as a tuple of metadata and BIOM table.
+
+    :param filepath: Complete filepath to Qiime2 object
+    :return:
+    """
+    filepath = Path(filepath)
+    # create temp directory
+    dirpath = tempfile.mkdtemp()
+    if zipfile.is_zipfile(str(filepath)):
+        with zipfile.ZipFile(str(filepath), mode='r') as file:
+            file.extractall(dirpath)
+    else:
+        shutil.rmtree(dirpath)
+        logger.error("This file is not an archive, quitting mako.")
+        sys.exit()
+    toplevel = os.listdir(dirpath)[0]
+    # read metadata
+    with open(dirpath + "/" + toplevel + "/metadata.yaml", 'r') as stream:
+        artifact = yaml.safe_load(stream)
+    try:
+        file = load_table(dirpath + "/" + toplevel + "/data/feature-table.biom")
+    except FileNotFoundError:
+        shutil.rmtree(dirpath)
+        logger.error("Could not find a feature-table.biom file in the archive.")
+        sys.exit()
+    # delete temp directory
+    shutil.rmtree(dirpath)
+    return artifact, file
 
 
 class Biom2Neo(ParentDriver):
