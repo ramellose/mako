@@ -124,6 +124,8 @@ def check_arguments(inputs):
     """
     if inputs['biom_file'] is not None:
         logger.info('BIOM file(s) to process: ' + ", \n".join(inputs['biom_file']))
+    if inputs['biom_file'] is not None:
+        logger.info('Qiime 2 archive file(s) to process: ' + ", \n".join(inputs['qza']))
     if inputs['count_table'] is not None:
         logger.info('Tab-delimited OTU table(s) to process: \n' + ", \n".join(inputs['count_table']))
     if inputs['tax_table'] is not None:
@@ -162,13 +164,13 @@ def read_bioms(files, filepath, driver, obs=True):
         checked_path = _get_path(path=files, default=filepath)
         if checked_path:
             biomtab = load_table(checked_path)
+            name = files.split('/')[-1]
+            name = name.split('\\')[-1]
+            name = name.split(".")[0]
+            driver.convert_biom(biomfile=biomtab, exp_id=name)
         else:
-            logger.error("Unable to read BIOM file.")
+            logger.error("Unable to read BIOM file, path is incorrect.")
             sys.exit()
-        name = files.split('/')[-1]
-        name = name.split('\\')[-1]
-        name = name.split(".")[0]
-        driver.convert_biom(biomfile=biomtab, exp_id=name)
 
 
 def read_tabs(inputs, i):
@@ -270,8 +272,10 @@ def read_qiime2(files, filepath, driver):
     The type information is used to create a new node label in the Neo4j database.
     The uuid is used to create an Experiment node that links the artifact data.
 
-    If the artifact is an OTU table, the import proceeds as if it was a BIOM file.
-    If not -- design
+    If the artifact is an OTU table,
+    the import proceeds as if it was a BIOM file.
+    If the artifact is a taxonomy table,
+    the import proceeds as if it was a tab-delimited taxonomy file.
 
     To avoid installing all of Qiime 2 as a dependency,
     mako contains some utility functions that handle the unzipping
@@ -284,27 +288,29 @@ def read_qiime2(files, filepath, driver):
     """
     if os.path.isdir(files):
         for y in os.listdir(files):
-            artifact, biomtab = _load_qiime2(files + '/' + y)
-            name = artifact['uuid']
-            driver.convert_biom(biomfile=biomtab, exp_id=name)
-            driver.query("MATCH (n:Experiment {name: '" + name +
-                         "'}) SET n.type = '" + artifact['type'] +
-                         "' SET n.format = '" + artifact['format'] +
-                         "' RETURN n.format")
+            filepath = files + '/' + y
+            _upload_qiime2(filepath, driver)
     else:
         checked_path = _get_path(path=files, default=filepath)
         if checked_path:
-            artifact, biomtab = _load_qiime2(checked_path)
+            _upload_qiime2(checked_path, driver)
         else:
-            logger.error("Unable to read BIOM file.")
+            logger.error("Unable to read qza file, path is incorrect.")
             sys.exit()
+
+
+def _upload_qiime2(filepath, driver):
+    artifact, file = _load_qiime2(filepath)
+    if artifact['type'] == 'FeatureTable[Frequency]':
         name = artifact['uuid']
-        driver.convert_biom(biomfile=biomtab, exp_id=name)
+        driver.convert_biom(biomfile=file, exp_id=name)
         driver.query("MATCH (n:Experiment {name: '" + name +
                      "'}) SET n.type = '" + artifact['type'] +
                      "' SET n.format = '" + artifact['format'] +
                      "' RETURN n.format")
-        driver.convert_biom(biomfile=biomtab, exp_id=name)
+    elif artifact['type'] == 'FeatureData[Taxonomy]':
+        name = artifact['uuid']
+        driver.convert_taxonomy(file, name)
 
 
 def _load_qiime2(filepath):
@@ -330,10 +336,21 @@ def _load_qiime2(filepath):
     with open(dirpath + "/" + toplevel + "/metadata.yaml", 'r') as stream:
         artifact = yaml.safe_load(stream)
     try:
-        file = load_table(dirpath + "/" + toplevel + "/data/feature-table.biom")
+        if artifact['type'] == 'FeatureTable[Frequency]':
+            file = load_table(dirpath + "/" + toplevel + "/data/feature-table.biom")
+
+        elif artifact['type'] == 'FeatureData[Taxonomy]':
+            file = pd.read_table(dirpath + "/" + toplevel + "/data/taxonomy.tsv", sep='\t')
+            file[['Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'Genus', 'Species']] = \
+                file['Taxon'].str.split('; ', 7, expand=True)
+            file = file.set_index('Feature ID')
+            file = file.drop(['Taxon', 'Confidence'], axis=1)
+        else:
+            logger.error("Archive type " + artifact['type']+ " not supported by mako.")
+            sys.exit()
     except FileNotFoundError:
         shutil.rmtree(dirpath)
-        logger.error("Could not find a feature-table.biom file in the archive.")
+        logger.error("Could not find a feature-table file in the archive.")
         sys.exit()
     # delete temp directory
     shutil.rmtree(dirpath)
@@ -544,9 +561,10 @@ class Biom2Neo(ParentDriver):
         # Create each taxonomic label
         taxonomy_query_dict = list()
         for val in taxonomy_table_i:
-            # filters out empty assignments with just prefix
-            if len(val) > 4:
-                taxonomy_query_dict.append({'label': val})
+            # filters out empty assignments with just prefix or None
+            if val:
+                if len(val) > 4:
+                    taxonomy_query_dict.append({'label': val})
         return taxonomy_query_dict
 
     @staticmethod
@@ -562,8 +580,9 @@ class Biom2Neo(ParentDriver):
         taxonomy_table_i = taxonomy_table.iloc[:, [i, i - 1]].drop_duplicates()
         for index, row in taxonomy_table_i.iterrows():
             # filters out empty assignments with just prefix
-            if len(row[0]) > 4:
-                taxonomy_query_dict.append({'label1': row[0], 'label2': row[1]})
+            if row[0]:
+                if len(row[0]) > 4:
+                    taxonomy_query_dict.append({'label1': row[0], 'label2': row[1]})
         return taxonomy_query_dict
 
     @staticmethod
@@ -578,8 +597,9 @@ class Biom2Neo(ParentDriver):
         for taxon in biomfile.ids(axis='observation'):
             tax_index = biomfile.index(axis='observation', id=taxon)
             tax_labels = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
-            if len(tax_labels[i]) > 4:
-                taxonomy_query_dict.append({'taxon': taxon, 'level': tax_labels[i]})
+            if tax_labels[i]:
+                if len(tax_labels[i]) > 4:
+                    taxonomy_query_dict.append({'taxon': taxon, 'level': tax_labels[i]})
         return taxonomy_query_dict
 
     @staticmethod
@@ -594,8 +614,9 @@ class Biom2Neo(ParentDriver):
         for j in range(len(taxonomy_table.index)):
             tax_name = list(taxonomy_table.index)[j]
             tax_label = taxonomy_table.iloc[j][i]
-            if len(tax_label) > 4:
-                taxonomy_query_dict.append({'taxon': tax_name, 'level': tax_label})
+            if tax_label:
+                if len(tax_label) > 4:
+                    taxonomy_query_dict.append({'taxon': tax_name, 'level': tax_label})
         return taxonomy_query_dict
 
     @staticmethod

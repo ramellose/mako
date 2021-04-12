@@ -194,10 +194,11 @@ parse_neo4biom.add_argument('-biom', '--biom_file',
                             type=str,
                             default=None,
                             nargs='+')
-parse_neo4biom.add_argument('-qza', '--qiita_archive',
+parse_neo4biom.add_argument('-qza', '--qiime_archive',
                             dest='qza',
                             required=False,
-                            help='One or more Qiita2 archive files. ',
+                            help='One or more Qiime2 archive files containing a feature table '
+                                 '\n(frequency or taxonomy). ',
                             type=str,
                             default=None,
                             nargs='+')
