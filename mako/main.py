@@ -194,6 +194,13 @@ parse_neo4biom.add_argument('-biom', '--biom_file',
                             type=str,
                             default=None,
                             nargs='+')
+parse_neo4biom.add_argument('-qza', '--qiita_archive',
+                            dest='qza',
+                            required=False,
+                            help='One or more Qiita2 archive files. ',
+                            type=str,
+                            default=None,
+                            nargs='+')
 parse_neo4biom.add_argument('-count', '--count_table',
                             dest='count_table',
                             required=False,

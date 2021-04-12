@@ -84,6 +84,14 @@ def start_biom(inputs):
                 read_bioms(files=x, filepath=inputs['fp'], driver=driver, obs=inputs['obs'])
         except Exception:
             logger.error("Failed to import BIOM files.", exc_info=True)
+    if inputs['qza'] is not None:
+        try:
+            for x in inputs['qza']:
+                # first check if it is a file or path
+                logger.info('Working on ' + x + '...')
+                read_qiime2(files=x, filepath=inputs['fp'], driver=driver)
+        except Exception:
+            logger.error("Failed to import Qiime 2 artifact.", exc_info=True)
     if inputs['count_table'] is not None:
         try:
             for i in range(len(inputs['count_table'])):
