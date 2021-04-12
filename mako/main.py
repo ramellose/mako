@@ -48,7 +48,7 @@ def mako(mako_args):
     :return:
     """
     if mako_args['version']:
-        info = VersionInfo('anuran')
+        info = VersionInfo('mako')
         logger.info('Version ' + info.version_string())
         sys.exit(0)
     if (mako_args['store_config'] is False) and (mako_args['username'] is None):

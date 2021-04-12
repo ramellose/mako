@@ -1,0 +1,33 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: mako
+  version: {{ data.get('version') }}
+
+source:
+  git_url: https://github.com/ramellose/mako
+
+requirements:
+  host:
+    - python >=3.5
+    - setuptools
+  run:
+    - python >=3.5
+    - numpy >=1.15.0
+    - scipy >=1.4.1
+    - h5py >=2.9.0
+    - neo4j-python-driver >=4.2.1
+    - networkx >=2.2
+    - pandas >=1.1.5
+    - biom-format
+    - psutil
+    - requests
+    - Cython
+    - manta
+    - anuran
+
+about:
+  home: https://github.com/ramellose/mako
+  license: Apache 2.0
+  license_file: LICENSE
+  summary: "Cataloguing microbial associations"
