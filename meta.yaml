@@ -1,11 +1,19 @@
-{% set data = load_setup_py_data() %}
+{% set version = "v0.3.0" %}
 
 package:
   name: mako
-  version: 1.0
+  version: "{{ version }}"
 
 source:
-  git_url: https://github.com/ramellose/mako
+  url: https://github.com/ramellose/mako/archive/v0.3.0.tar.gz
+  sha256: 3f9c194a5888d4a298ed54a4606f3c9736fe02a867fb382235b2fe9c50dc4719
+
+build:
+  noarch: python
+  number: 0
+  script: python -m pip install --no-deps --ignore-installed .
+  entry_points:
+    - mako = mako.main:main
 
 requirements:
   host:
@@ -21,6 +29,7 @@ requirements:
     - networkx >=2.2
     - pandas >=1.1.5
     - pbr
+    - yaml
     - biom-format
     - psutil
     - requests
@@ -28,8 +37,14 @@ requirements:
     - manta
     - anuran
 
+test:
+  imports:
+    - mako
+  commands:
+    - mako -h
+
 about:
   home: https://github.com/ramellose/mako
   license: Apache 2.0
   license_file: LICENSE
-  summary: "Cataloguing microbial associations"
+  summary: "Cataloguing microbial associations via Neo4j"

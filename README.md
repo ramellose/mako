@@ -21,25 +21,21 @@ This version is still in early alpha and has been tested for Python 3.6.
 
 ## Getting Started
 
-First set up a [virtual environment](https://docs.python-guide.org/dev/virtualenvs/) and make sure it uses Python 3:
+You can use conda to install mako. 
+First add the channel hosting mako and its dependencies: 
 ```
-virtualenv venv
-# Linux
-source venv/bin/activate
-
-# Windows
-venv/Scripts/activate
-
-# Once you are done with mako:
-deactivate
+conda config --add channels ramellose
 ```
 
-To install _mako_, run:
+Then create a new environment containing mako:
 ```
-pip install git+https://github.com/ramellose/mako.git
+conda create -n myenv mako 
+conda activate myenv
 ```
 
-If you have both Python 2.7 and Python 3 installed, you may need to change the command to this:
+You can then call the mako command line tool from the conda environment. 
+
+To install _mako_ locally, run:
 ```
 python3 -m pip install git+https://github.com/ramellose/mako.git
 ```
