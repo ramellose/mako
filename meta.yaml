@@ -1,5 +1,5 @@
 {% set data = load_setup_py_data() %}
-{% set version = "v1.1.0" %}
+{% set version = "1.1.0" %}
 
 package:
   name: mako
@@ -8,6 +8,11 @@ package:
 source:
   url: https://github.com/ramellose/mako/archive/v0.3.0.tar.gz
   sha256: 3f9c194a5888d4a298ed54a4606f3c9736fe02a867fb382235b2fe9c50dc4719
+
+build:
+  script: python setup.py install
+  entry_points:
+    - mako = mako.main:main
 
 requirements:
   host:
