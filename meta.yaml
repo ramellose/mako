@@ -19,7 +19,7 @@ requirements:
     - scipy >=1.4.1
     - h5py >=2.9.0
     - neo4j-python-driver >=4.2.1
-    - networkx >=2.2
+    - networkx >=2.5
     - pandas >=1.1.5
     - pbr
     - yaml
