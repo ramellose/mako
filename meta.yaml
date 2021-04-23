@@ -6,8 +6,7 @@ package:
   version: "{{ version }}"
 
 source:
-  url: https://github.com/ramellose/mako/archive/v0.3.0.tar.gz
-  sha256: 3f9c194a5888d4a298ed54a4606f3c9736fe02a867fb382235b2fe9c50dc4719
+  git_url: https://github.com/ramellose/mako.git
 
 requirements:
   host:
