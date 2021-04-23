@@ -691,71 +691,27 @@
         </Annotation>
         <AnnotationProperty IRI="http://purl.obolibrary.org/obo/IAO_0000115"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Ranked categories for the classification of organisms according to their suspected evolutionary relationships.</Literal>
+        <Literal>The theories and techniques of naming, describing, and classifying organisms, and the study of the relationships of taxa. [ from On-line Medical Dictionary NCI ]</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_NHC0"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>C40098</Literal>
+        <Literal>C17469</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P106"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Conceptual Entity</Literal>
+        <Literal>Occupation or Discipline</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P108"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Taxon</Literal>
+        <Literal>Taxonomy</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P207"/>
         <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>C1515221</Literal>
-    </AnnotationAssertion>
-    <AnnotationAssertion>
-        <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P366"/>
-        <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Taxon</Literal>
-    </AnnotationAssertion>
-    <AnnotationAssertion>
-        <Annotation>
-            <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P383"/>
-            <Literal>SY</Literal>
-        </Annotation>
-        <Annotation>
-            <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P384"/>
-            <Literal>NCI</Literal>
-        </Annotation>
-        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
-        <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Biological Taxon</Literal>
-    </AnnotationAssertion>
-    <AnnotationAssertion>
-        <Annotation>
-            <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P383"/>
-            <Literal>PT</Literal>
-        </Annotation>
-        <Annotation>
-            <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P384"/>
-            <Literal>NCI</Literal>
-        </Annotation>
-        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
-        <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Taxon</Literal>
-    </AnnotationAssertion>
-    <AnnotationAssertion>
-        <Annotation>
-            <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P383"/>
-            <Literal>SY</Literal>
-        </Annotation>
-        <Annotation>
-            <AnnotationProperty IRI="http://purl.obolibrary.org/obo/NCIT_P384"/>
-            <Literal>NCI</Literal>
-        </Annotation>
-        <AnnotationProperty IRI="http://www.geneontology.org/formats/oboInOwl#hasExactSynonym"/>
-        <IRI>http://purl.obolibrary.org/obo/NCIT_C40098</IRI>
-        <Literal>Taxonomy</Literal>
+        <Literal>C0087066</Literal>
     </AnnotationAssertion>
     <AnnotationAssertion>
         <AnnotationProperty abbreviatedIRI="rdfs:label"/>
