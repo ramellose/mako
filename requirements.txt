@@ -10,7 +10,7 @@ pubsub
 pbr
 pandas
 requests
-yaml
+pyyaml
 # If you want to run manta and anuran
 # Follow instructions at github.com/ramellose/manta
 # and github.com/ramellose/anuran
