@@ -101,7 +101,7 @@ class NetstatsDriver(ParentDriver):
         """
         Returns a subgraph that contains all nodes present in both specified networks.
         If no networks are specified, the function returns only nodes that are
-        connected to all nodes in the network.
+        connected to all networks.
         :param networks: List of network names
         :param weight: If false, the intersection includes edges with matching partners but different weights
         :param fraction: If specified, fraction of networks that the intersecting node should be in

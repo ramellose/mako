@@ -230,7 +230,6 @@ class BaseDriver(ParentDriver):
         are properties in the database that violate the domains
         and ranges specified in the ontology.
 
-        :param neo4jdriver: A database driver as instantiated by base.py.
         :return: Success message or log of ontology violations
         """
         error = False

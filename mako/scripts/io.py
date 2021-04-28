@@ -286,9 +286,6 @@ class IoDriver(ParentDriver):
         Uploads NetworkX object to Neo4j database.
         :param network_id: Name for network node.
         :param network: NetworkX object.
-        :param exp_id: Name of experiment used to generate network.
-        :param log: Log of steps carried out to generate network
-        :param mode: if 'weight, weighted edges are uploaded
         :return:
         """
         try:
@@ -304,6 +301,12 @@ class IoDriver(ParentDriver):
             logger.error("Could not write networkx object to database. \n", exc_info=True)
 
     def delete_network(self, network_id):
+        """
+        Deletes a Network node and Edge nodes that are not connected to other networks.
+
+        :param network_id: Name for network node.
+        :return:
+        """
         query = ("MATCH (a:Edge)--(b:Network) "
                         "WHERE b.name = '" + network_id +
                         "' RETURN a.name")
@@ -322,7 +325,7 @@ class IoDriver(ParentDriver):
     def return_networks(self, networks):
         """
         Returns NetworkX networks from the Neo4j database.
-        :param networks: Names of networks to return.
+        :param networks: List of network names to return.
         :return: Dictionary of networks
         """
         results = dict()
@@ -384,8 +387,8 @@ class IoDriver(ParentDriver):
         """
         Writes networks to graphML file.
         If no path is given, the network is returned as a NetworkX object.
-        :param path: Filepath where network is written to.
-        :param networks: Names of networks to write to disk.
+        :param path: Filepath for writing network(s) to.
+        :param networks: List of network names to write to disk.
         :return:
         """
         results = None
@@ -403,7 +406,7 @@ class IoDriver(ParentDriver):
     def export_cyto(self, networks=None):
         """
         Writes networks to Cytoscape.
-        :param networks: Names of networks to write to disk.
+        :param networks: Names of networks to export
         :return:
         """
         if not networks:
@@ -507,32 +510,6 @@ class IoDriver(ParentDriver):
                 session.write_transaction(self._create_property,
                                           node_query_dict, sourcetype=label)
 
-    def export_fasta(self, fp, name):
-        """
-        This function exports a FASTA file compatible with other tools,
-        e.g. PICRUSt2.
-        The advantage of using this FASTA file is that it
-        only contains taxa present in the database.
-        Hence, tools like PICRUSt2 will run much faster.
-        While mako cannot directly run PICRUSt2, the below command
-        is an example of how you could generate a PICRUSt2 table to provide to mako.
-        You don't need to run the full PICRUSt2 pipeline because
-        massoc will not use the predicted function abundances.
-        For the cheese demo, you could run PICRUSt2 as follows:
-        place seqs.py -s cheese.fasta -o cheese.tre -p 1
-        :param fp: Output filepath for storing intermediate files.
-        :param name: List of names for files in database.
-        :return:
-        """
-        # first run the system_call_check place_seqs_cmd
-        # many of the commands are default
-        # we can extract a fasta of sequences from the database
-        with self._driver.session() as session:
-            study_fasta = session.read_transaction(self._get_fasta)
-        file = open(fp + "//" + ''.join(name) + ".fasta", "w")
-        file.write(study_fasta)
-        file.close()
-        # use default reference files
 
     @staticmethod
     def _create_network(tx, network, exp_id=None, log=None):

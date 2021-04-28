@@ -106,8 +106,8 @@ class MetastatsDriver(ParentDriver):
             3. Create new edge
             4. Delete edge pair
 
-        :param level: Taxonomic level matching taxonomic assignments in Neo4j database
-        :param weight: if True, takes edge weight into account
+        :param level: Taxonomic level to agglomerate to
+        :param weight: If True, takes edge weight sign into account
         :param networks: If specified, only these networks are agglomerated
         :return:
         """
@@ -215,13 +215,13 @@ class MetastatsDriver(ParentDriver):
 
     def get_pairlist(self, level, weight, network):
         """
-        Starts a new transaction for every pair list request.
+        Returns an edge pair.
         A pair is defined as two edges linked to taxonomic nodes
         that have the same taxonomic assignment at the specified level,
         e.g. Nitrobacter-edge-Nitrosomonas.
         :param level: Taxonomic level to identify a pair.
-        :param weight: if True, specifies that edge weights should have the same sign.
-        :param network: Name of network that the pairs should belong to
+        :param weight: If True, specifies that edge weights should have the same sign.
+        :param network: Name of network that the pair should belong to
         :return: List containing results of Neo4j transaction
         """
         pairs = None
@@ -241,7 +241,7 @@ class MetastatsDriver(ParentDriver):
         are deleted and replaced by a new edge.
         :param pair: List containing transaction results of query for pair
         :param level: Taxonomic level to identify a pair.
-        :param weight: if True, specifies that edge weights should have identical signs.
+        :param weight: If True, specifies that edge weights should have identical signs.
         :param network: Name of network
         :return:
         """
@@ -270,8 +270,6 @@ class MetastatsDriver(ParentDriver):
 
     def associate_samples(self, label, null_input=None):
         """
-        Sample identities themselves are not that informative,
-        but the properties associated with them are.
         To test the hypothesis that taxa are associated with specific sample properties,
         the following tests are performed:
         1. For qualitative variables, a hypergeometric test is performed;
@@ -301,7 +299,7 @@ class MetastatsDriver(ParentDriver):
         Tests whether specific sample properties can be associated to a taxon.
         :param taxon: Name of a taxon.
         :param null_input: If missing values are not specified as NA, specify the NA input here.
-        :param properties: List specifying types of properties to query.
+        :param properties: List specifying names of properties to query.
         :return:
         """
         try:
@@ -359,10 +357,10 @@ class MetastatsDriver(ParentDriver):
 
     def get_taxlist(self, level, network):
         """
-        Starts a new transaction for every tax list request.
-        A tax list is a list containing two edges linked to identical taxa.
-        :param level: Taxonomic level.
-        :param network: Network name
+        Returns a taxon pair.
+        A taxon pair is a list containing two edges linked to identical taxonomy.
+        :param level: Taxonomic level to identify a pair.
+        :param network: Name of network that the pair should belong to
         :return: List of transaction outcomes
         """
         pairs = None
@@ -381,8 +379,8 @@ class MetastatsDriver(ParentDriver):
         Old nodes are linked to the new agglomerated node,
         except for Agglom_Taxon; in that case,
         links to the ancestral nodes are generated.
-        :param pair: Pair as returned by the pair list functions
-        :param level: Taxonomic level
+        :param pair: List containing transaction results of query for pair
+        :param level: Taxonomic level to identify a pair
         :param weight: If false, merges edges with different weights
         :return:
         """
