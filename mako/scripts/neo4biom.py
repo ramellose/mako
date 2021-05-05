@@ -99,7 +99,7 @@ def start_biom(inputs):
                 driver.convert_biom(biomfile=biomtab, exp_id=name, obs=inputs['obs'])
         except Exception:
             logger.warning("Failed to combine input files.", exc_info=True)
-    if inputs['tax_table'] is not None and inputs['count_table'] is None:
+    elif inputs['tax_table'] is not None:
         try:
             for x in inputs['tax_table']:
                 logger.info('Working on uploading separate taxonomy table ' + x + '...')
