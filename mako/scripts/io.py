@@ -223,20 +223,22 @@ def _convert_table(data):
     Reads a tab-delimited table and converts this into a dictionary that can
     be used by the IO driver include_nodes function.
 
+    The table can come both with and without edge weight, in which case None is returned as the edge weight.
+
     :param data: Location of tab-delimited file
     :return:
     """
     data = pd.read_csv(data, sep='\t')
     source = data.columns[0].strip()
     target = data.columns[1].strip()
-    data_dict = data.set_index(data.columns[0]).to_dict()
-    value_dict = dict()
-    for key in data[list(data.keys())[0]]:
-        if len(data.columns) == 3:
-            value_dict[key] = [data_dict[data.columns[1]][key], data_dict[data.columns[2]][key]]
-        else:
-            value_dict[key] = [data_dict[data.columns[1]][key], None]
-    value_dict = {k: {'target': v[0], 'weight': v[1]} for k, v in value_dict.items()}
+    value_dict = list()
+    for row in data.iterrows():
+        partial_dict = {'source': row[1][source],
+                        'target': row[1][target]}
+        for col in data.columns:
+            if col not in [source, target]:
+                partial_dict[col] = row[1][col]
+        value_dict.append(partial_dict)
     return source, target, value_dict
 
 
@@ -477,7 +479,7 @@ class IoDriver(ParentDriver):
         # first step:
         # check whether key values in node dictionary exist in network
         with self._driver.session() as session:
-            network_query = [{'name': str(x)} for x in nodes.keys()]
+            network_query = [{'name': str(x['source'])} for x in nodes]
             matches = session.read_transaction(self._find_nodes, network_query)
             found_nodes = sum([matches[x] for x in matches])
             if found_nodes == 0:
@@ -485,31 +487,21 @@ class IoDriver(ParentDriver):
                 sys.exit()
             elif verbose:
                 logger.info(str(found_nodes) + ' out of ' + str(len(matches)) + ' values found in database.')
-        found_nodes = {x: v for x, v in nodes.items() if matches[str(x)]}
+        found_nodes = [x for x in nodes if matches[str(x['source'])]]
         node_query_dict = list()
-        if type(found_nodes[list(found_nodes.keys())[0]]) == dict:
-            for node in found_nodes:
-                single_query = {'source': str(node),
-                                'target': str(nodes[node]['target']),
-                                'name': name}
-                for property in found_nodes[node]:
-                    if found_nodes[node][property]:
-                        single_query[property] = found_nodes[node][property]
-                node_query_dict.append(single_query)
-            with self._driver.session() as session:
-                    # each dictionary value is another dictionary
-                    # this dictionary contains the target and weight
-                    session.write_transaction(self._create_property,
-                                              node_query_dict, sourcetype=label)
-        else:
-            for node in found_nodes:
-                node_query_dict.append({'source': str(node),
-                                        'target': str(nodes[node]['target']),
-                                        'name': name})
-            with self._driver.session() as session:
+        for node in found_nodes:
+            single_query = {'source': str(node['source']),
+                            'target': str(node['target']),
+                            'name': name}
+            for property in node:
+                if property not in ['source', 'target']:
+                    single_query[property] = node[property]
+            node_query_dict.append(single_query)
+        with self._driver.session() as session:
+                # each dictionary value is another dictionary
+                # this dictionary contains the target and weight
                 session.write_transaction(self._create_property,
                                           node_query_dict, sourcetype=label)
-
 
     @staticmethod
     def _create_network(tx, network, exp_id=None, log=None):
