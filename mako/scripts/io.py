@@ -857,7 +857,7 @@ class IoDriver(ParentDriver):
                     "UNWIND batch as record " \
                     "MERGE (a:" + name + \
                     " {name:record.target }) RETURN a"
-            tx.run(query, bach=query_dict)
+            tx.run(query, batch=query_dict)
             property_names = [x for x in query_dict[0].keys()
                               if x not in ['source',
                                            'sourcetype',
@@ -879,6 +879,7 @@ class IoDriver(ParentDriver):
                     " {name: record.target}) " \
                     "CREATE (a)-[r:QUALITY_OF" + property_query +\
                     "]->(b) RETURN r"
+            tx.run(query, batch=query_dict)
         else:
             query = "WITH $batch as batch " \
                     "UNWIND batch as record " \
