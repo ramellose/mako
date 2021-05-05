@@ -861,7 +861,7 @@ class IoDriver(ParentDriver):
                 "UNWIND batch as record " \
                 "MATCH (a" + sourcetype + " {name:record.source}), " \
                 "(b:Property {name: record.name}) " \
-                "MERGE (a)-[r:QUALITY_OF {value: record.target}]->(b) RETURN r"
+                "CREATE (a)-[r:QUALITY_OF {value: record.target}]->(b) RETURN r"
         tx.run(query, batch=query_dict)
 
     @staticmethod
