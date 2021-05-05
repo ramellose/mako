@@ -498,10 +498,11 @@ class IoDriver(ParentDriver):
                     single_query[property] = node[property]
             node_query_dict.append(single_query)
         with self._driver.session() as session:
-                # each dictionary value is another dictionary
-                # this dictionary contains the target and weight
-                session.write_transaction(self._create_property,
-                                          node_query_dict, sourcetype=label)
+            session.write_transaction(self._create_property,
+                                      node_query_dict, sourcetype=label)
+        with self._driver.session() as session:
+            session.write_transaction(self._connect_property,
+                                      node_query_dict, sourcetype=label)
 
     @staticmethod
     def _create_network(tx, network, exp_id=None, log=None):
@@ -819,17 +820,42 @@ class IoDriver(ParentDriver):
         for name in finding_nodes:
             # only checking node name; should be unique in database!
             found_nodes[name['p']['name']] = True
-            if name['count(p)'] > 1:
-                logger.warning("Duplicated node name in database! \n")
         return found_nodes
 
     @staticmethod
     def _create_property(tx, query_dict, sourcetype=''):
         """
-        Creates target node if it does not exist yet
-        and adds the relationship between target and source.
+        Creates target node if it does not exist yet.
+
+        If properties are strings, a new intermediate node is created;
+        this is useful for classes such as metabolites.
+
+        :param tx: Neo4j transaction
+        :param query_dict: Dictionary of values to include as nodes
+        :param sourcetype: Label of node to connect to
+        :return:
+        """
+        property_targets = [x['target'] for x in query_dict]
+        if all(isinstance(x, str) for x in property_targets):
+            name = query_dict[0]['name']
+            logger.info("Uploading metadata as separate nodes since all are strings.\n")
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MERGE (a:" + name + \
+                    " {name:record.target }) RETURN a"
+            tx.run(query, batch=query_dict)
+        else:
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MERGE (a:Property {name:record.name}) RETURN a"
+            tx.run(query, batch=query_dict)
+
+    @staticmethod
+    def _connect_property(tx, query_dict, sourcetype=''):
+        """
+        Adds the relationship between target and source.
         If the dictionary contains new properties,
-        these are added as extra properties on the new target node.
+        these are added as extra properties on the new relationship.
 
         If properties are strings, a new intermediate node is created;
         this is useful for classes such as metabolites.
@@ -844,12 +870,6 @@ class IoDriver(ParentDriver):
             sourcetype = ':' + sourcetype
         if all(isinstance(x, str) for x in property_targets):
             name = query_dict[0]['name']
-            logger.info("Uploading metadata as separate nodes since all are strings.\n")
-            query = "WITH $batch as batch " \
-                    "UNWIND batch as record " \
-                    "MERGE (a:" + name + \
-                    " {name:record.target }) RETURN a"
-            tx.run(query, batch=query_dict)
             property_names = [x for x in query_dict[0].keys()
                               if x not in ['source',
                                            'sourcetype',
@@ -869,14 +889,10 @@ class IoDriver(ParentDriver):
                     " {name:record.source}), " \
                     "(b:" + name + \
                     " {name: record.target}) " \
-                    "CREATE (a)-[r:QUALITY_OF" + property_query +\
+                    "MERGE (a)-[r:QUALITY_OF" + property_query +\
                     "]->(b) RETURN r"
             tx.run(query, batch=query_dict)
         else:
-            query = "WITH $batch as batch " \
-                    "UNWIND batch as record " \
-                    "MERGE (a:Property {name:record.name}) RETURN a"
-            tx.run(query, batch=query_dict)
             query = "WITH $batch as batch " \
                     "UNWIND batch as record " \
                     "MATCH (a" + sourcetype + \
