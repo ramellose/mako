@@ -838,31 +838,59 @@ class IoDriver(ParentDriver):
         and adds the relationship between target and source.
         If the dictionary contains new properties,
         these are added as extra properties on the new target node.
+
+        If properties are strings, a new intermediate node is created;
+        this is useful for classes such as metabolites.
+
         :param tx: Neo4j transaction
         :param query_dict: Dictionary of values to include as nodes
         :param sourcetype: Label of node to connect to
         :return:
         """
-        query = "WITH $batch as batch " \
-                "UNWIND batch as record " \
-                "MERGE (a:Property {name:record.name"
-        property_names = [x for x in query_dict[0].keys()
-                          if x not in ['source',
-                                       'sourcetype',
-                                       'target',
-                                       'name']]
-        for val in property_names:
-            query += ", " + val + ": record." + val
-        query += "}) RETURN a"
-        tx.run(query, batch=query_dict)
+        property_targets = [x['target'] for x in query_dict]
         if len(sourcetype) > 0:
             sourcetype = ':' + sourcetype
-        query = "WITH $batch as batch " \
-                "UNWIND batch as record " \
-                "MATCH (a" + sourcetype + " {name:record.source}), " \
-                "(b:Property {name: record.name}) " \
-                "CREATE (a)-[r:QUALITY_OF {value: record.target}]->(b) RETURN r"
-        tx.run(query, batch=query_dict)
+        if all(isinstance(x, str) for x in property_targets):
+            name = query_dict[0]['name']
+            logger.info("Uploading metadata as separate nodes since all are strings.\n")
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MERGE (a:" + name + \
+                    " {name:record.target }) RETURN a"
+            tx.run(query, bach=query_dict)
+            property_names = [x for x in query_dict[0].keys()
+                              if x not in ['source',
+                                           'sourcetype',
+                                           'target',
+                                           'name']]
+            property_query = ''
+            if len(property_names) > 0:
+                subqueries = []
+                for prop in property_names:
+                    subqueries.append(prop + ": record." + prop)
+                property_query = (", ").join(subqueries)
+                property_query = ' {' + property_query
+                property_query += '}'
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MATCH (a" + sourcetype + \
+                    " {name:record.source}), " \
+                    "(b:" + name + \
+                    " {name: record.target}) " \
+                    "CREATE (a)-[r:QUALITY_OF" + property_query +\
+                    "]->(b) RETURN r"
+        else:
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MERGE (a:Property {name:record.name}) RETURN a"
+            tx.run(query, batch=query_dict)
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MATCH (a" + sourcetype + \
+                    " {name:record.source}), " \
+                    "(b:Property {name: record.name}) " \
+                    "CREATE (a)-[r:QUALITY_OF {value: record.target}]->(b) RETURN r"
+            tx.run(query, batch=query_dict)
 
     @staticmethod
     def _get_fasta(tx):
