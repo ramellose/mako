@@ -580,7 +580,7 @@ class Biom2Neo(ParentDriver):
         taxonomy_table_i = taxonomy_table.iloc[:, [i, i - 1]].drop_duplicates()
         for index, row in taxonomy_table_i.iterrows():
             # filters out empty assignments with just prefix
-            if row[0]:
+            if row[0] and not pd.isna(row[0]):
                 if len(row[0]) > 4:
                     taxonomy_query_dict.append({'label1': row[0], 'label2': row[1]})
         return taxonomy_query_dict
@@ -597,7 +597,7 @@ class Biom2Neo(ParentDriver):
         for taxon in biomfile.ids(axis='observation'):
             tax_index = biomfile.index(axis='observation', id=taxon)
             tax_labels = biomfile.metadata(axis='observation')[tax_index]['taxonomy']
-            if tax_labels[i]:
+            if tax_labels[i] and not pd.isna(tax_labels[i]):
                 if len(tax_labels[i]) > 4:
                     taxonomy_query_dict.append({'taxon': taxon, 'level': tax_labels[i]})
         return taxonomy_query_dict
@@ -614,7 +614,7 @@ class Biom2Neo(ParentDriver):
         for j in range(len(taxonomy_table.index)):
             tax_name = list(taxonomy_table.index)[j]
             tax_label = taxonomy_table.iloc[j][i]
-            if tax_label:
+            if tax_label and not pd.isna(tax_label):
                 if len(tax_label) > 4:
                     taxonomy_query_dict.append({'taxon': tax_name, 'level': tax_label})
         return taxonomy_query_dict
