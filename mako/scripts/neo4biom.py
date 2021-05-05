@@ -106,7 +106,7 @@ def start_biom(inputs):
                 name, taxtab = read_taxonomy(filename=x, filepath=inputs['fp'])
                 driver.convert_taxonomy(taxonomy_table=taxtab, exp_id=name)
         except Exception:
-            logger.warning("Failed to combine input files.", exc_info=True)
+            logger.warning("Failed to upload taxonomy table.", exc_info=True)
     if inputs['delete']:
         for name in inputs['delete']:
             driver.delete_biom(name)
@@ -562,7 +562,7 @@ class Biom2Neo(ParentDriver):
         taxonomy_query_dict = list()
         for val in taxonomy_table_i:
             # filters out empty assignments with just prefix or None
-            if val:
+            if val and not pd.isna(val):
                 if len(val) > 4:
                     taxonomy_query_dict.append({'label': val})
         return taxonomy_query_dict
