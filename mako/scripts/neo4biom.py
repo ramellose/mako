@@ -124,7 +124,7 @@ def check_arguments(inputs):
     """
     if inputs['biom_file'] is not None:
         logger.info('BIOM file(s) to process: ' + ", \n".join(inputs['biom_file']))
-    if inputs['biom_file'] is not None:
+    if inputs['qza'] is not None:
         logger.info('Qiime 2 archive file(s) to process: ' + ", \n".join(inputs['qza']))
     if inputs['count_table'] is not None:
         logger.info('Tab-delimited OTU table(s) to process: \n' + ", \n".join(inputs['count_table']))
