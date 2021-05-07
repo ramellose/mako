@@ -243,7 +243,7 @@ class BaseDriver(ParentDriver):
                 query += " RETURN count(n) as count"
             count = self.query(query)
             if count[0]['count'] != 0:
-                logger.error("Relationship " + prop + " is connected to the wrong nodes!")
+                logger.error("Relationship " + prop + " is connected to nodes not specified in database schema!")
                 error = True
         if not error:
             logger.info("No forbidden relationship connections.")
@@ -267,32 +267,6 @@ class BaseDriver(ParentDriver):
             with self._driver.session() as session:
                 output = session.write_transaction(self._query, constraint_name)
                 output = session.write_transaction(self._query, constraint_id)
-
-    def check_only(self):
-        """
-        This function uses the Neo4j driver and the ontology to check whether there
-        are properties in the database that violate the 'only' axiom.
-
-        :param neo4jdriver: A database driver as instantiated by base.py.
-        :return: Success message or log of ontology violations
-        """
-        pass
-        # error = False
-        # for prop in properties:
-        # rel = prop.label[0]
-        # if len(neighbours) > 0:
-        #    query = "MATCH (n)-[r:" + rel + "] WHERE NOT "
-        #    for i in range(len(neighbours)):
-        #        if i != 0:
-        #            query += (" AND NOT ")
-        #        query += ("n:" + neighbours[i])
-        #    query += (" RETURN count(n) as count")
-        # count = neo4jdriver.query(query)
-        # if count:
-        #    logger.error("Relationship " + rel + " is connected to the wrong nodes!")
-        #    error = True
-        # if not error:
-        # logger.info("No forbidden relationship connections.")
 
     @staticmethod
     def _delete_all(tx):
