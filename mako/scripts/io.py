@@ -715,7 +715,7 @@ class IoDriver(ParentDriver):
         :param tx: Neo4j transaction
         :return: Dictionary with only keys
         """
-        nodes = tx.run("MATCH (n)--(m:Property) WHERE n:Taxon RETURN m").data()
+        nodes = tx.run("MATCH (n:Taxon)--(m:Property) RETURN m").data()
         nodes = [{'name': x} for x in _get_unique(nodes, 'm')]
         properties = dict()
         query = "WITH $batch as batch " \
@@ -725,6 +725,10 @@ class IoDriver(ParentDriver):
         properties_data = tx.run(query, batch=nodes).data()
         for prop in properties_data:
             properties[prop['a']['name']] = dict()
+        nodes = tx.run("MATCH (n:Taxon)-[:QUALITY_OF]-(m) RETURN distinct labels(m), m").data()
+        for prop in nodes:
+            if prop['labels(m)'][0] != 'Property':
+                properties[prop['labels(m)'][0]] = dict()
         return properties
 
     @staticmethod
@@ -737,7 +741,7 @@ class IoDriver(ParentDriver):
         :return: Dictionary of dictionary of taxon properties
         """
         for property in tax_property_dict:
-            tax_property_dict[property]
+            # Property nodes
             query = "WITH $batch as batch " \
                     "UNWIND batch as record " \
                     "MATCH p=(a:Taxon {name: record.name})" \
@@ -747,6 +751,17 @@ class IoDriver(ParentDriver):
             for result in query_results:
                 tax = result['a']['name']
                 rel = result['r.value']
+                tax_property_dict[property][tax] = rel
+            # Nodes with other labels
+            query = "WITH $batch as batch " \
+                    "UNWIND batch as record " \
+                    "MATCH p=(a:Taxon {name: record.name})" \
+                    "-[r]-(b:" + property + ") " \
+                    "RETURN a, b.name"
+            query_results = tx.run(query, batch=nodes).data()
+            for result in query_results:
+                tax = result['a']['name']
+                rel = result['b.name']
                 tax_property_dict[property][tax] = rel
         return tax_property_dict
 
