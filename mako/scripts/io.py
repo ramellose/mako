@@ -648,31 +648,34 @@ class IoDriver(ParentDriver):
                 "UNWIND batch as record " \
                 "MATCH (a:Taxon {name: record.taxon1}), " \
                 "(b:Taxon {name: record.taxon2}) " \
-                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {weight: record.weight})-[:PARTICIPATES_IN]->(b) " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {sign: sign(record.weight)})-[:PARTICIPATES_IN]->(b) " \
                 "SET e.name = record.uuid " \
+                "SET e.weight = record.weight " \
                 "RETURN e"
         tx.run(query, batch=tt)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Property {name: record.taxon1}), " \
                 "(b:Taxon {name: record.taxon2}) " \
-                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {weight: record.weight})-[:PARTICIPATES_IN]->(b) " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {sign: record.sign})-[:PARTICIPATES_IN]->(b) " \
                 "SET e.name = record.uuid " \
+                "SET e.weight = record.weight " \
                 "RETURN e"
         tx.run(query, batch=tm)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Property {name: record.taxon1}), " \
                 "(b:Property {name: record.taxon2}) " \
-                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {weight: record.weight})-[:PARTICIPATES_IN]->(b) " \
+                "MERGE p=(a)<-[:PARTICIPATES_IN]-(e:Edge {sign: record.sign})-[:PARTICIPATES_IN]->(b) " \
                 "SET e.name = record.uuid " \
+                "SET e.weight = record.weight " \
                 "RETURN e"
         tx.run(query, batch=mm)
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
                 "MATCH (a:Edge {name: record.uuid}), " \
                 "(b:Network {name: record.network}) " \
-                "MERGE p=(a)<-[r:PART_OF]->(b) " \
+                "MERGE p=(a)-[r:PART_OF {weight: record.weight}]->(b) " \
                 "RETURN r"
         tx.run(query, batch=tt)
         tx.run(query, batch=tm)

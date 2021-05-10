@@ -192,11 +192,11 @@ class MetastatsDriver(ParentDriver):
             session.write_transaction(self._copy_network, new=new_network)
         with self._driver.session() as session:
             session.write_transaction(self._connect_network, new=new_network, source=source_network)
-        edges = self.query("MATCH (a:Edge)--(:Network {name: '" + source_network +
+        edges = self.query("MATCH (a:Edge)-[r]-(:Network {name: '" + source_network +
                            "'}) RETURN a")
         edge_weights = dict()
         for edge in edges:
-            edge_weights[edge['a']['name']] = edge['a']['weight']
+            edge_weights[edge['a']['name']] = edge['r']['weight']
         # Create dictionary with edges to write as batch query
         edge_names = [{'name': x['a']['name'], 'source': source_network,
                        'new': new_network, 'uid': str(uuid4())} for x in edges]
@@ -412,7 +412,7 @@ class MetastatsDriver(ParentDriver):
         if weight:
             result = tx.run(("MATCH (a:Edge)-[]-(:Network {name: '" + network +
                              "'})-[]-(b:Edge) WHERE (a.name <> b.name) "
-                             "AND (a.weight = b.weight) "
+                             "AND a.sign = b.sign "
                              "WITH a, b "
                              "MATCH p=(a:Edge)--()--(x:" + level +
                              ")--()--(b:Edge)--()--(y:" + level +
@@ -552,8 +552,8 @@ class MetastatsDriver(ParentDriver):
                 edge_weight = tx.run(("MATCH (a:Taxon)--(b:Edge)-[r]-(:Network {name: '" + network +
                                       "'}) WHERE a.name = '" + node +
                                       "' AND b.name = '" + assoc +
-                                      "' RETURN b.weight")).data()
-                weights.append(edge_weight[0]['b.weight'])
+                                      "' RETURN r.weight")).data()
+                weights.append(edge_weight[0]['r.weight'])
         while len(targets) > 1:
             item = targets[0]
             # write function for finding edges that have both matching
@@ -716,7 +716,7 @@ class MetastatsDriver(ParentDriver):
         """
         query = "WITH $batch as batch " \
                 "UNWIND batch as record " \
-                "CREATE (a: Edge {name: record.uid, weight: record.weight}) " \
+                "CREATE (a: Edge {name: record.uid, weight: record.weight, sign: sign(record.weight)}) " \
                 "RETURN a"
         tx.run(query, batch=edges).data()
         query = "WITH $batch as batch " \
