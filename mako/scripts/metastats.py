@@ -193,10 +193,10 @@ class MetastatsDriver(ParentDriver):
         with self._driver.session() as session:
             session.write_transaction(self._connect_network, new=new_network, source=source_network)
         edges = self.query("MATCH (a:Edge)-[r]-(:Network {name: '" + source_network +
-                           "'}) RETURN a")
+                           "'}) RETURN a, r.weight")
         edge_weights = dict()
         for edge in edges:
-            edge_weights[edge['a']['name']] = edge['r']['weight']
+            edge_weights[edge['a']['name']] = edge['r.weight']
         # Create dictionary with edges to write as batch query
         edge_names = [{'name': x['a']['name'], 'source': source_network,
                        'new': new_network, 'uid': str(uuid4())} for x in edges]
