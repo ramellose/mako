@@ -1,5 +1,5 @@
 {% set data = load_setup_py_data() %}
-{% set version = "1.2.0" %}
+{% set version = "1.2.1" %}
 
 package:
   name: mako

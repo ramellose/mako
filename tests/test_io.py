@@ -117,7 +117,7 @@ ae", "g__Escherichia", "s__"]}}
 
 testbiom = biom.parse.parse_biom_table(testraw)
 testdict = dict.fromkeys(testbiom._observation_ids)
-testdict = {x: {'target': 'banana', 'weight': 1} for x in testdict}
+testdict = [{'source': x, 'target': 'banana', 'weight': 1} for x in testdict]
 
 # make toy network
 g = nx.Graph()
@@ -142,7 +142,7 @@ class TestIo(unittest.TestCase):
         time.sleep(20)
         nx.write_graphml(g, _resource_path('test.graphml'))
         data = pd.DataFrame()
-        data['Taxon'] = testdict.keys()
+        data['Taxon'] = [x['source'] for x in testdict]
         data['Fruit'] = 'banana'
         data.to_csv(_resource_path('test.tsv'), sep='\t', index=False)
 
@@ -291,7 +291,7 @@ class TestIo(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
         start_io(inputs)
-        test = driver.query("MATCH (:Taxon)-[r]-(:Property {name: 'Fruit'}) RETURN count(r) as count")
+        test = driver.query("MATCH (:Taxon)-[r]-(:Fruit) RETURN count(r) as count")
         driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 5)
 
@@ -324,7 +324,7 @@ class TestIo(unittest.TestCase):
                           encrypted=False)
         driver.convert_networkx(network=g, network_id='test')
         driver.include_nodes(nodes=testdict, name='Fruit', label='Taxon')
-        test = driver.query("MATCH (:Taxon)-[r]-(:Property {name: 'Fruit'}) RETURN count(r) as count")
+        test = driver.query("MATCH (:Taxon)-[r]-(:Fruit) RETURN count(r) as count")
         driver.write("MATCH (n) DETACH DELETE n")
         self.assertEqual(test[0]['count'], 5)
 
