@@ -22,8 +22,10 @@ This version is still in early alpha and has been tested for Python 3.6.
 ## Getting Started
 
 You can use conda to install mako. 
-First add the channel hosting mako and its dependencies: 
+First add the channel hosting mako as well as the bioconda channels: 
 ```
+conda config --add channels bioconda
+conda config --add channels conda-forge
 conda config --add channels ramellose
 ```
 
