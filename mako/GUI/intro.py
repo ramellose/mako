@@ -51,7 +51,7 @@ class IntroPanel(wx.Panel):
 
     # write documentation in PDF and link
     def link_docs(self, event):
-        url = "https://github.com/ramellose/mako/raw/master/docs/Neo4j_for_biologists.pdf"
+        url = "https://ramellose.github.io/mako_docs/quickstart/guide/"
         webbrowser.open(url)
 
 
@@ -63,5 +63,5 @@ Currently, the following features are available:
 <li>Taxonomy-dependent edge agglomeration</li>
 </ul>
 <p>Welcome to mako! Contact the author at lisa.rottjers (at) kuleuven.be, <br />or visit the <a href="https://github.com/ramellose/">repository</a>. Your feedback is much appreciated!</p>
-<p>Currently, you are using mako 0.1.0. This version is still in early alpha. Encountering bugs is highly likely!</p>
+<p>Currently, you are using mako 1.2.3.</p>
 """
