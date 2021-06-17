@@ -936,8 +936,10 @@ class Biom2Neo(ParentDriver):
         """
         constraints = tx.run("CALL db.indexes() YIELD labelsOrTypes, properties "
                              "RETURN labelsOrTypes, properties").data()
-        constraint_tuples = [(x['labelsOrTypes'][0],
-                              x['properties'][0]) for x in constraints]
+        constraint_tuples = list()
+        if len(constraints) > 0:
+            constraint_tuples = [(x['labelsOrTypes'][0],
+                                  x['properties'][0]) for x in constraints]
         if ('Property', 'name') in constraint_tuples:
             tx.run("DROP INDEX on :Property(name)")
         if ('Specimen', 'name') in constraint_tuples:
