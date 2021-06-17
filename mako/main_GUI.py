@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
 """
-This interface covers all of massoc's main features.
+This interface covers all of mako's main features.
 It allows users to select appropriate settings and export these as the appropriate command line call.
 Moreover, it incorporates checks to make sure supplied files are correct.
 By visualizing input and output, it provides interactive feedback to users that helps them in their
 decision-making process.
-To do: write a safe close button that also terminates R script processes.
-Right now, the R scripts keep running even if you quit running massoc.
 """
 
 __author__ = 'Lisa Rottjers'
@@ -52,7 +50,7 @@ general_settings = {'address': 'bolt://localhost:7687',
 class BuildFrame(wx.Frame):
     """Constructor"""
     def __init__(self):
-        wx.Frame.__init__(self, None, title='massoc', size=(800, 700))
+        wx.Frame.__init__(self, None, title='mako', size=(800, 700))
 
         ico = wx.Icon(_resource_path("mako.png"), wx.BITMAP_TYPE_PNG)
         self.SetIcon(ico)
