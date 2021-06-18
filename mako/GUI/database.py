@@ -12,7 +12,7 @@ import wx
 import wx.lib.newevent as NE
 from pubsub import pub
 from mako.scripts.base import start_base
-from mako.scripts.utils import _resource_path, query
+from mako.scripts.utils import _resource_path, query, write_query
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
 
@@ -309,7 +309,7 @@ class BasePanel(wx.Panel):
         """
         self.logbox.AppendText("Starting operation...\n")
         eg = ThreadPoolExecutor()
-        worker = eg.submit(query, self.settings, 'MATCH (n) DETACH DELETE n')
+        worker = eg.submit(write_query, self.settings, 'MATCH (n) DETACH DELETE n')
         result = worker.result()
         self.logbox.AppendText("Cleared database.\n")
         self.settings['clear'] = False

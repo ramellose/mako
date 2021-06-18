@@ -148,6 +148,26 @@ def query(args, query):
     return result
 
 
+def write_query(args, query):
+    """
+    Exports Neo4j query as logger info.
+
+    :param args: User-supplied arguments as dict
+    :param query: Cypher query as string
+    :param result: Empty result query
+    :return: None
+    """
+    driver = ParentDriver(uri=args['address'],
+                          user=args['username'],
+                          password=args['password'],
+                          filepath=_resource_path(''),
+                          encrypted=args['encryption'])
+    result = driver.write(query)
+    logger.info(result)
+    driver.close()
+    return result
+
+
 def _get_path(path, default):
     """
     If given a path that is not a directory,

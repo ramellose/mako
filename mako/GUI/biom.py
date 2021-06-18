@@ -36,8 +36,10 @@ class BiomPanel(wx.Panel):
 
         self.settings = {'biom_file': [],
                          'fp': _resource_path(''),
+                         'qza': None,
                          'count_table': None,
                          'tax_table': None,
+                         'obs': True,
                          'sample_meta': None,
                          'taxon_meta': None,
                          'username': 'neo4j',
