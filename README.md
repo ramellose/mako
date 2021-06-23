@@ -62,7 +62,7 @@ This software is still in early alpha. Any feedback or bug reports will be much 
 
 ## Authors
 
-* **Lisa Röttjers** - [ramellose](https://github.com/ramellose)
+* **Sam Röttjers** - [ramellose](https://github.com/ramellose)
 
 See also the list of [contributors](https://github.com/ramellose/mako/contributors) who participated in this project.
 
