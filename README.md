@@ -17,7 +17,7 @@ network files and other microbiome-related files to be ported to the database.
 For more instructions on how to use mako and Neo4j, please take a look at the homepage: [https://ramellose.github.io/mako_docs/](https://ramellose.github.io/mako_docs/).
 
 Contact the author at lisa.rottjers (at) kuleuven.be. Your feedback is much appreciated!
-This version is still in early alpha and has been tested for Python 3.6.
+This version is still in early alpha and has been tested for Python 3.6 and 3.8 on Ubuntu, OSX and Windows 10 systems. 
 
 ## Getting Started
 
